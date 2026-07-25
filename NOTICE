@@ -1,0 +1,64 @@
+33-sentiment-roberta
+Copyright 2026 Armando Gonzalez
+
+This product includes software and derives from work developed by third parties.
+
+--------------------------------------------------------------------------------
+Origin of this work
+--------------------------------------------------------------------------------
+
+This repository was built from the author's own notebook, published on Kaggle as
+"Sentiment Analysis using RoBERTa" under the Apache License 2.0:
+
+    https://www.kaggle.com/code/armandogon94/sentiment-analysis-using-roberta
+
+The original notebook is preserved unmodified at
+notebooks/sentiment_analysis_roberta_ORIGINAL.ipynb. This repository is licensed
+Apache-2.0 to remain consistent with that prior release.
+
+--------------------------------------------------------------------------------
+Dataset — Amazon Review Polarity
+--------------------------------------------------------------------------------
+
+Distributed as fancyzhx/amazon_polarity on the Hugging Face Hub under the
+Apache License 2.0. Not redistributed by this repository; fetched at runtime by
+scripts/download_data.py.
+
+    https://huggingface.co/datasets/fancyzhx/amazon_polarity
+
+Constructed by Xiang Zhang for:
+
+    Xiang Zhang, Junbo Zhao, Yann LeCun.
+    "Character-level Convolutional Networks for Text Classification."
+    Advances in Neural Information Processing Systems 28 (NIPS 2015).
+
+Derived from the Amazon review corpus of:
+
+    Julian McAuley, Jure Leskovec.
+    "Hidden factors and hidden topics: understanding rating dimensions with
+    review text."
+    Proceedings of the 7th ACM Conference on Recommender Systems, 2013,
+    pp. 165-172.
+
+--------------------------------------------------------------------------------
+Pretrained model — roberta-base
+--------------------------------------------------------------------------------
+
+Weights distributed on the Hugging Face Hub under the MIT License. Not
+redistributed by this repository; fetched at runtime by the transformers library.
+
+    https://huggingface.co/roberta-base
+
+    Yinhan Liu, Myle Ott, Naman Goyal, Jingfei Du, Mandar Joshi, Danqi Chen,
+    Omer Levy, Mike Lewis, Luke Zettlemoyer, Veselin Stoyanov.
+    "RoBERTa: A Robustly Optimized BERT Pretraining Approach." 2019.
+    arXiv:1907.11692
+
+--------------------------------------------------------------------------------
+Libraries
+--------------------------------------------------------------------------------
+
+Dependencies are declared in pyproject.toml and are not vendored. Their licences
+apply as published by their respective authors, notably: PyTorch (BSD-3-Clause),
+transformers (Apache-2.0), scikit-learn (BSD-3-Clause), pandas (BSD-3-Clause),
+NLTK (Apache-2.0), statsmodels (BSD-3-Clause), matplotlib (PSF-based).

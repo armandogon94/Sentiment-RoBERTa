@@ -1,0 +1,67 @@
+# ── Agent runtime — never commit ──────────────────────────────────────────────
+.claude/
+docs/AGENT-BRIEF.md
+
+# ── Data — gitignored except the committed 1k sample ──────────────────────────
+data/*
+!data/README.md
+!data/sample/
+!data/sample/*.csv
+*.tar.gz
+*.parquet
+!data/sample/*.parquet
+
+# ── Run artifacts — auto-incrementing, never overwritten, never committed ─────
+runs/
+mlruns/
+*.ckpt
+*.pt
+*.pth
+*.pkl
+*.joblib
+*.safetensors
+
+# ── Model / tokenizer caches ─────────────────────────────────────────────────
+.cache/
+hf_cache/
+nltk_data/
+transformers_cache/
+
+# ── Python ───────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+.venv/
+venv/
+env/
+
+# ── Tooling ──────────────────────────────────────────────────────────────────
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+.ipynb_checkpoints/
+
+# ── Local secrets / env ──────────────────────────────────────────────────────
+.env
+.env.local
+kaggle.json
+ops/ports.local.md
+
+# ── OS / editor ──────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*~
+*.bak
