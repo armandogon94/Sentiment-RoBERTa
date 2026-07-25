@@ -80,12 +80,10 @@ uv run python scripts/export_figures.py -i runs/latest -o "$WORK/figs" --skip-mo
 uv run python evaluate.py -i runs/latest -o "$WORK/RESULTS.md" >/dev/null
 grep -q "McNemar" "$WORK/RESULTS.md" || { echo "FAIL: generated report has no significance test"; exit 1; }
 
-echo "==> Asserting no blocking plt.show() outside an explicit --show gate"
-# `git ls-files` rather than `grep -r`: the clone has a .venv by this point (uv sync ran above)
-# and scipy/pandas docstrings are full of `>>> plt.show()`. Only OUR tracked sources are in scope.
-if git ls-files '*.py' | xargs grep -n 'plt\.show()' | grep -v 'args.show\|if show'; then
-  echo "FAIL: unguarded plt.show()"; exit 1
-fi
+echo '==> Asserting no blocking plt.show() outside an explicit --show gate'
+# One implementation of the rule, shared with CI and with the test suite. A grep here cannot
+# tell a call from a docstring, and both this repo and scipy discuss plt.show() in prose.
+python3 scripts/check_no_blocking_show.py
 
 echo "==> Lint + types as documented"
 uv run ruff check .

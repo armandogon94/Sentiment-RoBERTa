@@ -98,11 +98,9 @@ jobs:
           PY
 
       - name: No unguarded plt.show()
-        run: |
-          # Only tracked sources: third-party docstrings are full of `>>> plt.show()`.
-          if git ls-files '*.py' | xargs grep -n 'plt\.show()' | grep -v 'args.show\|if show'; then
-            echo "unguarded plt.show()"; exit 1
-          fi
+        # stdlib only, so this job needs no dependency install. Same checker the fresh-clone
+        # verifier and tests/test_utils.py use — one implementation of the rule, not three greps.
+        run: python3 scripts/check_no_blocking_show.py
 
       - name: Every README number must trace to a committed report
         run: |

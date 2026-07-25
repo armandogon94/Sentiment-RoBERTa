@@ -112,34 +112,15 @@ def test_save_figure_writes_to_every_directory_and_returns_the_paths(tmp_path: P
 def test_no_unguarded_plt_show_in_the_tree(repo_root: Path):
     """D7, enforced rather than remembered.
 
-    Parsed with ``ast`` rather than grepped, so a mention of ``plt.show()`` in a docstring
-    (this repo has several, explaining why it is banned) is not mistaken for a call. Every
-    real call must sit inside an ``if`` whose condition mentions ``show`` — the explicit
-    ``--show`` flag on the figure script.
+    Delegates to ``scripts/check_no_blocking_show.py`` so the rule has exactly one
+    implementation, shared with the CI ``docs-drift`` job and the fresh-clone verifier. The
+    checker parses with ``ast`` rather than grepping, because this repo's own docstrings discuss
+    ``plt.show()`` at length — precisely because it is banned — and a regex cannot tell prose
+    from a call.
     """
-    import ast
+    import scripts.check_no_blocking_show as checker
 
-    offenders: list[str] = []
-    for path in sorted(repo_root.rglob("*.py")):
-        if any(part in {".venv", "runs", "__pycache__", "node_modules"} for part in path.parts):
-            continue
-        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-        guarded: set[int] = set()
-        for node in ast.walk(tree):
-            if isinstance(node, ast.If) and "show" in ast.dump(node.test):
-                for child in ast.walk(node):
-                    if hasattr(child, "lineno"):
-                        guarded.add(child.lineno)
-        for node in ast.walk(tree):
-            if (
-                isinstance(node, ast.Call)
-                and isinstance(node.func, ast.Attribute)
-                and node.func.attr == "show"
-                and getattr(node.func.value, "id", "") == "plt"
-                and node.lineno not in guarded
-            ):
-                offenders.append(f"{path.relative_to(repo_root)}:{node.lineno}")
-    assert not offenders, f"unguarded plt.show(): {offenders}"
+    assert checker.main() == 0
 
 
 def test_palette_is_colourblind_safe_okabe_ito():
