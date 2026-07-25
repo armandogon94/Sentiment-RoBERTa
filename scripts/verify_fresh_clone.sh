@@ -29,6 +29,24 @@ if git ls-files | grep -iqE 'AGENT-BRIEF|CLAUDE\.md|AGENTS\.md|^PLAN\.md|\.claud
   echo "FAIL: agent scaffolding is tracked"; git ls-files | grep -iE 'AGENT-BRIEF|CLAUDE\.md|AGENTS\.md|^PLAN\.md|\.claude/'; exit 1
 fi
 
+# These two checks read ONLY committed state, so they run before anything is generated: a
+# generator that overwrites a committed artifact must not be able to mask an orphan number.
+echo "==> Asserting every README structure-tree path exists"
+missing=0
+while read -r p; do
+  [ -e "$p" ] || { echo "    MISSING: $p"; missing=1; }
+done < <(grep -oE '^(│|├|└|  )*[├└]── [A-Za-z0-9_./-]+' README.md | sed -E 's/.*── //')
+[ "$missing" -eq 0 ] || { echo "FAIL: README structure tree does not match reality"; exit 1; }
+
+echo "==> Asserting no README number is orphaned from a measured run"
+# Every 0.xxxx in the README must appear in a committed reports/ artifact. The run dirs are
+# gitignored, so reports/RESULTS.md is the committed evidence chain.
+orphans=0
+while read -r n; do
+  grep -qr -- "$n" reports/ docs/PROGRESS.md 2>/dev/null || { echo "    ORPHAN: $n"; orphans=1; }
+done < <(grep -oE '\b0\.[0-9]{3,4}\b' README.md | sort -u)
+[ "$orphans" -eq 0 ] || { echo "FAIL: README contains a number with no measured source"; exit 1; }
+
 echo "==> Running the documented quickstart, verbatim from the README"
 uv sync
 uv run pytest -q tests/test_smoke.py          # runs on the COMMITTED data/sample/
@@ -53,26 +71,14 @@ echo "==> Asserting the committed figures are present"
 ls docs/images/*.png >/dev/null || { echo "FAIL: no committed figures"; exit 1; }
 echo "    $(ls docs/images/*.png | wc -l | tr -d ' ') PNGs committed"
 
-echo "==> Asserting `make figures` and `make report` run against a fresh run"
+# NOTE: no backticks in these echo strings. Inside double quotes bash treats them as
+# command substitution — an earlier version of this line silently ran `make figures` and
+# `make report`, which overwrote the committed reports/RESULTS.md inside the clone with the
+# smoke run's output and made every real number in the README look orphaned.
+echo '==> Asserting the figure and report generators run against a fresh run'
 uv run python scripts/export_figures.py -i runs/latest -o "$WORK/figs" --skip-model-figures >/dev/null
 uv run python evaluate.py -i runs/latest -o "$WORK/RESULTS.md" >/dev/null
 grep -q "McNemar" "$WORK/RESULTS.md" || { echo "FAIL: generated report has no significance test"; exit 1; }
-
-echo "==> Asserting every README structure-tree path exists"
-missing=0
-while read -r p; do
-  [ -e "$p" ] || { echo "    MISSING: $p"; missing=1; }
-done < <(grep -oE '^(│|├|└|  )*[├└]── [A-Za-z0-9_./-]+' README.md | sed -E 's/.*── //')
-[ "$missing" -eq 0 ] || { echo "FAIL: README structure tree does not match reality"; exit 1; }
-
-echo "==> Asserting no README number is orphaned from a measured run"
-# Every 0.xxxx in the README must appear in a committed reports/ artifact. The run dirs are
-# gitignored, so reports/RESULTS.md is the committed evidence chain.
-orphans=0
-while read -r n; do
-  grep -qr -- "$n" reports/ docs/PROGRESS.md 2>/dev/null || { echo "    ORPHAN: $n"; orphans=1; }
-done < <(grep -oE '\b0\.[0-9]{3,4}\b' README.md | sort -u)
-[ "$orphans" -eq 0 ] || { echo "FAIL: README contains a number with no measured source"; exit 1; }
 
 echo "==> Asserting no blocking plt.show() outside an explicit --show gate"
 if grep -rn 'plt\.show()' --include='*.py' . | grep -v 'args.show\|if show'; then
