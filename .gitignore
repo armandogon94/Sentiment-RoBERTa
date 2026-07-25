@@ -65,3 +65,7 @@ Thumbs.db
 *.swp
 *~
 *.bak
+
+# Downloaded HF parquet shards (~377 MB) — data/README.md documents how to refetch
+data/raw/
+data/processed/
