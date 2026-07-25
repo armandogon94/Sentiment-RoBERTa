@@ -201,23 +201,29 @@ def figure_baseline_ablation(
     ax.set_yticks(y, labels=labels)
     ax.invert_yaxis()
     ax.set_xlabel("test accuracy (Wilson 95% CI)")
-    lo = min(lows) - 0.02
-    ax.set_xlim(max(0.0, lo), min(1.0, max(highs) + 0.02))
+    roberta = metrics["models"].get("roberta")
+    show_roberta = bool(roberta) and not roberta.get("random_weights", False)
+    # The transformer reference line is the point of comparison, so the x-range has to
+    # include it — otherwise the axvline is drawn off-chart and silently disappears.
+    right = max(highs) + 0.02
+    if show_roberta:
+        right = max(right, roberta["accuracy"] + 0.02)
+    ax.set_xlim(max(0.0, min(lows) - 0.02), min(1.0, right))
     ax.grid(visible=True, axis="x", alpha=0.25)
     ax.grid(visible=False, axis="y")
     for yi, a in zip(y, accs, strict=True):
         ax.text(a, float(yi), f"  {a:.4f}", va="center", fontsize=9)
 
-    roberta = metrics["models"].get("roberta")
-    if roberta and not roberta.get("random_weights", False):
-        ax.axvline(roberta["accuracy"], ls="--", lw=1.2, color="#111111")
+    if show_roberta:
+        ax.axvline(roberta["accuracy"], ls="--", lw=1.4, color="#111111")
         ax.annotate(
-            f"fine-tuned RoBERTa {roberta['accuracy']:.4f}",
-            xy=(roberta["accuracy"], len(labels) - 0.4),
-            xytext=(-4, 0),
+            f"fine-tuned RoBERTa\n{roberta['accuracy']:.4f}",
+            xy=(roberta["accuracy"], 0.0),
+            xytext=(-6, 0),
             textcoords="offset points",
             fontsize=8,
             ha="right",
+            va="center",
             color="#111111",
         )
 
