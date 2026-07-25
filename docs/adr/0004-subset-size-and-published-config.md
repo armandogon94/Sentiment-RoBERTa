@@ -11,9 +11,9 @@ The source notebook's configuration is 9,000 training rows / 1,000 test rows, `m
 A widespread misreading of that notebook is that it trains on 200,000 rows. It does not:
 
 ```python
-nrows = 200000                                                      # rows PARSED from the CSV
-df_train_sample = df_original_train.sample(9000, random_state=42)   # rows TRAINED on
-df_test_sample  = df_original_test.sample(1000,  random_state=42)   # rows TESTED on
+nrows = 200000  # rows PARSED from the CSV
+df_train_sample = df_original_train.sample(9000, random_state=42)  # rows TRAINED on
+df_test_sample = df_original_test.sample(1000, random_state=42)  # rows TESTED on
 ```
 
 200,000 is how much CSV was read into memory before sampling. The training set is 9,000 rows — about
