@@ -52,6 +52,19 @@ validation set, "5 epochs" is an unjustifiable constant: there is nothing to ear
 selecting an epoch by test accuracy would be leakage dressed up as model selection. The published run
 selects its epoch on validation loss and scores the test set exactly once.
 
+**What the 3-epoch run measured, and what it does not license us to say.** `runs/run_2/history.json`
+records training loss falling every epoch (`0.2240` → `0.1001` → `0.0620`) while validation loss
+bottomed at epoch 1 (`0.1238`) and rose at epoch 2 (`0.1793`); validation accuracy was `0.9456`,
+`0.9389`, `0.9456`. Rising validation loss against falling training loss is the signature of
+overfitting having begun by epoch 2, and it is the whole justification for selecting epoch 1.
+
+That is the limit of the claim. **Epochs 4 and 5 were never executed** — `cfg/default.yaml` and
+`cfg/full.yaml` are both marked NOT RUN below. Extrapolating from a 3-epoch curve to "the 5-epoch
+schedule would have overfit" is an unsupported counterfactual and is not asserted anywhere in this
+repo. If that claim is wanted, the run is
+`PYTHONHASHSEED=1337 uv run python train.py -c cfg/default.yaml` with `RUNTIME.WALL_CLOCK_CAP_MIN`
+raised past the projected 51–55 min.
+
 **Five configs are committed, and which ones were run is stated in each:**
 
 | Config | Scale | Run? | Why |

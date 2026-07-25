@@ -129,6 +129,7 @@ stated in NEXT ACTION.
 | 7 | `b475c85` | `notebooks/sentiment_analysis_roberta.ipynb` (executed), `scripts/check_notebooks.py`, `.pre-commit-config.yaml`, 4 new tests |
 | 10 | `cc3989f`, `2f95d8c`, `70d8098` | `scripts/verify_fresh_clone.sh`, `scripts/check_no_blocking_show.py`, `.github/workflows/ci.yml` |
 | 12 | uncommitted | Batch-3 code, tests, reports, README, provenance, ADR, config, and CI/Makefile corrections documented in the tracker above |
+| 13 | `PENDING_SHA` | `README.md`, `reports/RESULTS.md`, `docs/PROGRESS.md`, `docs/adr/0004-*.md` — retracted the epoch-count counterfactual (see §5 item 12) |
 
 ---
 
@@ -316,6 +317,20 @@ make figures PUBLISHED_RUN="$PUBLISHED_RUN" ABLATION_RUN="$ABLATION_RUN"
    together and every table row names its config. The splits are identical because both runs use the
    same seed and config, but this is guaranteed by determinism rather than by sharing one process.
 
+9. **RETRACTED CLAIM — "the notebook's 5-epoch schedule would have overfit."** This was asserted to
+   the owner twice as established fact. It was never measured. What `runs/run_2/history.json`
+   actually records is a **3-epoch** run (`cfg/small.yaml`, `EPOCHS: 3`) in which training loss fell
+   every epoch (`0.2240` → `0.1001` → `0.0620`) while validation loss bottomed at epoch 1 (`0.1238`)
+   and rose at epoch 2 (`0.1793`), with validation accuracy `0.9456` / `0.9389` / `0.9456`. That is
+   real evidence overfitting had begun by epoch 2, and it is the reason epoch 1 is the published
+   checkpoint. It is **not** evidence about epochs 4 and 5, which were never executed —
+   `cfg/default.yaml` (5 epochs, notebook scale) and `cfg/full.yaml` are both marked NOT RUN.
+   The counterfactual wording was removed from `README.md`, `reports/RESULTS.md`, this file and
+   `docs/adr/0004-subset-size-and-published-config.md`. **Lesson:** an epoch-2 inflection licenses a
+   selection decision, not a verdict on a schedule that was never run. To earn the stronger claim:
+   `PYTHONHASHSEED=1337 uv run python train.py -c cfg/default.yaml` with `RUNTIME.WALL_CLOCK_CAP_MIN`
+   raised past the projected 51–55 min.
+
 ---
 
 ## 6. Defect register (AGENT-BRIEF §2.3)
@@ -383,9 +398,11 @@ The published train and validation losses were computed as an unweighted mean of
 their recorded values are not per-example means. The bug is fixed for future runs; re-deriving the
 history would require retraining, so the values remain unchanged. Validation accuracy was correctly
 weighted and is unaffected: epoch 1 `0.9456`, epoch 2 `0.9389`, epoch 3 `0.9456`. Validation loss
-rose after epoch 1 and validation accuracy did not improve through epoch 3, so the notebook's fixed
-5-epoch schedule with no checkpoint selection had no support in this run's evidence. Epochs 4 and 5
-were never run. The epoch-1 test accuracy `0.9600` is untouched. Truncation at `max_len` 256:
+bottomed at epoch 1 (`0.1238`) and rose at epoch 2 (`0.1793`) while training loss kept falling
+(`0.2240` → `0.1001` → `0.0620`), and validation accuracy never improved on epoch 1 — that is the
+evidence epoch 1 was selected on. **Only 3 epochs were run**; the notebook's 5-epoch schedule
+(`cfg/default.yaml`) has NOT been run here and no claim is made about epochs 4 and 5 in either
+direction. The epoch-1 test accuracy `0.9600` is untouched. Truncation at `max_len` 256:
 **0.1%** of test reviews (1 of 1,000; median 92 tokens, p95 204, max 304).
 
 ### `cfg/small.yaml --baselines-only -p cfg/baseline_ablation.json` — `runs/run_3`

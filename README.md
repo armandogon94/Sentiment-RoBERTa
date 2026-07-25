@@ -56,10 +56,13 @@ forensic evidence that the notebook was run locally and uploaded unexecuted:
   [0.9460, 0.9705] against the control's
   `0.8480` [0.8244, 0.8689]. They disagree on 152 of 1,000 test examples; RoBERTa alone is right on
   132 of those and the control alone on 20. Exact McNemar **p = 1.98e-21**. `cfg/small.yaml`.
-- **The notebook's fixed 5-epoch schedule had no support in this run's evidence.** Recorded
-  validation loss bottomed at epoch 1 (`0.1238`) and rose at epoch 2 (`0.1793`), while correctly
-  computed validation accuracy was tied best at epochs 1 and 3 and worse at epoch 2. Epochs 4 and 5
-  were never run, so no counterfactual claim is made about them.
+- **Validation loss rose after epoch 1, which is why epoch 1 was selected.** In the measured
+  3-epoch run, training loss fell every epoch (`0.2240` → `0.1001` → `0.0620`) while validation loss
+  bottomed at epoch 1 (`0.1238`) and rose at epoch 2 (`0.1793`); validation accuracy was tied best at
+  epochs 1 and 3 and worse at epoch 2. Falling train loss against rising validation loss is the
+  signature of overfitting having begun, and it is the evidence the published checkpoint is chosen
+  on. **The notebook's 5-epoch schedule was never run here** (`cfg/default.yaml`, NOT RUN), so this
+  repo makes no claim — in either direction — about what epochs 4 and 5 would have produced.
 - **Conventional preprocessing may cost the control real points, but this comparison is
   underpowered.**
   Across the ablation grid the control moves `0.8380` → `0.8700` (3.2 pp). The best cell beats the
@@ -173,10 +176,13 @@ values are not per-example means. The bug is fixed for future runs; re-deriving 
 would require retraining, so the run history is retained exactly as recorded.
 
 Validation accuracy used `correct / seen` and is unaffected: epoch 1 `0.9456`, epoch 2 `0.9389`,
-epoch 3 `0.9456`. The published `0.9600` is epoch 1's test accuracy and is untouched. Validation loss
-rose after epoch 1 and validation accuracy did not improve through epoch 3, so the notebook's fixed
-5-epoch schedule with no checkpoint selection had no support in this run's evidence. Epochs 4 and 5
-were never run.
+epoch 3 `0.9456`. The published `0.9600` is epoch 1's test accuracy and is untouched.
+
+What this 3-epoch run measured: validation loss bottomed at epoch 1 and rose at epoch 2 while
+training loss kept falling, and validation accuracy never improved on epoch 1 through epoch 3. That
+is why epoch 1 is the selected checkpoint. **Only 3 epochs were run.** The notebook's 5-epoch
+schedule is `cfg/default.yaml`, which has NOT been run here; no claim is made about what epochs 4
+and 5 would have produced.
 
 ---
 
