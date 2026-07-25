@@ -196,7 +196,27 @@ stated in NEXT ACTION.
 
 ## 4. BLOCKED — needs owner
 
-**Nothing is blocked.** The dataset is ungated and needed no credential; both runs completed.
+### The git history was rewritten. Read this before pushing anything.
+
+`data/sample/reviews_sample.csv` line 36 carried a third-party reviewer's full name and a direct
+email address, committed since `5afb500`. `data/README.md` stated the samples contained no personal
+data; that was false. The row is redacted at HEAD *and* in every historical commit — the whole
+history was rewritten with `git-filter-repo`, so the very first commit that introduced the CSV now
+contains `[email redacted]`. Verified afterwards: no blob anywhere in the object database contains
+an email address other than the synthetic `sample.person@example.com` in `tests/test_redaction.py`.
+
+Consequences the owner has to handle:
+
+- **All 26 commit SHAs changed.** Any SHA written down outside this repository is stale.
+- **`git-filter-repo` removed the `origin` remote** as a deliberate safety measure. This repository
+  had no remote configured, so nothing was published and nothing needs retracting — this is the one
+  repository of the three where the rewrite fully solves the problem rather than merely preparing
+  the fix.
+- **A pre-rewrite backup bundle is at `/tmp/33-sentiment-roberta-prerewrite-*.bundle`.** It still
+  contains the unredacted address. Move it somewhere durable only if you need it; otherwise delete
+  it deliberately.
+
+Nothing else is blocked. The dataset is ungated and needed no credential; both runs completed.
 
 Two things are *deferred by policy* rather than blocked. Both need only a decision plus machine time —
 no credentials:
@@ -416,11 +436,17 @@ used for planning. The measured run timings in the table above are the supported
 
 ## 8. NEXT ACTION
 
-**Review and commit the batch-3 worktree, then run `make verify` against that commit.**
+**Run the three-seed `cfg/small.yaml` sweep and report mean ± stdev.**
 
-The verifier clones committed `HEAD`, so it cannot exercise the new uncommitted scripts by design.
-After the owner reviews and commits this worktree, `make verify` is the required cold-clone proof.
-The next experiment after that remains the three-seed `cfg/small.yaml` run described below.
+Batch 3 is committed. `make verify` was run against the committed history: the clone, size, PII,
+structure-tree and published-number checks pass, and the run stopped only at `train.py`'s own
+load-average refusal (`REFUSING TO START: 1-minute load average is 12.6 (> 12.0)`) because several
+other agent sessions were saturating this machine. That refusal is the repository behaving
+correctly, not a defect — rerun `make verify` on an idle machine for the complete cold-clone proof.
+
+The single-seed result is the repository's main remaining methodological weakness: `[0.9460,
+0.9705]` is a binomial interval for *this checkpoint on these 1,000 rows*, not an interval for what
+RoBERTa training achieves. Three more seeds turn that into a statement about the procedure.
 
 ```bash
 cd "/path/to/33-sentiment-roberta"
