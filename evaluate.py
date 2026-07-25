@@ -367,11 +367,33 @@ def build_report(
             "returned to 0.9456. The published 0.9600 is epoch 1's test accuracy and is also "
             "untouched.\n"
         )
+        # Epoch selection is justified by what THIS run measured. Any statement about a
+        # longer schedule than the one executed is a counterfactual and is not made here:
+        # the epoch count below is read off the recorded history, never assumed.
+        hist = roberta["training"]["history"]
+        n_epochs = len(hist)
+        train_arrow = " → ".join(f"`{h['train_loss']:.4f}`" for h in hist)
+        best_i = min(range(n_epochs), key=lambda i: hist[i]["val_loss"])
+        best_epoch = int(hist[best_i]["epoch"])
+        rose = ""
+        if best_i + 1 < n_epochs:
+            rose = (
+                f" and rose at epoch {int(hist[best_i + 1]['epoch'])} "
+                f"(`{hist[best_i + 1]['val_loss']:.4f}`)"
+            )
         parts.append(
-            "Validation loss rose after epoch 1 and validation accuracy did not improve through "
-            "epoch 3, so the notebook's fixed 5-epoch schedule with no checkpoint selection had "
-            "no support in this run's evidence. Epochs 4 and 5 were never run; no claim is made "
-            "about what their test accuracy would have been.\n"
+            f"Validation loss bottomed at epoch {best_epoch} "
+            f"(`{hist[best_i]['val_loss']:.4f}`){rose} while training loss fell every epoch "
+            f"({train_arrow}), and validation accuracy never improved on epoch {best_epoch} "
+            f"through epoch {n_epochs}. Rising validation loss against falling training loss is "
+            f"the signature of overfitting having begun, and it is the reason **epoch "
+            f"{best_epoch} is the selected checkpoint**.\n"
+        )
+        parts.append(
+            f"**Only {n_epochs} epochs were run.** The notebook's 5-epoch schedule is "
+            "`cfg/default.yaml`, and that config has NOT been run in this repo. No claim is "
+            "made — in either direction — about what the epochs beyond "
+            f"{n_epochs} would have produced.\n"
         )
         trunc = roberta.get("truncation_test", {})
         if trunc:

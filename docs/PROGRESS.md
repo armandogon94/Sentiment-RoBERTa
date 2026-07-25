@@ -129,7 +129,7 @@ stated in NEXT ACTION.
 | 7 | `b475c85` | `notebooks/sentiment_analysis_roberta.ipynb` (executed), `scripts/check_notebooks.py`, `.pre-commit-config.yaml`, 4 new tests |
 | 10 | `cc3989f`, `2f95d8c`, `70d8098` | `scripts/verify_fresh_clone.sh`, `scripts/check_no_blocking_show.py`, `.github/workflows/ci.yml` |
 | 12 | uncommitted | Batch-3 code, tests, reports, README, provenance, ADR, config, and CI/Makefile corrections documented in the tracker above |
-| 13 | `f290f31` | `README.md`, `reports/RESULTS.md`, `docs/PROGRESS.md`, `docs/adr/0004-*.md` — retracted the epoch-count counterfactual (see §5 item 12) |
+| 13 | `f290f31` | `README.md`, `reports/RESULTS.md`, `docs/PROGRESS.md`, `docs/adr/0004-*.md` — retracted the epoch-count counterfactual (see §5 item 9) |
 
 ---
 

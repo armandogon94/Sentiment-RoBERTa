@@ -66,9 +66,9 @@ Negation markers among each cell's 20 most negative coefficients — the direct 
 
 The published train and validation losses were computed as an unweighted mean of batch means. With final batches smaller than the others, those three loss values are not per-example means. The bug is fixed for future runs; re-deriving the published losses would require retraining, so the recorded values remain unchanged. Validation accuracy was correctly computed as `correct / seen` and is unaffected: epoch 1 was tied best at 0.9456, epoch 2 fell to 0.9389, and epoch 3 returned to 0.9456. The published 0.9600 is epoch 1's test accuracy and is also untouched.
 
-Validation loss bottomed at epoch 1 (`0.1238`) and rose at epoch 2 (`0.1793`) while training loss kept falling (`0.2240` → `0.1001` → `0.0620`), and validation accuracy never improved on epoch 1 through epoch 3. Rising validation loss against falling training loss is the signature of overfitting having begun, and it is the reason **epoch 1 is the selected checkpoint**.
+Validation loss bottomed at epoch 1 (`0.1238`) and rose at epoch 2 (`0.1793`) while training loss fell every epoch (`0.2240` → `0.1001` → `0.0620`), and validation accuracy never improved on epoch 1 through epoch 3. Rising validation loss against falling training loss is the signature of overfitting having begun, and it is the reason **epoch 1 is the selected checkpoint**.
 
-**Only 3 epochs were run.** The notebook's 5-epoch schedule is `cfg/default.yaml`, and that config has NOT been run in this repo. No claim is made — in either direction — about what epochs 4 and 5 would have produced.
+**Only 3 epochs were run.** The notebook's 5-epoch schedule is `cfg/default.yaml`, and that config has NOT been run in this repo. No claim is made — in either direction — about what the epochs beyond 3 would have produced.
 
 Sequence truncation, measured rather than assumed: at `max_len` 256, **0.1%** of test reviews are truncated (median 92 tokens, p95 204, max 304).
 
