@@ -18,7 +18,7 @@ survives a 1,000-example test set?**
 close and is not in doubt at this scale. Two things that *were* in doubt turned out more interesting:
 the notebook's 5-epoch schedule would have **overfit** (validation loss bottomed at epoch 1), and
 repairing the baseline's negation handling recovered 2.2 points but **not** significantly
-(paired p = 0.076).
+(paired p = 0.07555).
 
 - **Focus** — binary sentiment polarity, with token-level interpretability
 - **Data** — [Amazon Review Polarity](https://huggingface.co/datasets/fancyzhx/amazon_polarity)
@@ -60,7 +60,7 @@ forensic evidence that the notebook was run locally and uploaded unexecuted:
 - **Conventional preprocessing does cost the control real points — but not significantly here.**
   Across the ablation grid the control moves `0.8380` → `0.8700` (3.2 pp). The best cell beats the
   notebook's chain by 2.2 pp, and the *paired* McNemar over their 140 disagreements gives
-  **p = 0.076** — directionally right, not resolvable on 1,000 examples. Published as measured.
+  **p = 0.07555** — directionally right, not resolvable on 1,000 examples. Published as measured.
 - **Adding bigrams to the notebook's chain makes it worse** (`0.8480` → `0.8380`). Once
   `not` / `no` / `n't` have been deleted, bigrams add 226,000 features and no signal. The same bigrams
   on negation-preserving text produce the best cell in the grid. That contrast is the whole point.
@@ -121,7 +121,7 @@ that, in both directions.)
 <code>uv run python train.py -c cfg/small.yaml -p cfg/baseline_ablation.json --baselines-only</code>.</sub>
 
 **The honest reading: directionally real, statistically unresolved.** Best cell against the
-notebook's chain is 2.2 points over 140 disagreements, exact McNemar **p = 0.076** — it does not
+notebook's chain is 2.2 points over 140 disagreements, exact McNemar **p = 0.07555** — it does not
 clear 0.05. What *is* unambiguous is the mechanism, which needs no test:
 
 | Cell | Negation markers among the 20 most negative coefficients |
