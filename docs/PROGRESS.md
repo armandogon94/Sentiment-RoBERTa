@@ -212,7 +212,7 @@ Consequences the owner has to handle:
   had no remote configured, so nothing was published and nothing needs retracting — this is the one
   repository of the three where the rewrite fully solves the problem rather than merely preparing
   the fix.
-- **A pre-rewrite backup bundle is at `/tmp/33-sentiment-roberta-prerewrite-*.bundle`.** It still
+- **A pre-rewrite backup bundle is at `~/Documents/repo-backups/33-sentiment-roberta-prerewrite-*.bundle`.** It still
   contains the unredacted address. Move it somewhere durable only if you need it; otherwise delete
   it deliberately.
 
