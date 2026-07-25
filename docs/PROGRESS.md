@@ -155,6 +155,20 @@ uv run python scripts/export_figures.py -i runs/latest -o docs/images
    The verifier also caught a genuine orphan: the README quoted the ablation p-value as `0.076`
    where the generator prints `0.07555`. A rounding, not a fabrication, and a two-character diff —
    which is the argument for automating the check rather than trusting care.
+0b. **`ruff format` silently reformatted the ORIGINAL notebook, and the first guard missed it.**
+   Worth reading before touching anything in `notebooks/`. ruff formats `.ipynb` by default, so
+   before `extend-exclude = ["notebooks"]` landed it reflowed the published Kaggle export from
+   minified single-line JSON into pretty-printed JSON — 857 lines — and the change rode along
+   inside the unrelated test commit `53e75c7`. Cells, ids and sources all survived; "byte-identical
+   to the published artifact" did not.
+
+   `scripts/check_notebooks.py` could not catch it, because `git diff HEAD` only detects
+   *uncommitted* drift: once the reformat was committed, HEAD agreed with the working tree and the
+   check went green on the wrong content. Fixed by restoring from `8331b10` and pinning the digest
+   (`ORIGINAL_SHA256`), now asserted by the guard, by pre-commit, by CI and by a test.
+
+   **Lesson for a future session:** a "has this file changed?" check anchored to HEAD is not a
+   provenance check. Anchor to a constant.
 1. **CI has never actually executed.** The CI badge in the README therefore renders as a 404 until
    the first push; that is expected, and the workflow file it points at exists and is committed. `.github/workflows/ci.yml` is committed but nothing has been
    pushed (by instruction), so GitHub Actions has not run it. Every *step* was run locally — `ruff
