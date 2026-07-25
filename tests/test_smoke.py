@@ -126,18 +126,37 @@ def test_smoke_run_used_random_weights_and_says_so(smoke_run):
     assert metrics["models"]["roberta"]["random_weights"] is True
 
 
-def test_figures_can_be_generated_from_the_run(smoke_run, tmp_path):
+def test_figures_can_be_generated_only_into_requested_directory(smoke_run, tmp_path, monkeypatch):
     """`make figures` must work on a fresh clone. Metric figures only — the smoke run's
     interpretability plots would be pictures of random weights."""
     import scripts.export_figures as ef
 
     run_dir, _, _ = smoke_run
+    monkeypatch.setattr(ef, "REPO_ROOT", tmp_path / "repo")
     out = tmp_path / "images"
     assert ef.main(["-i", str(run_dir), "-o", str(out), "--skip-model-figures"]) == 0
     produced = sorted(p.name for p in out.glob("*.png"))
     assert "confusion_matrix_roberta.png" in produced
     assert "confusion_matrix_baseline.png" in produced
     assert "training_curves.png" in produced
+    assert not list((run_dir / "figures").glob("*.png"))
+    assert not (tmp_path / "repo" / "reports" / "figures").exists()
+
+
+def test_full_figure_export_fails_before_writing_when_checkpoint_is_missing(
+    smoke_run, tmp_path, monkeypatch
+):
+    import scripts.export_figures as ef
+
+    run_dir, _, _ = smoke_run
+    checkpoint = run_dir / "model_roberta.pt"
+    checkpoint.unlink(missing_ok=True)
+    monkeypatch.setattr(ef, "REPO_ROOT", tmp_path / "repo")
+    out = tmp_path / "images"
+
+    with pytest.raises(FileNotFoundError, match=r"model_roberta\.pt"):
+        ef.main(["-i", str(run_dir), "-o", str(out)])
+    assert not out.exists()
 
 
 def test_report_can_be_generated_from_the_run(smoke_run, tmp_path):

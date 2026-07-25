@@ -4,10 +4,11 @@ Resume point for a session with no memory of the previous one. On resume:
 `git log --oneline -20`, read `docs/AGENT-BRIEF.md` (gitignored, local only), then start from
 **NEXT ACTION** at the bottom of this file.
 
-**Status: complete. All ten slices done and committed. Both models ran; every published number
-came out of `runs/run_2` or `runs/run_3` on this machine. `cfg/default.yaml` (the notebook's 5-epoch
-config) and `cfg/full.yaml` have NOT been run — see §3. `scripts/verify_fresh_clone.sh` passes.
-Nothing has been pushed.**
+**Status: the original ten slices are committed. Hard blocker #2 is resolved and verified in the
+worktree: compact primary evidence, prediction-vector recomputation, and publication-figure drift
+guards are present, but the owner explicitly prohibited a commit in this task. A fresh-clone run
+therefore remains pending until the owner reviews and commits the worktree. `cfg/default.yaml` and
+`cfg/full.yaml` have NOT been run. Nothing has been pushed.**
 
 **Headline:** fine-tuned `roberta-base` **0.9600** [0.9460, 0.9705] vs TF-IDF + LogReg **0.8480**
 [0.8244, 0.8689] on 1,000 held-out reviews, exact McNemar **p = 1.984e-21**. `cfg/small.yaml`.
@@ -37,12 +38,24 @@ Nothing has been pushed.**
       (see §3.11). → `0ea44f8`, `b475c85`
 - [x] **Slice 8 — Tests + CI.** 130 tests, 95% coverage on the core, ruff + mypy clean, 3 CI jobs
       including `docs-drift` and a fresh-clone verify. → `53e75c7`, `bdcff54`, `b475c85`
-- [x] **Slice 9 — README + RESULTS.** Every number traces to a `runs/*/metrics.json`; the orphan
-      audit is clean across all 34 decimals in the README. → `2075d3d`, `93bc7f8`, `bf73c0f`
+- [x] **Slice 9 — README + RESULTS.** This slice originally used a 34-decimal prose-duplication
+      audit. That was historically green but did not prove measurement provenance; slice 11
+      supersedes it with prediction-vector recomputation. → `2075d3d`, `93bc7f8`, `bf73c0f`
 - [x] **Slice 10 — Self-verify + ADRs.** `scripts/verify_fresh_clone.sh` built, run, and fixed
       through three real defects until passing (§5.0). Seven ADRs. → `cc3989f`, `2f95d8c`, `70d8098`
+- [x] **Slice 11 — Auditable evidence and publication drift guards.** Deterministic, text-free
+      evidence for the published and ablation runs; numerical recomputation from raw vectors;
+      exact figure-set/provenance checks; stale report figures regenerated. **No commit SHA:
+      the task explicitly prohibited commits.**
 
 **Not done, deliberately:** `cfg/default.yaml` and `cfg/full.yaml` have not been run. See §3.
+
+**Slice 11 worktree verification (2026-07-25):** `make evidence` exported 1,000 rows for each run;
+the numerical guard recomputed 351 stored or published values; `make test` reported 163 passed and
+1 expected xfail at 95% core coverage; the prospective tracked tree is 3,296 KB against the
+unchanged 5,120 KB limit. The eight `docs/images/` files are byte-identical to their
+`reports/figures/` counterparts on this machine. The cold-clone verifier is pending for the reason
+stated in NEXT ACTION.
 
 ---
 
@@ -61,7 +74,7 @@ Nothing has been pushed.**
 | 2 / 7 | `0ea44f8` | `data/README.md` (measured), `docs/interpretability.md`, `notebooks/sentiment_analysis_roberta.ipynb`, `scripts/run_notebook.py` |
 
 | 5 | `2075d3d` | `evaluate.py` (+ `ablation_significance`), `reports/RESULTS.md` |
-| 6 | `93bc7f8` | `scripts/export_figures.py`, `docs/images/*.png` (8), `reports/figures/*.png` (8) |
+| 6 | `93bc7f8` | `scripts/export_figures.py`, `docs/images/*.png` (8), `reports/figures/*.png` (**5**, not 8; the two confusion matrices and training curve were absent from this commit) |
 | 9 | `bf73c0f` | `README.md` — full rewrite with measured numbers |
 | 7 | `b475c85` | `notebooks/sentiment_analysis_roberta.ipynb` (executed), `scripts/check_notebooks.py`, `.pre-commit-config.yaml`, 4 new tests |
 | 10 | `cc3989f`, `2f95d8c`, `70d8098` | `scripts/verify_fresh_clone.sh`, `scripts/check_no_blocking_show.py`, `.github/workflows/ci.yml` |
@@ -130,8 +143,10 @@ no credentials:
 If `cfg/default.yaml` is run, regenerate everything downstream so nothing goes stale:
 
 ```bash
-uv run python evaluate.py -i runs/latest -o reports/RESULTS.md
-uv run python scripts/export_figures.py -i runs/latest -o docs/images
+# Replace run_N with the deliberately selected new publication run. Never use runs/latest here.
+make evidence PUBLISHED_RUN=runs/run_N ABLATION_RUN=runs/run_3
+make report PUBLISHED_RUN=runs/run_N ABLATION_RUN=runs/run_3
+make figures PUBLISHED_RUN=runs/run_N ABLATION_RUN=runs/run_3
 ```
 
 ---
@@ -140,7 +155,7 @@ uv run python scripts/export_figures.py -i runs/latest -o docs/images
 
 **This section is more useful than the completed list. Read it first.**
 
-0. **Three defects the fresh-clone verifier found in itself, all now fixed.** Recorded because the
+0. **Historical defects the old fresh-clone verifier found in itself.** Recorded because the
    *pattern* will recur for anyone extending the script:
    a. Backticks inside a double-quoted `echo` are command substitution. `echo "==> Asserting
       \`make figures\` ..."` silently *ran* both targets inside the clone, overwriting the
@@ -152,7 +167,7 @@ uv run python scripts/export_figures.py -i runs/latest -o docs/images
       discuss `plt.show()` at length precisely because it is banned. Replaced with
       `scripts/check_no_blocking_show.py` — stdlib `ast`, one implementation shared by the test
       suite, CI and the verifier.
-   The verifier also caught a genuine orphan: the README quoted the ablation p-value as `0.076`
+   The old verifier also caught a genuine orphan: the README quoted the ablation p-value as `0.076`
    where the generator prints `0.07555`. A rounding, not a fabrication, and a two-character diff —
    which is the argument for automating the check rather than trusting care.
 0b. **`ruff format` silently reformatted the ORIGINAL notebook, and the first guard missed it.**
@@ -235,8 +250,11 @@ uv run python scripts/export_figures.py -i runs/latest -o docs/images
 
 ## 7. Measured numbers, with the config that produced each
 
-**Rule: no number appears anywhere in this repo unless it came out of a `runs/*/metrics.json` on this
-machine.** `reports/RESULTS.md` is generated from those files and is the authoritative version.
+**Rule:** published model-comparison and ablation measurements must recompute from the committed
+`reports/evidence/` vectors through the shipped metric code; the JSON is the stored run record, not
+a prose source of truth. The one deliberate exception is the `0.9560` notebook cell-12 result used
+only to document the measured `0.9460`/`0.9560` seed/RNG-consumption-order spread; ADR 0001 explains
+why the executed notebook is legitimate primary evidence for that limitation.
 
 ### `cfg/dev.yaml` — `runs/run_1`, commit `69bdffb`, MPS, Low Power Mode OFF
 
@@ -323,13 +341,11 @@ well under the derived floor — so that table should not be used for planning w
 
 ## 8. NEXT ACTION
 
-**Run `cfg/small.yaml` across 3 more seeds and report mean ± stdev.**
+**Review and commit the hard-blocker worktree, then run `make verify` against that commit.**
 
-This is the single highest-value remaining experiment, and §5 issue 3 is why: the repo publishes a
-point estimate for the transformer-vs-control gap with no run-to-run variance estimate. The style
-guide asks for mean ± stdev; one run cannot provide it, and the README currently states that
-limitation honestly rather than implying otherwise. Closing it converts an honest limitation into a
-measured result.
+The verifier clones committed `HEAD`, so it cannot exercise the new uncommitted scripts by design.
+After the owner reviews and commits this worktree, `make verify` is the required cold-clone proof.
+The next experiment after that remains the three-seed `cfg/small.yaml` run described below.
 
 ```bash
 cd "/path/to/33-sentiment-roberta"
@@ -357,8 +373,8 @@ git checkout cfg/small.yaml                       # restore SEED: 1337
 - One training process at a time. `train.py` refuses above loadavg 12 without `--force`.
 - Never mix CPU and MPS tensor work in one process (ADR 0003) — the failure mode is a silent hang,
   not an exception.
-- Never publish a number that is not in a `runs/*/metrics.json`. `scripts/verify_fresh_clone.sh` and
-  the CI `docs-drift` job both fail the build on an orphan number in the README.
+- Never publish a headline number that cannot be recomputed from `reports/evidence/`.
+  `scripts/check_published_numbers.py` recomputes rather than accepting duplicated prose.
 - Never let `nbstripout` touch `notebooks/sentiment_analysis_roberta.ipynb` — the hook is scoped to
   `_ORIGINAL` alone, and the saved outputs are the deliverable of Slice 7.
 - Never edit `notebooks/sentiment_analysis_roberta_ORIGINAL.ipynb`. It is provenance for a published

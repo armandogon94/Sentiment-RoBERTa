@@ -123,6 +123,13 @@ def test_no_unguarded_plt_show_in_the_tree(repo_root: Path):
     assert checker.main() == 0
 
 
+def test_published_figure_guard_regenerates_evidence_derived_payloads(repo_root: Path):
+    import scripts.check_published_figures as checker
+
+    messages = checker.validate_published_figures(repo_root)
+    assert any("regenerated metadata matches committed evidence" in message for message in messages)
+
+
 def test_palette_is_colourblind_safe_okabe_ito():
     from utils.plots import OKABE_ITO
 

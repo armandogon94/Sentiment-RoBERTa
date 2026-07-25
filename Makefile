@@ -2,14 +2,16 @@
 # Every target below is exercised by scripts/verify_fresh_clone.sh or by CI.
 
 .DEFAULT_GOAL := help
-.PHONY: help setup data sample smoke dev small train ablation figures report test lint format \
-        notebook verify clean all
+.PHONY: help setup data sample smoke dev small train ablation evidence figures report test lint \
+        format notebook verify clean all
 
 UV ?= uv
 PY := $(UV) run python
 
 # ── Reserved ports (docs/ports.example.md). Nothing in this repo binds any of them. ──
 MLFLOW_PORT ?= 9330
+PUBLISHED_RUN ?= runs/run_2
+ABLATION_RUN ?= runs/run_3
 
 help:  ## Show this help
 	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -40,11 +42,15 @@ train: small  ## Alias for `make small` (the config whose numbers are published)
 ablation:  ## The 4-cell preprocessing ablation (stopwords x n-gram range)
 	$(PY) train.py -c cfg/small.yaml -p cfg/baseline_ablation.json --baselines-only
 
-figures:  ## Regenerate every committed PNG from runs/latest
-	$(PY) scripts/export_figures.py -i runs/latest -o docs/images
+evidence:  ## Export tracked, review-text-free evidence for the published runs
+	$(PY) scripts/export_evidence.py $(PUBLISHED_RUN) $(ABLATION_RUN) -o reports/evidence
 
-report:  ## Regenerate reports/RESULTS.md from the recorded runs
-	$(PY) evaluate.py -i runs/latest -o reports/RESULTS.md
+figures:  ## Regenerate and publish all eight PNGs from the explicit published runs
+	$(PY) scripts/export_figures.py -i $(PUBLISHED_RUN) -a $(ABLATION_RUN) \
+	  -o docs/images --publish
+
+report:  ## Regenerate reports/RESULTS.md from the explicit published runs
+	$(PY) evaluate.py -i $(PUBLISHED_RUN) -a $(ABLATION_RUN) -o reports/RESULTS.md
 
 notebook:  ## Execute the narrative notebook and SAVE its outputs
 	$(PY) scripts/run_notebook.py

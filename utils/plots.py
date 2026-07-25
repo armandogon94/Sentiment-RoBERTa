@@ -13,8 +13,10 @@ Palette: Okabe–Ito, which is colourblind-safe and stays legible at README widt
 
 from __future__ import annotations
 
+import json
 from collections.abc import Iterable
 from pathlib import Path
+from typing import Any, cast
 
 import matplotlib
 
@@ -80,6 +82,11 @@ def caption(ax: plt.Axes, text: str) -> None:
     ax.figure.text(0.0, -0.045, text, ha="left", va="top", fontsize=8, color="#444444", wrap=True)
 
 
+def set_provenance(fig: plt.Figure, payload: dict[str, Any]) -> None:
+    """Attach a text-free, machine-readable payload that is embedded in the PNG."""
+    cast(Any, fig)._sentiment_roberta_provenance = payload
+
+
 def save_figure(
     fig: plt.Figure,
     name: str,
@@ -93,11 +100,19 @@ def save_figure(
     when the caller has already switched to an interactive backend.
     """
     written: list[Path] = []
+    provenance = dict(getattr(fig, "_sentiment_roberta_provenance", {}))
+    provenance["figure"] = name
+    metadata = {
+        "Title": name,
+        "Description": json.dumps(
+            provenance, sort_keys=True, separators=(",", ":"), ensure_ascii=True
+        ),
+    }
     for d in out_dirs:
         d = Path(d)
         d.mkdir(parents=True, exist_ok=True)
         path = d / f"{name}.png"
-        fig.savefig(path)
+        fig.savefig(path, metadata=metadata)
         written.append(path)
     if show:  # pragma: no cover - interactive only
         plt.show()  # reachable only under `if show` — the explicit --show flag, never in CI

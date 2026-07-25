@@ -1,0 +1,1187 @@
+{
+  "ablation": [
+    {
+      "ablation_label": "notebook chain, unigram",
+      "ablation_note": "the source notebook's exact configuration",
+      "accuracy": 0.848,
+      "accuracy_ci": {
+        "high": 0.868917497437021,
+        "level": 0.95,
+        "low": 0.8244190786570326,
+        "method": "wilson",
+        "n": 1000,
+        "point": 0.848,
+        "successes": 848
+      },
+      "config_name": "small",
+      "confusion_matrix": [
+        [
+          409,
+          80
+        ],
+        [
+          72,
+          439
+        ]
+      ],
+      "confusion_matrix_labels": [
+        "negative",
+        "positive"
+      ],
+      "f1_macro": 0.8478630767690922,
+      "features": {
+        "most_negative": [
+          {
+            "coef": -6.025259781490713,
+            "feature": "disappoint"
+          },
+          {
+            "coef": -5.475005829518641,
+            "feature": "wast"
+          },
+          {
+            "coef": -5.195060726979029,
+            "feature": "bore"
+          },
+          {
+            "coef": -4.790873440469074,
+            "feature": "worst"
+          },
+          {
+            "coef": -4.484401938145572,
+            "feature": "bad"
+          },
+          {
+            "coef": -3.918907097842269,
+            "feature": "money"
+          },
+          {
+            "coef": -3.7461121989916975,
+            "feature": "poor"
+          },
+          {
+            "coef": -3.603239667309004,
+            "feature": "terribl"
+          },
+          {
+            "coef": -3.53610830243137,
+            "feature": "noth"
+          },
+          {
+            "coef": -3.4731611845034713,
+            "feature": "horribl"
+          },
+          {
+            "coef": -2.82871659541214,
+            "feature": "hate"
+          },
+          {
+            "coef": -2.816087031297364,
+            "feature": "return"
+          },
+          {
+            "coef": -2.5800043748693895,
+            "feature": "unfortun"
+          },
+          {
+            "coef": -2.5470391693267507,
+            "feature": "ok"
+          },
+          {
+            "coef": -2.4982864281897554,
+            "feature": "tri"
+          },
+          {
+            "coef": -2.4740291082885024,
+            "feature": "poorli"
+          },
+          {
+            "coef": -2.4063457202863288,
+            "feature": "aw"
+          },
+          {
+            "coef": -2.3704155200060626,
+            "feature": "stupid"
+          },
+          {
+            "coef": -2.363945208771063,
+            "feature": "even"
+          },
+          {
+            "coef": -2.270611406942574,
+            "feature": "suck"
+          }
+        ],
+        "most_positive": [
+          {
+            "coef": 7.467281811071664,
+            "feature": "great"
+          },
+          {
+            "coef": 5.340981403607582,
+            "feature": "love"
+          },
+          {
+            "coef": 5.007597654021143,
+            "feature": "excel"
+          },
+          {
+            "coef": 4.311262121640122,
+            "feature": "best"
+          },
+          {
+            "coef": 3.6051988757020963,
+            "feature": "amaz"
+          },
+          {
+            "coef": 3.565696818754386,
+            "feature": "perfect"
+          },
+          {
+            "coef": 3.564165345171393,
+            "feature": "easi"
+          },
+          {
+            "coef": 3.235510375331004,
+            "feature": "good"
+          },
+          {
+            "coef": 3.1450288821947896,
+            "feature": "favorit"
+          },
+          {
+            "coef": 2.957852777582624,
+            "feature": "highli"
+          },
+          {
+            "coef": 2.756359993622595,
+            "feature": "enjoy"
+          },
+          {
+            "coef": 2.66488724270564,
+            "feature": "wonder"
+          },
+          {
+            "coef": 2.6333948020800024,
+            "feature": "well"
+          },
+          {
+            "coef": 2.6150860463931425,
+            "feature": "beauti"
+          },
+          {
+            "coef": 2.5746425690021475,
+            "feature": "awesom"
+          },
+          {
+            "coef": 2.5487520437578635,
+            "feature": "fantast"
+          },
+          {
+            "coef": 2.5485259703105814,
+            "feature": "nice"
+          },
+          {
+            "coef": 2.361532631107903,
+            "feature": "must"
+          },
+          {
+            "coef": 2.172659894050192,
+            "feature": "fun"
+          },
+          {
+            "coef": 2.063427550260394,
+            "feature": "classic"
+          }
+        ],
+        "n_features": 20938
+      },
+      "kind": "tfidf_logreg",
+      "model": "tfidf_logreg[notebook chain, unigram]",
+      "n": 1000,
+      "n_correct": 848,
+      "n_test": 1000,
+      "n_train": 8100,
+      "per_class": {
+        "negative": {
+          "f1": 0.843298969072165,
+          "precision": 0.8503118503118503,
+          "recall": 0.83640081799591,
+          "support": 489
+        },
+        "positive": {
+          "f1": 0.8524271844660194,
+          "precision": 0.8458574181117534,
+          "recall": 0.8590998043052838,
+          "support": 511
+        }
+      },
+      "precision_macro": 0.8480846342118018,
+      "preprocessing": {
+        "ALPHANUMERIC_ONLY": true,
+        "LOWERCASE": true,
+        "MAX_FEATURES": null,
+        "NGRAM_RANGE": [
+          1,
+          1
+        ],
+        "REMOVE_STOPWORDS": true,
+        "STEM": true
+      },
+      "recall_macro": 0.8477503111505968,
+      "train_seconds": 3.838463583000703
+    },
+    {
+      "ablation_label": "notebook chain, uni+bigram",
+      "ablation_note": "bigrams cannot recover tokens the chain already deleted",
+      "accuracy": 0.838,
+      "accuracy_ci": {
+        "high": 0.8595358881516569,
+        "level": 0.95,
+        "low": 0.8138772231121078,
+        "method": "wilson",
+        "n": 1000,
+        "point": 0.838,
+        "successes": 838
+      },
+      "config_name": "small",
+      "confusion_matrix": [
+        [
+          400,
+          89
+        ],
+        [
+          73,
+          438
+        ]
+      ],
+      "confusion_matrix_labels": [
+        "negative",
+        "positive"
+      ],
+      "f1_macro": 0.837765733719491,
+      "features": {
+        "most_negative": [
+          {
+            "coef": -5.874055537472707,
+            "feature": "disappoint"
+          },
+          {
+            "coef": -5.051068419460959,
+            "feature": "wast"
+          },
+          {
+            "coef": -4.941657145371664,
+            "feature": "bore"
+          },
+          {
+            "coef": -4.715871082901917,
+            "feature": "bad"
+          },
+          {
+            "coef": -4.2016952576754925,
+            "feature": "worst"
+          },
+          {
+            "coef": -4.03837855615512,
+            "feature": "money"
+          },
+          {
+            "coef": -3.2764960321661816,
+            "feature": "poor"
+          },
+          {
+            "coef": -3.215952323133625,
+            "feature": "horribl"
+          },
+          {
+            "coef": -3.1889466360071084,
+            "feature": "terribl"
+          },
+          {
+            "coef": -3.061694227868129,
+            "feature": "noth"
+          },
+          {
+            "coef": -2.7851537893570564,
+            "feature": "tri"
+          },
+          {
+            "coef": -2.736054270905202,
+            "feature": "return"
+          },
+          {
+            "coef": -2.5928559538265805,
+            "feature": "even"
+          },
+          {
+            "coef": -2.3754570307369263,
+            "feature": "buy"
+          },
+          {
+            "coef": -2.28082987334514,
+            "feature": "wast money"
+          },
+          {
+            "coef": -2.193016424686526,
+            "feature": "hate"
+          },
+          {
+            "coef": -2.131570368290275,
+            "feature": "aw"
+          },
+          {
+            "coef": -2.1306244717991625,
+            "feature": "wast time"
+          },
+          {
+            "coef": -2.1022827726597173,
+            "feature": "would"
+          },
+          {
+            "coef": -2.0919775357897166,
+            "feature": "get"
+          }
+        ],
+        "most_positive": [
+          {
+            "coef": 8.293748958832055,
+            "feature": "great"
+          },
+          {
+            "coef": 5.935263107784028,
+            "feature": "love"
+          },
+          {
+            "coef": 4.678974298694444,
+            "feature": "excel"
+          },
+          {
+            "coef": 4.406561720575485,
+            "feature": "best"
+          },
+          {
+            "coef": 3.4096293238317172,
+            "feature": "easi"
+          },
+          {
+            "coef": 3.376080509820193,
+            "feature": "good"
+          },
+          {
+            "coef": 3.1811298688617047,
+            "feature": "amaz"
+          },
+          {
+            "coef": 3.1706870876714026,
+            "feature": "perfect"
+          },
+          {
+            "coef": 2.901836255237856,
+            "feature": "enjoy"
+          },
+          {
+            "coef": 2.8650095910942985,
+            "feature": "favorit"
+          },
+          {
+            "coef": 2.8100325426659656,
+            "feature": "well"
+          },
+          {
+            "coef": 2.5993450246098058,
+            "feature": "wonder"
+          },
+          {
+            "coef": 2.59597852436561,
+            "feature": "beauti"
+          },
+          {
+            "coef": 2.4859792107148486,
+            "feature": "nice"
+          },
+          {
+            "coef": 2.4354433158685262,
+            "feature": "highli"
+          },
+          {
+            "coef": 2.376637515366387,
+            "feature": "must"
+          },
+          {
+            "coef": 2.2813974376930264,
+            "feature": "awesom"
+          },
+          {
+            "coef": 2.260030760158646,
+            "feature": "highli recommend"
+          },
+          {
+            "coef": 2.1875940804481964,
+            "feature": "classic"
+          },
+          {
+            "coef": 2.0778098388861346,
+            "feature": "one best"
+          }
+        ],
+        "n_features": 247041
+      },
+      "kind": "tfidf_logreg",
+      "model": "tfidf_logreg[notebook chain, uni+bigram]",
+      "n": 1000,
+      "n_correct": 838,
+      "n_test": 1000,
+      "n_train": 8100,
+      "per_class": {
+        "negative": {
+          "f1": 0.8316008316008316,
+          "precision": 0.8456659619450317,
+          "recall": 0.8179959100204499,
+          "support": 489
+        },
+        "positive": {
+          "f1": 0.8439306358381503,
+          "precision": 0.8311195445920304,
+          "recall": 0.8571428571428571,
+          "support": 511
+        }
+      },
+      "precision_macro": 0.8383927532685311,
+      "preprocessing": {
+        "ALPHANUMERIC_ONLY": true,
+        "LOWERCASE": true,
+        "MAX_FEATURES": null,
+        "NGRAM_RANGE": [
+          1,
+          2
+        ],
+        "REMOVE_STOPWORDS": true,
+        "STEM": true
+      },
+      "recall_macro": 0.8375693835816536,
+      "train_seconds": 4.0180650830152445
+    },
+    {
+      "ablation_label": "negation preserved, unigram",
+      "ablation_note": "no alphanumeric filter, no stopword removal, no stemming",
+      "accuracy": 0.851,
+      "accuracy_ci": {
+        "high": 0.871725639063064,
+        "level": 0.95,
+        "low": 0.8275879764800763,
+        "method": "wilson",
+        "n": 1000,
+        "point": 0.851,
+        "successes": 851
+      },
+      "config_name": "small",
+      "confusion_matrix": [
+        [
+          417,
+          72
+        ],
+        [
+          77,
+          434
+        ]
+      ],
+      "confusion_matrix_labels": [
+        "negative",
+        "positive"
+      ],
+      "f1_macro": 0.8509569265517735,
+      "features": {
+        "most_negative": [
+          {
+            "coef": -6.731570106073756,
+            "feature": "not"
+          },
+          {
+            "coef": -4.864698920089445,
+            "feature": "boring"
+          },
+          {
+            "coef": -4.66006557664641,
+            "feature": "waste"
+          },
+          {
+            "coef": -4.598956370798829,
+            "feature": "worst"
+          },
+          {
+            "coef": -4.291746318692394,
+            "feature": "bad"
+          },
+          {
+            "coef": -3.9689838085799467,
+            "feature": "money"
+          },
+          {
+            "coef": -3.908974356588429,
+            "feature": "n't"
+          },
+          {
+            "coef": -3.746495514213016,
+            "feature": "disappointed"
+          },
+          {
+            "coef": -3.6676824082317063,
+            "feature": "no"
+          },
+          {
+            "coef": -3.594691836257,
+            "feature": "poor"
+          },
+          {
+            "coef": -3.3616141004906166,
+            "feature": "?"
+          },
+          {
+            "coef": -3.263364161952553,
+            "feature": "horrible"
+          },
+          {
+            "coef": -3.1882939752340924,
+            "feature": "terrible"
+          },
+          {
+            "coef": -2.8824123497216045,
+            "feature": "nothing"
+          },
+          {
+            "coef": -2.781123570400207,
+            "feature": "disappointing"
+          },
+          {
+            "coef": -2.7277157514077,
+            "feature": "disappointment"
+          },
+          {
+            "coef": -2.272459057601632,
+            "feature": "poorly"
+          },
+          {
+            "coef": -2.254509501374941,
+            "feature": "awful"
+          },
+          {
+            "coef": -2.2150089749293653,
+            "feature": "do"
+          },
+          {
+            "coef": -2.187132347306063,
+            "feature": "was"
+          }
+        ],
+        "most_positive": [
+          {
+            "coef": 7.797122474311947,
+            "feature": "great"
+          },
+          {
+            "coef": 4.624283924513047,
+            "feature": "excellent"
+          },
+          {
+            "coef": 4.55857239661474,
+            "feature": "best"
+          },
+          {
+            "coef": 4.393296017505853,
+            "feature": "love"
+          },
+          {
+            "coef": 3.8567657592014424,
+            "feature": "good"
+          },
+          {
+            "coef": 3.550691329894888,
+            "feature": "easy"
+          },
+          {
+            "coef": 3.142985783469428,
+            "feature": "perfect"
+          },
+          {
+            "coef": 3.1056189360523203,
+            "feature": "amazing"
+          },
+          {
+            "coef": 3.0448552840845684,
+            "feature": "and"
+          },
+          {
+            "coef": 2.870430158417971,
+            "feature": "wonderful"
+          },
+          {
+            "coef": 2.702785541399827,
+            "feature": "highly"
+          },
+          {
+            "coef": 2.666339620940514,
+            "feature": "well"
+          },
+          {
+            "coef": 2.508889385085608,
+            "feature": "nice"
+          },
+          {
+            "coef": 2.4922147779881194,
+            "feature": "must"
+          },
+          {
+            "coef": 2.3248127641876613,
+            "feature": "awesome"
+          },
+          {
+            "coef": 2.3222543626560133,
+            "feature": "loved"
+          },
+          {
+            "coef": 2.3042969561533626,
+            "feature": "you"
+          },
+          {
+            "coef": 2.268297342874266,
+            "feature": "works"
+          },
+          {
+            "coef": 2.22967296311698,
+            "feature": "favorite"
+          },
+          {
+            "coef": 2.2250775665992615,
+            "feature": "enjoyed"
+          }
+        ],
+        "n_features": 30449
+      },
+      "kind": "tfidf_logreg",
+      "model": "tfidf_logreg[negation preserved, unigram]",
+      "n": 1000,
+      "n_correct": 851,
+      "n_test": 1000,
+      "n_train": 8100,
+      "per_class": {
+        "negative": {
+          "f1": 0.8484231943031536,
+          "precision": 0.8441295546558705,
+          "recall": 0.852760736196319,
+          "support": 489
+        },
+        "positive": {
+          "f1": 0.8534906588003933,
+          "precision": 0.857707509881423,
+          "recall": 0.8493150684931506,
+          "support": 511
+        }
+      },
+      "precision_macro": 0.8509185322686468,
+      "preprocessing": {
+        "ALPHANUMERIC_ONLY": false,
+        "LOWERCASE": true,
+        "MAX_FEATURES": null,
+        "NGRAM_RANGE": [
+          1,
+          1
+        ],
+        "REMOVE_STOPWORDS": false,
+        "STEM": false
+      },
+      "recall_macro": 0.8510379023447348,
+      "train_seconds": 1.7522700410045218
+    },
+    {
+      "ablation_label": "negation preserved, uni+bigram",
+      "ablation_note": "the configuration that can actually represent \"not good\" as a feature",
+      "accuracy": 0.87,
+      "accuracy_ci": {
+        "high": 0.8894362253751581,
+        "level": 0.95,
+        "low": 0.8477319733455312,
+        "method": "wilson",
+        "n": 1000,
+        "point": 0.87,
+        "successes": 870
+      },
+      "config_name": "small",
+      "confusion_matrix": [
+        [
+          426,
+          63
+        ],
+        [
+          67,
+          444
+        ]
+      ],
+      "confusion_matrix_labels": [
+        "negative",
+        "positive"
+      ],
+      "f1_macro": 0.869957866348697,
+      "features": {
+        "most_negative": [
+          {
+            "coef": -6.222746999148452,
+            "feature": "not"
+          },
+          {
+            "coef": -3.8321862015095194,
+            "feature": "bad"
+          },
+          {
+            "coef": -3.739473362538498,
+            "feature": "boring"
+          },
+          {
+            "coef": -3.623959385042686,
+            "feature": "n't"
+          },
+          {
+            "coef": -3.4935228802793308,
+            "feature": "waste"
+          },
+          {
+            "coef": -3.480038779002462,
+            "feature": "no"
+          },
+          {
+            "coef": -3.463915022963978,
+            "feature": "?"
+          },
+          {
+            "coef": -3.4624863654601628,
+            "feature": "worst"
+          },
+          {
+            "coef": -3.2251337139718226,
+            "feature": "money"
+          },
+          {
+            "coef": -2.742913297624971,
+            "feature": "poor"
+          },
+          {
+            "coef": -2.7113122089314574,
+            "feature": "disappointed"
+          },
+          {
+            "coef": -2.570039746702617,
+            "feature": "the worst"
+          },
+          {
+            "coef": -2.465328609518952,
+            "feature": "was"
+          },
+          {
+            "coef": -2.4487996604546867,
+            "feature": "horrible"
+          },
+          {
+            "coef": -2.325109497713193,
+            "feature": "terrible"
+          },
+          {
+            "coef": -2.235794951527816,
+            "feature": "waste of"
+          },
+          {
+            "coef": -2.2288494199431033,
+            "feature": "nothing"
+          },
+          {
+            "coef": -2.0879002041967865,
+            "feature": "do"
+          },
+          {
+            "coef": -1.9245412391128605,
+            "feature": "not worth"
+          },
+          {
+            "coef": -1.9166445991592502,
+            "feature": "even"
+          }
+        ],
+        "most_positive": [
+          {
+            "coef": 6.992346943480984,
+            "feature": "great"
+          },
+          {
+            "coef": 3.9466956221742806,
+            "feature": "love"
+          },
+          {
+            "coef": 3.5753030176881735,
+            "feature": "excellent"
+          },
+          {
+            "coef": 3.4293034122445345,
+            "feature": "best"
+          },
+          {
+            "coef": 3.216272029783678,
+            "feature": "good"
+          },
+          {
+            "coef": 3.0764949578215446,
+            "feature": "and"
+          },
+          {
+            "coef": 2.9527967991503132,
+            "feature": "the best"
+          },
+          {
+            "coef": 2.6218612378728654,
+            "feature": "easy"
+          },
+          {
+            "coef": 2.3569014307708476,
+            "feature": "perfect"
+          },
+          {
+            "coef": 2.354898334793438,
+            "feature": "well"
+          },
+          {
+            "coef": 2.265279041148142,
+            "feature": "amazing"
+          },
+          {
+            "coef": 2.122048049695436,
+            "feature": "wonderful"
+          },
+          {
+            "coef": 2.118671904020857,
+            "feature": "!"
+          },
+          {
+            "coef": 2.086517539832068,
+            "feature": "you"
+          },
+          {
+            "coef": 2.058906259110325,
+            "feature": ". great"
+          },
+          {
+            "coef": 2.048679087227015,
+            "feature": "my"
+          },
+          {
+            "coef": 2.0180173910413455,
+            "feature": "highly"
+          },
+          {
+            "coef": 2.0157468724269236,
+            "feature": "easy to"
+          },
+          {
+            "coef": 1.99909058251053,
+            "feature": "a must"
+          },
+          {
+            "coef": 1.994994522868,
+            "feature": "a great"
+          }
+        ],
+        "n_features": 275634
+      },
+      "kind": "tfidf_logreg",
+      "model": "tfidf_logreg[negation preserved, uni+bigram]",
+      "n": 1000,
+      "n_correct": 870,
+      "n_test": 1000,
+      "n_train": 8100,
+      "per_class": {
+        "negative": {
+          "f1": 0.8676171079429735,
+          "precision": 0.8640973630831643,
+          "recall": 0.8711656441717791,
+          "support": 489
+        },
+        "positive": {
+          "f1": 0.8722986247544204,
+          "precision": 0.8757396449704142,
+          "recall": 0.8688845401174168,
+          "support": 511
+        }
+      },
+      "precision_macro": 0.8699185040267893,
+      "preprocessing": {
+        "ALPHANUMERIC_ONLY": false,
+        "LOWERCASE": true,
+        "MAX_FEATURES": null,
+        "NGRAM_RANGE": [
+          1,
+          2
+        ],
+        "REMOVE_STOPWORDS": false,
+        "STEM": false
+      },
+      "recall_macro": 0.870025092144598,
+      "train_seconds": 2.848128749988973
+    }
+  ],
+  "accuracy": 0.848,
+  "config_name": "small",
+  "config_path": "cfg/small.yaml",
+  "device": "mps",
+  "git_sha": "733baad73c7d47b8a76d5bea5d70c5c91792cb25",
+  "headline_model": "tfidf_logreg",
+  "models": {
+    "tfidf_logreg": {
+      "accuracy": 0.848,
+      "accuracy_ci": {
+        "high": 0.868917497437021,
+        "level": 0.95,
+        "low": 0.8244190786570326,
+        "method": "wilson",
+        "n": 1000,
+        "point": 0.848,
+        "successes": 848
+      },
+      "config_name": "small",
+      "confusion_matrix": [
+        [
+          409,
+          80
+        ],
+        [
+          72,
+          439
+        ]
+      ],
+      "confusion_matrix_labels": [
+        "negative",
+        "positive"
+      ],
+      "f1_macro": 0.8478630767690922,
+      "features": {
+        "most_negative": [
+          {
+            "coef": -6.025259781490713,
+            "feature": "disappoint"
+          },
+          {
+            "coef": -5.475005829518641,
+            "feature": "wast"
+          },
+          {
+            "coef": -5.195060726979029,
+            "feature": "bore"
+          },
+          {
+            "coef": -4.790873440469074,
+            "feature": "worst"
+          },
+          {
+            "coef": -4.484401938145572,
+            "feature": "bad"
+          },
+          {
+            "coef": -3.918907097842269,
+            "feature": "money"
+          },
+          {
+            "coef": -3.7461121989916975,
+            "feature": "poor"
+          },
+          {
+            "coef": -3.603239667309004,
+            "feature": "terribl"
+          },
+          {
+            "coef": -3.53610830243137,
+            "feature": "noth"
+          },
+          {
+            "coef": -3.4731611845034713,
+            "feature": "horribl"
+          },
+          {
+            "coef": -2.82871659541214,
+            "feature": "hate"
+          },
+          {
+            "coef": -2.816087031297364,
+            "feature": "return"
+          },
+          {
+            "coef": -2.5800043748693895,
+            "feature": "unfortun"
+          },
+          {
+            "coef": -2.5470391693267507,
+            "feature": "ok"
+          },
+          {
+            "coef": -2.4982864281897554,
+            "feature": "tri"
+          },
+          {
+            "coef": -2.4740291082885024,
+            "feature": "poorli"
+          },
+          {
+            "coef": -2.4063457202863288,
+            "feature": "aw"
+          },
+          {
+            "coef": -2.3704155200060626,
+            "feature": "stupid"
+          },
+          {
+            "coef": -2.363945208771063,
+            "feature": "even"
+          },
+          {
+            "coef": -2.270611406942574,
+            "feature": "suck"
+          }
+        ],
+        "most_positive": [
+          {
+            "coef": 7.467281811071664,
+            "feature": "great"
+          },
+          {
+            "coef": 5.340981403607582,
+            "feature": "love"
+          },
+          {
+            "coef": 5.007597654021143,
+            "feature": "excel"
+          },
+          {
+            "coef": 4.311262121640122,
+            "feature": "best"
+          },
+          {
+            "coef": 3.6051988757020963,
+            "feature": "amaz"
+          },
+          {
+            "coef": 3.565696818754386,
+            "feature": "perfect"
+          },
+          {
+            "coef": 3.564165345171393,
+            "feature": "easi"
+          },
+          {
+            "coef": 3.235510375331004,
+            "feature": "good"
+          },
+          {
+            "coef": 3.1450288821947896,
+            "feature": "favorit"
+          },
+          {
+            "coef": 2.957852777582624,
+            "feature": "highli"
+          },
+          {
+            "coef": 2.756359993622595,
+            "feature": "enjoy"
+          },
+          {
+            "coef": 2.66488724270564,
+            "feature": "wonder"
+          },
+          {
+            "coef": 2.6333948020800024,
+            "feature": "well"
+          },
+          {
+            "coef": 2.6150860463931425,
+            "feature": "beauti"
+          },
+          {
+            "coef": 2.5746425690021475,
+            "feature": "awesom"
+          },
+          {
+            "coef": 2.5487520437578635,
+            "feature": "fantast"
+          },
+          {
+            "coef": 2.5485259703105814,
+            "feature": "nice"
+          },
+          {
+            "coef": 2.361532631107903,
+            "feature": "must"
+          },
+          {
+            "coef": 2.172659894050192,
+            "feature": "fun"
+          },
+          {
+            "coef": 2.063427550260394,
+            "feature": "classic"
+          }
+        ],
+        "n_features": 20938
+      },
+      "kind": "tfidf_logreg",
+      "model": "tfidf_logreg",
+      "n": 1000,
+      "n_correct": 848,
+      "n_test": 1000,
+      "n_train": 8100,
+      "per_class": {
+        "negative": {
+          "f1": 0.843298969072165,
+          "precision": 0.8503118503118503,
+          "recall": 0.83640081799591,
+          "support": 489
+        },
+        "positive": {
+          "f1": 0.8524271844660194,
+          "precision": 0.8458574181117534,
+          "recall": 0.8590998043052838,
+          "support": 511
+        }
+      },
+      "precision_macro": 0.8480846342118018,
+      "preprocessing": {
+        "ALPHANUMERIC_ONLY": true,
+        "LOWERCASE": true,
+        "MAX_FEATURES": null,
+        "NGRAM_RANGE": [
+          1,
+          1
+        ],
+        "REMOVE_STOPWORDS": true,
+        "STEM": true
+      },
+      "recall_macro": 0.8477503111505968,
+      "train_seconds": 4.013598708988866
+    }
+  },
+  "power_mode": "Low Power Mode OFF",
+  "seed": 1337,
+  "significance": {},
+  "source_class_balance": {
+    "test_source": {
+      "frac_positive": 0.5107,
+      "n": 20000.0,
+      "n_negative": 9786.0,
+      "n_positive": 10214.0
+    },
+    "train_source": {
+      "frac_positive": 0.50583,
+      "n": 200000.0,
+      "n_negative": 98834.0,
+      "n_positive": 101166.0
+    }
+  },
+  "splits": {
+    "n_test": 1000,
+    "n_train": 8100,
+    "n_val": 900
+  }
+}

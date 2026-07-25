@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/armandogon94/33-sentiment-roberta/actions/workflows/ci.yml/badge.svg)](.github/workflows/ci.yml)
 [![Coverage](https://img.shields.io/badge/coverage-95%25-brightgreen)](#testing)
-[![Tests](https://img.shields.io/badge/tests-130-brightgreen)](#testing)
+[![Tests](https://img.shields.io/badge/tests-164-brightgreen)](#testing)
 [![Python](https://img.shields.io/badge/python-3.12-blue)](pyproject.toml)
 [![License: Apache 2.0](https://img.shields.io/badge/license-Apache--2.0-green)](LICENSE)
 
@@ -269,13 +269,13 @@ to [`docs/diagrams/`](docs/diagrams) as SVG by `scripts/export_diagrams.sh`.
 ├── interpretability/         # attention maps + gradient saliency (the D1 fix lives here)
 ├── utils/                    # seeding, device, run dirs, run metadata, logging, plots, NLTK
 ├── notebooks/                # the ORIGINAL Kaggle notebook + a re-run narrative walkthrough
-├── scripts/                  # download_data | make_sample | export_figures | export_diagrams
-├── tests/                    # 130 tests — leakage, config, metric parity, D1, D3, D8, smoke
-├── reports/                  # RESULTS.md (generated) + figures/
+├── scripts/                  # data export | evidence export/check | figure/report drift guards
+├── tests/                    # 164 tests — leakage, metrics, evidence, D1, D3, D8, smoke
+├── reports/                  # RESULTS.md + text-free evidence/ + mirrored publication figures/
 ├── docs/                     # PROGRESS · PROVENANCE · architecture · interpretability · adr/
 ├── train.py                  # THE entrypoint: train.py -c cfg/small.yaml
-├── evaluate.py               # runs/latest → reports/RESULTS.md
-└── Makefile                  # setup | data | smoke | dev | small | ablation | figures | report
+├── evaluate.py               # explicit run/evidence artifacts → reports/RESULTS.md
+└── Makefile                  # setup | smoke | train | evidence | figures | report | test
 ```
 
 ---
@@ -289,7 +289,7 @@ whole pipeline run in seconds:
 git clone <this repo> && cd 33-sentiment-roberta
 make setup          # uv sync + pre-commit hooks
 make smoke          # full pipeline on data/sample/, CPU, ~6 s
-make test           # 130 tests, no network
+make test           # 164 tests, no network
 ```
 
 `make smoke` uses random weights on purpose — it verifies the *plumbing*, and its accuracy is
@@ -302,9 +302,14 @@ make data                                                  # HF parquet, SHA-256
 uv run python train.py -c cfg/dev.yaml                     # ~2 min calibration run first
 uv run python train.py -c cfg/small.yaml                   # THE published run, ~32 min
 uv run python train.py -c cfg/small.yaml -p cfg/baseline_ablation.json --baselines-only
-uv run python evaluate.py -i runs/run_2 -a runs/run_3 -o reports/RESULTS.md
-uv run python scripts/export_figures.py -i runs/run_2 -a runs/run_3 -o docs/images
+make evidence PUBLISHED_RUN=runs/<small-run> ABLATION_RUN=runs/<ablation-run>
+make report   PUBLISHED_RUN=runs/<small-run> ABLATION_RUN=runs/<ablation-run>
+make figures  PUBLISHED_RUN=runs/<small-run> ABLATION_RUN=runs/<ablation-run>
 ```
+
+Use the run directories printed by the two measured commands; do not substitute the calibration
+or smoke run. The evidence exporter maps the two exact, allowlisted prediction schemas to the
+published `run_2` and ablation `run_3` bundle slots.
 
 **Requires** Python 3.12+ and [uv](https://docs.astral.sh/uv/). No CUDA, no Docker, no cloud account.
 
@@ -367,6 +372,12 @@ RUNTIME:
   device, macOS Low Power Mode state, and the 1-minute load average at launch.
 - **Per-example predictions are persisted** to `runs/run_N/predictions.parquet`, so McNemar can be
   recomputed without re-training.
+- **A compact primary-evidence bundle is committed** at
+  [`reports/evidence/`](reports/evidence/): source JSON copied verbatim plus labels, prediction
+  vectors, and SHA-256 review identifiers—never review text. `scripts/check_published_numbers.py`
+  recomputes the accuracies, confusion/discordance tables, Wilson intervals, and exact McNemar p,
+  then checks the published comparison, ablation, training-history, truncation, and parameter
+  headline claims numerically at their displayed precision.
 - **The numbers above were produced by commit `dcf8b09`**, on MPS with Low Power Mode OFF.
 - **Timings are honest about their conditions.** Both runs happened with other work on the machine
   (1-minute load average 9.5 at the launch of the published run). They are pessimistic upper bounds,
@@ -375,12 +386,12 @@ RUNTIME:
 ## Testing
 
 ```bash
-make test           # 130 tests, coverage on the pure-logic core
+make test           # 164 tests, coverage on the pure-logic core
 make lint           # ruff check + ruff format --check + mypy
 make verify         # clone committed HEAD to a temp dir and run the documented quickstart
 ```
 
-**130 tests, 95% coverage** on `datasets/ models/ metrics/ interpretability/ utils/`. Nothing in the
+**164 tests, 95% coverage** on `datasets/ models/ metrics/ interpretability/ utils/`. Nothing in the
 suite touches the network. The ones that carry the most weight:
 
 | File | Asserts |
@@ -390,12 +401,14 @@ suite touches the network. The ones that carry the most weight:
 | `test_splits.py` | leakage — disjoint index sets, no shared text, and a vectorizer vocabulary provably free of a marker token present in every test row |
 | `test_loading.py` | the label-flip trap — HF `{0,1}` and Kaggle `{1,2}` must normalise to identical frames |
 | `test_metrics.py` | Wilson against `statsmodels` to 1e-9; McNemar against a 2×2 computed by hand in the docstring |
+| `test_evidence.py` | deterministic text-free export; consistent bundle passes; one flipped prediction fails by metric name; scientific-notation precision |
 | `test_attention.py` | **D8** — an `sdpa` model raises rather than silently plotting nothing |
 | `test_utils.py` | parses every `.py` with `ast` to prove no unguarded `plt.show()` survives |
 
-CI runs lint → types → tests → an offline smoke train → figure and report regeneration on Python 3.12
-and 3.13, plus a `docs-drift` job that fails if any path in the tree above stops existing, or if any
-number in this README stops tracing to a committed report.
+CI runs lint → types → tests → an offline smoke train on Python 3.12 and 3.13, plus independent
+documentation and published-evidence jobs. The evidence job recomputes headline statistics from the
+committed prediction vectors, regenerates figure provenance from those metrics, and requires
+`reports/RESULTS.md` to be byte-reproducible.
 
 ---
 

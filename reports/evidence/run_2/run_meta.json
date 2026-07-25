@@ -1,0 +1,93 @@
+{
+  "argv": [
+    "train.py",
+    "-c",
+    "cfg/small.yaml",
+    "--force"
+  ],
+  "config_name": "small",
+  "config_path": "cfg/small.yaml",
+  "git_sha": "dcf8b09438190b352e116676a5f8a42be5e745d0",
+  "hardware": {
+    "cpu_count": 10,
+    "cuda_available": false,
+    "device": "mps",
+    "loadavg_1m": 9.53,
+    "low_power_mode": false,
+    "machine": "arm64",
+    "mps_available": true,
+    "mps_built": true,
+    "platform": "macOS-26.5.2-arm64-arm-64bit",
+    "python": "3.12.13",
+    "torch_num_threads": 4
+  },
+  "library_versions": {
+    "matplotlib": "3.11.1",
+    "nltk": "3.10.0",
+    "numpy": "2.5.1",
+    "pandas": "3.0.5",
+    "pydantic": "2.13.4",
+    "scikit-learn": "1.9.0",
+    "statsmodels": "0.14.6",
+    "torch": "2.13.0",
+    "transformers": "5.14.1"
+  },
+  "nltk_resources": {
+    "punkt": "present",
+    "punkt_tab": "present",
+    "stopwords": "present"
+  },
+  "power_mode": "Low Power Mode OFF",
+  "resolved_config": {
+    "BASELINE": {
+      "C": 1.0,
+      "MAX_ITER": 1000
+    },
+    "DATA": {
+      "N_TEST": 1000,
+      "N_TRAIN": 9000,
+      "ROWS_READ_TEST": 20000,
+      "ROWS_READ_TRAIN": 200000,
+      "TEST_PATH": "data/raw/test.parquet",
+      "TRAIN_PATH": "data/raw/train.parquet",
+      "VAL_FRACTION": 0.1
+    },
+    "DESCRIPTION": "The published configuration. Notebook data scale (9,000 / 1,000, seq 256) with the epoch count reduced to fit a 45-minute wall-clock cap. Epoch selection is on a stratified validation split; the test set is scored exactly once.",
+    "MODEL": {
+      "BATCH_SIZE": 32,
+      "EPOCHS": 3,
+      "LR": 2e-05,
+      "MAX_LEN": 256,
+      "NAME": "roberta",
+      "NUM_LABELS": 2,
+      "PRETRAINED": "roberta-base",
+      "RANDOM_WEIGHT_LAYERS": null,
+      "WEIGHT_DECAY": 0.01
+    },
+    "NAME": "small",
+    "PREPROCESSING": {
+      "ALPHANUMERIC_ONLY": true,
+      "LOWERCASE": true,
+      "MAX_FEATURES": null,
+      "NGRAM_RANGE": [
+        1,
+        1
+      ],
+      "REMOVE_STOPWORDS": true,
+      "STEM": true
+    },
+    "RESULTS": {
+      "OUTPUT_DIR": "runs",
+      "SAVE_FIGURES": true
+    },
+    "RUNTIME": {
+      "DEVICE": "auto",
+      "LOG_EVERY_STEPS": 25,
+      "NUM_WORKERS": 0,
+      "WALL_CLOCK_CAP_MIN": 45.0
+    },
+    "SEED": 1337
+  },
+  "seed": 1337,
+  "timestamp_utc": "2026-07-25T05:31:06+00:00"
+}

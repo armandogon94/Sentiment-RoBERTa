@@ -30,7 +30,11 @@ Keep two notebooks in `notebooks/`, with distinct jobs:
   minutes and its outputs honestly correspond to a cheap config.
 
 The productionized path remains authoritative: `train.py` + `cfg/` + `evaluate.py` produce every
-published number. No number is ever sourced from a notebook cell.
+headline model-comparison and ablation number. One deliberate exception is retained in the
+limitations: the re-run notebook's saved cell 12 reports `0.9560`, compared with the `0.9460`
+`cfg/dev.yaml` run, to document the measured 1.0 percentage-point seed/RNG-consumption-order spread.
+That value is legitimate because the executed notebook is itself the primary run artifact and the
+claim explicitly links to the saved cell rather than presenting it as a `runs/` metric.
 
 ## Consequences
 
