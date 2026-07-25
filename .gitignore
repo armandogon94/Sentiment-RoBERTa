@@ -69,3 +69,6 @@ Thumbs.db
 # Downloaded HF parquet shards (~377 MB) — data/README.md documents how to refetch
 data/raw/
 data/processed/
+
+# Codex context — deliberately NOT committed (AI-agent tell)
+AGENTS.md

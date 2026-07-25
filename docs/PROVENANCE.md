@@ -110,6 +110,15 @@ credentials, and supports cheap partial reads. Column names differ between the t
 (`label`/`content` vs. headerless `polarity`/`text` with `polarity ∈ {1,2}`), so the loader
 normalises both and a test asserts the two paths agree.
 
+### Scope of the licence evidence
+
+This repository records Apache-2.0 as **asserted by the upstream dataset card** at
+<https://huggingface.co/datasets/fancyzhx/amazon_polarity>. It does not preserve an immutable
+revision or snapshot of that card, so it cannot evidence what the card stated at a particular
+revision. Nothing in this repository establishes the rights chain for the underlying review text,
+including Amazon's terms, reviewer rights, or the original McAuley–Leskovec collection terms. This
+is therefore a scoped provenance record, not a claim of independently verified permission.
+
 ## Licensing chain
 
 | Asset | Licence |

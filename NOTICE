@@ -21,8 +21,9 @@ Dataset — Amazon Review Polarity
 --------------------------------------------------------------------------------
 
 Distributed as fancyzhx/amazon_polarity on the Hugging Face Hub under the
-Apache License 2.0. Not redistributed by this repository; fetched at runtime by
-scripts/download_data.py.
+Apache License 2.0. The full dataset is not redistributed by this repository.
+Two small seeded, stratified, redacted subsets — 1,000 train rows and 400 test
+rows — are committed as offline fixtures under the upstream licence.
 
     https://huggingface.co/datasets/fancyzhx/amazon_polarity
 
@@ -59,6 +60,8 @@ Libraries
 --------------------------------------------------------------------------------
 
 Dependencies are declared in pyproject.toml and are not vendored. Their licences
-apply as published by their respective authors, notably: PyTorch (BSD-3-Clause),
-transformers (Apache-2.0), scikit-learn (BSD-3-Clause), pandas (BSD-3-Clause),
-NLTK (Apache-2.0), statsmodels (BSD-3-Clause), matplotlib (PSF-based).
+apply as published by their respective authors, notably: PyTorch (Apache-2.0 AND
+Apache-2.0 WITH LLVM-exception AND BSD-2-Clause AND BSD-3-Clause AND BSL-1.0 AND
+MIT), transformers (Apache-2.0), scikit-learn (BSD-3-Clause), pandas
+(BSD-3-Clause), NLTK (Apache-2.0), statsmodels (BSD-3-Clause), matplotlib
+(PSF-based).

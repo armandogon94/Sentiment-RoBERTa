@@ -29,6 +29,9 @@ if git ls-files | grep -iqE 'AGENT-BRIEF|CLAUDE\.md|AGENTS\.md|^PLAN\.md|\.claud
   echo "FAIL: agent scaffolding is tracked"; git ls-files | grep -iE 'AGENT-BRIEF|CLAUDE\.md|AGENTS\.md|^PLAN\.md|\.claude/'; exit 1
 fi
 
+echo "==> Asserting tracked data contains no contact details"
+python3 scripts/check_committed_data.py
+
 # These two checks read ONLY committed state, so they run before anything is generated: a
 # generator that overwrites a committed artifact must not be able to mask an orphan number.
 echo "==> Asserting every README structure-tree path exists"

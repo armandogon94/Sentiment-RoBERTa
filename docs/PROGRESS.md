@@ -332,7 +332,7 @@ limitation honestly rather than implying otherwise. Closing it converts an hones
 measured result.
 
 ```bash
-cd "/Users/armandogonzalez/Downloads/Claude/Deep Research Claude Code/33-sentiment-roberta"
+cd "/path/to/33-sentiment-roberta"
 
 # One process at a time. ~35 min each on MPS. Check the load first.
 uv run python -c "import os; print('loadavg', os.getloadavg())"

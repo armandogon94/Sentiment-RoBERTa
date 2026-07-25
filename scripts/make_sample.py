@@ -28,6 +28,7 @@ sys.path.insert(0, str(REPO_ROOT))
 
 from datasets.loading import class_balance, load_any  # noqa: E402
 from datasets.splits import stratified_sample  # noqa: E402
+from utils.redaction import redact_contact_details  # noqa: E402
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -47,6 +48,8 @@ def main(argv: list[str] | None = None) -> int:
         src = args.raw_dir / f"{split}.parquet"
         frame = load_any(src)
         sample = stratified_sample(frame, n, args.seed)
+        for column in ("title", "text"):
+            sample[column] = sample[column].map(redact_contact_details)
         out = args.out_dir / out_name
         sample.to_csv(out, index=False)
         balance = class_balance(sample)

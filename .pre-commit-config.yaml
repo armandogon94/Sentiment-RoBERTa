@@ -26,6 +26,13 @@ repos:
 
   - repo: local
     hooks:
+      - id: committed-data-pii
+        name: committed data PII guard
+        entry: uv run python scripts/check_committed_data.py
+        language: system
+        pass_filenames: false
+        always_run: true
+
       - id: notebook-provenance
         name: notebook provenance guard
         entry: uv run python scripts/check_notebooks.py

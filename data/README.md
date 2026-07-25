@@ -132,8 +132,8 @@ Two files, not one:
 
 | File | Rows | Size | Drawn from |
 |---|---|---|---|
-| `data/sample/reviews_sample.csv` | 1,000 | 434 KB | the upstream **train** split |
-| `data/sample/reviews_sample_test.csv` | 400 | 181 KB | the upstream **test** split |
+| `data/sample/reviews_sample.csv` | 1,000 | 443,925 B (434 KiB) | the upstream **train** split |
+| `data/sample/reviews_sample_test.csv` | 400 | 185,237 B (181 KiB) | the upstream **test** split |
 
 Both stratified and seeded, produced by `scripts/make_sample.py --n 1000 --seed 1337`. CI and the
 README quickstart run against them, so `git clone && make test` works with no download at all.
@@ -142,12 +142,16 @@ They come from different upstream splits deliberately. Drawing both from one fil
 smoke config a train/test overlap — harmless for a plumbing check, but this repository exists to
 correct a fabricated number and it does not ship a leak anywhere, not even in a fixture.
 
-The full dataset is **never committed**. `git ls-files | xargs du -ch | tail -1` is under 5 MB and
-`scripts/verify_fresh_clone.sh` fails the build if that stops being true.
+The full dataset is not redistributed by this repository. Two small seeded, stratified subsets —
+1,000 train rows and 400 test rows — are committed as redacted offline fixtures under the upstream
+licence, with attribution in [`../NOTICE`](../NOTICE). `git ls-files | xargs du -ch | tail -1` is
+under 5 MB and `scripts/verify_fresh_clone.sh` fails the build if that stops being true.
 
 ## Licence and redistribution
 
-The dataset is Apache-2.0 and is **not redistributed** by this repository — `scripts/download_data.py`
-fetches it at runtime. The committed 1,000-row sample is a fixture drawn from an Apache-2.0 corpus;
-attribution is in [`../NOTICE`](../NOTICE). The reviews are public product reviews and contain no
-personal data beyond what the upstream corpus already published.
+The upstream corpus contains real user-written reviews; at least one review selected for the
+committed fixtures contained a contact email address. After sampling and before writing either CSV,
+`scripts/make_sample.py` replaces email addresses with `[email redacted]` and common North-American
+phone-number forms with `[phone redacted]` in both `title` and `text`. It does not remove names,
+perform general named-entity anonymisation, or otherwise rewrite the review content.
+`scripts/check_committed_data.py` enforces the email/phone rule across tracked data-like files in CI.
