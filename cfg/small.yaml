@@ -36,7 +36,12 @@ MODEL:
   PRETRAINED: roberta-base
   MAX_LEN: 256
   BATCH_SIZE: 32
-  EPOCHS: 2
+  # 3, not the notebook's 5. Sized from a MEASURED rate, not a guess: cfg/dev.yaml ran
+  # 1,800 rows at seq 128 in 65.4 s (57 steps, 1.15 s/step, MPS, Low Power Mode OFF).
+  # Doubling the sequence length roughly doubles per-step cost, so 8,100 rows at seq 256 is
+  # ~254 steps x ~2.4 s = ~10.2 min/epoch, plus ~25 s of validation. Three epochs lands
+  # near 35 min, inside the 45-minute cap; five would land near 55 and be truncated.
+  EPOCHS: 3
   LR: 2.0e-5
   WEIGHT_DECAY: 0.01
   NUM_LABELS: 2
