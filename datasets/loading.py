@@ -99,7 +99,9 @@ def read_parquet(path: Path, nrows: int | None = None) -> pd.DataFrame:
     if nrows is not None:
         frame = frame.iloc[:nrows]
     if list(frame.columns) != CANONICAL_COLUMNS:
-        raise ValueError(f"expected canonical columns {CANONICAL_COLUMNS}, got {list(frame.columns)}")
+        raise ValueError(
+            f"expected canonical columns {CANONICAL_COLUMNS}, got {list(frame.columns)}"
+        )
     return frame.reset_index(drop=True)
 
 

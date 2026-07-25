@@ -34,7 +34,7 @@ from __future__ import annotations
 import argparse
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 
@@ -51,9 +51,7 @@ NOTEBOOK_REVIEW_POSITIONS = (5, 7, 9, 11, 13, 16)
 CLASS_LABELS = ("negative", "positive")
 
 
-def _fig_confusion(
-    matrix: np.ndarray, title: str, caption_text: str
-) -> Any:
+def _fig_confusion(matrix: np.ndarray, title: str, caption_text: str) -> Any:
     import matplotlib.pyplot as plt
 
     counts = np.asarray(matrix, dtype=float)
@@ -182,12 +180,24 @@ def figure_baseline_ablation(
     accs = [c["accuracy"] for c in cells]
     lows = [c["accuracy_ci"]["low"] for c in cells]
     highs = [c["accuracy_ci"]["high"] for c in cells]
-    errs = np.array([[a - lo for a, lo in zip(accs, lows, strict=True)], [hi - a for a, hi in zip(accs, highs, strict=True)]])
+    errs = np.array(
+        [
+            [a - lo for a, lo in zip(accs, lows, strict=True)],
+            [hi - a for a, hi in zip(accs, highs, strict=True)],
+        ]
+    )
     colors = [plots.OKABE_ITO[1] if "notebook" in label else plots.OKABE_ITO[0] for label in labels]
 
     fig, ax = plt.subplots(figsize=(8.6, 3.9))
     y = np.arange(len(labels))
-    ax.barh(y, accs, xerr=errs, color=colors, height=0.62, error_kw={"ecolor": "#444444", "capsize": 3, "lw": 1})
+    ax.barh(
+        y,
+        accs,
+        xerr=errs,
+        color=colors,
+        height=0.62,
+        error_kw={"ecolor": "#444444", "capsize": 3, "lw": 1},
+    )
     ax.set_yticks(y, labels=labels)
     ax.invert_yaxis()
     ax.set_xlabel("test accuracy (Wilson 95% CI)")
@@ -196,7 +206,7 @@ def figure_baseline_ablation(
     ax.grid(visible=True, axis="x", alpha=0.25)
     ax.grid(visible=False, axis="y")
     for yi, a in zip(y, accs, strict=True):
-        ax.text(a, yi, f"  {a:.4f}", va="center", fontsize=9)
+        ax.text(a, float(yi), f"  {a:.4f}", va="center", fontsize=9)
 
     roberta = metrics["models"].get("roberta")
     if roberta and not roberta.get("random_weights", False):
@@ -232,21 +242,27 @@ def _load_model_for_figures(run_dir: Path, metrics: dict[str, Any]) -> Any:
 
     from cfg.schema import load_config
     from models.registry import create_model
+    from models.roberta import RobertaSentiment
     from utils.device import resolve_device
 
     cfg = load_config(REPO_ROOT / metrics["config_path"])
     device = resolve_device(cfg.RUNTIME.DEVICE)
-    model = create_model(
-        "roberta",
-        pretrained=cfg.MODEL.PRETRAINED,
-        num_labels=cfg.MODEL.NUM_LABELS,
-        max_len=cfg.MODEL.MAX_LEN,
-        batch_size=cfg.MODEL.BATCH_SIZE,
-        epochs=cfg.MODEL.EPOCHS,
-        lr=cfg.MODEL.LR,
-        seed=cfg.SEED,
-        device=device,
-        random_weight_layers=cfg.MODEL.RANDOM_WEIGHT_LAYERS,
+    # Narrowed to the concrete type: the figures need the raw nn.Module and the tokenizer,
+    # neither of which belongs on the model-comparison Protocol.
+    model = cast(
+        RobertaSentiment,
+        create_model(
+            "roberta",
+            pretrained=cfg.MODEL.PRETRAINED,
+            num_labels=cfg.MODEL.NUM_LABELS,
+            max_len=cfg.MODEL.MAX_LEN,
+            batch_size=cfg.MODEL.BATCH_SIZE,
+            epochs=cfg.MODEL.EPOCHS,
+            lr=cfg.MODEL.LR,
+            seed=cfg.SEED,
+            device=device,
+            random_weight_layers=cfg.MODEL.RANDOM_WEIGHT_LAYERS,
+        ),
     )
     ckpt = run_dir / "model_roberta.pt"
     if not ckpt.exists():
@@ -260,7 +276,7 @@ def _load_model_for_figures(run_dir: Path, metrics: dict[str, Any]) -> Any:
     return model, cfg, device
 
 
-def _example_texts(run_dir: Path) -> "Any":
+def _example_texts(run_dir: Path) -> Any:
     import pandas as pd
 
     return pd.read_parquet(run_dir / "predictions.parquet")
@@ -309,7 +325,12 @@ def figure_attention(
         row[order],
         color=plots.OKABE_ITO[0],
     )
-    ax2.set_xticks(range(len(order)), labels=[amap.tokens[i].lstrip("Ġ") for i in order], rotation=60, ha="right")
+    ax2.set_xticks(
+        range(len(order)),
+        labels=[amap.tokens[i].lstrip("Ġ") for i in order],
+        rotation=60,
+        ha="right",
+    )
     ax2.set_ylabel("attention weight")
     ax2.set_xlabel("attended-to token")
     ax2.set_title(f"What '{amap.tokens[idx].lstrip('Ġ')}' attends to (top {len(order)})")
@@ -374,7 +395,9 @@ def figure_saliency(
 
 
 def main(argv: list[str] | None = None) -> int:
-    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     ap.add_argument("-i", "--run-dir", type=Path, default=REPO_ROOT / "runs" / "latest")
     ap.add_argument("-o", "--out-dir", type=Path, default=REPO_ROOT / "docs" / "images")
     ap.add_argument(
@@ -401,7 +424,9 @@ def main(argv: list[str] | None = None) -> int:
     written += figure_training_curves(metrics, out_dirs)
 
     ablation_metrics = (
-        read_json(args.ablation_run_dir.resolve() / "metrics.json") if args.ablation_run_dir else None
+        read_json(args.ablation_run_dir.resolve() / "metrics.json")
+        if args.ablation_run_dir
+        else None
     )
     written += figure_baseline_ablation(metrics, out_dirs, ablation_metrics)
 

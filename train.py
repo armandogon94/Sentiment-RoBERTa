@@ -33,7 +33,7 @@ import os
 import sys
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 import pandas as pd
@@ -46,8 +46,14 @@ from cfg.schema import Config, apply_overrides, load_config  # noqa: E402
 from datasets.loading import class_balance, load_any  # noqa: E402
 from datasets.splits import combined_text, make_splits  # noqa: E402
 from metrics.classification import classification_metrics  # noqa: E402
-from metrics.significance import accuracy_interval, mcnemar_test, significance_sentence  # noqa: E402
+from metrics.significance import (  # noqa: E402
+    accuracy_interval,
+    mcnemar_test,
+    significance_sentence,
+)
+from models.baselines import TfidfLogisticRegression  # noqa: E402
 from models.registry import create_model  # noqa: E402
+from models.roberta import RobertaSentiment  # noqa: E402
 from utils.device import power_mode_label, resolve_device  # noqa: E402
 from utils.logging import configure, get_logger  # noqa: E402
 from utils.nltk_data import ensure_nltk_data  # noqa: E402
@@ -59,7 +65,9 @@ LOADAVG_REFUSE = 12.0
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     ap.add_argument("-c", "--config", required=True, type=Path, help="path to a cfg/*.yaml")
     ap.add_argument(
         "-p",
@@ -99,18 +107,24 @@ def build_splits(cfg: Config) -> Any:
 def fit_baseline(cfg: Config, splits: Any, *, name: str = "tfidf_logreg") -> dict[str, Any]:
     """Fit the control on train (not train+val — the transformer does not see val either)."""
     log = get_logger("baseline")
-    model = create_model(
-        "tfidf_logreg",
-        seed=cfg.SEED,
-        C=cfg.BASELINE.C,
-        max_iter=cfg.BASELINE.MAX_ITER,
-        lowercase=cfg.PREPROCESSING.LOWERCASE,
-        alphanumeric_only=cfg.PREPROCESSING.ALPHANUMERIC_ONLY,
-        remove_stopwords=cfg.PREPROCESSING.REMOVE_STOPWORDS,
-        stem=cfg.PREPROCESSING.STEM,
-        ngram_range=tuple(cfg.PREPROCESSING.NGRAM_RANGE),
-        max_features=cfg.PREPROCESSING.MAX_FEATURES,
-        name=name,
+    # The Protocol is deliberately minimal — it is the surface the results table compares
+    # on. The entrypoint additionally reports the control's coefficients, so it narrows to
+    # the concrete type here rather than widening the Protocol for one caller.
+    model = cast(
+        TfidfLogisticRegression,
+        create_model(
+            "tfidf_logreg",
+            seed=cfg.SEED,
+            C=cfg.BASELINE.C,
+            max_iter=cfg.BASELINE.MAX_ITER,
+            lowercase=cfg.PREPROCESSING.LOWERCASE,
+            alphanumeric_only=cfg.PREPROCESSING.ALPHANUMERIC_ONLY,
+            remove_stopwords=cfg.PREPROCESSING.REMOVE_STOPWORDS,
+            stem=cfg.PREPROCESSING.STEM,
+            ngram_range=tuple(cfg.PREPROCESSING.NGRAM_RANGE),
+            max_features=cfg.PREPROCESSING.MAX_FEATURES,
+            name=name,
+        ),
     )
     x_train = list(combined_text(splits.train))
     y_train = [int(v) for v in splits.train["label"]]
@@ -150,21 +164,26 @@ def fit_baseline(cfg: Config, splits: Any, *, name: str = "tfidf_logreg") -> dic
 
 def fit_transformer(cfg: Config, splits: Any, device: Any) -> dict[str, Any]:
     log = get_logger("roberta")
-    model = create_model(
-        "roberta",
-        pretrained=cfg.MODEL.PRETRAINED,
-        num_labels=cfg.MODEL.NUM_LABELS,
-        max_len=cfg.MODEL.MAX_LEN,
-        batch_size=cfg.MODEL.BATCH_SIZE,
-        epochs=cfg.MODEL.EPOCHS,
-        lr=cfg.MODEL.LR,
-        weight_decay=cfg.MODEL.WEIGHT_DECAY,
-        seed=cfg.SEED,
-        device=device,
-        wall_clock_cap_min=cfg.RUNTIME.WALL_CLOCK_CAP_MIN,
-        log_every_steps=cfg.RUNTIME.LOG_EVERY_STEPS,
-        num_workers=cfg.RUNTIME.NUM_WORKERS,
-        random_weight_layers=cfg.MODEL.RANDOM_WEIGHT_LAYERS,
+    # Same narrowing as fit_baseline: validation-aware training and the timing report are
+    # transformer-specific and do not belong on the shared Protocol.
+    model = cast(
+        RobertaSentiment,
+        create_model(
+            "roberta",
+            pretrained=cfg.MODEL.PRETRAINED,
+            num_labels=cfg.MODEL.NUM_LABELS,
+            max_len=cfg.MODEL.MAX_LEN,
+            batch_size=cfg.MODEL.BATCH_SIZE,
+            epochs=cfg.MODEL.EPOCHS,
+            lr=cfg.MODEL.LR,
+            weight_decay=cfg.MODEL.WEIGHT_DECAY,
+            seed=cfg.SEED,
+            device=device,
+            wall_clock_cap_min=cfg.RUNTIME.WALL_CLOCK_CAP_MIN,
+            log_every_steps=cfg.RUNTIME.LOG_EVERY_STEPS,
+            num_workers=cfg.RUNTIME.NUM_WORKERS,
+            random_weight_layers=cfg.MODEL.RANDOM_WEIGHT_LAYERS,
+        ),
     )
     x_train = list(combined_text(splits.train))
     y_train = [int(v) for v in splits.train["label"]]
@@ -261,7 +280,9 @@ def main(argv: list[str] | None = None) -> int:
     write_json(run_dir / "run_meta.json", meta)
 
     splits, source_balance = build_splits(cfg)
-    log.info("splits.built", **splits.sizes(), **{f"source_{k}": v for k, v in source_balance.items()})
+    log.info(
+        "splits.built", **splits.sizes(), **{f"source_{k}": v for k, v in source_balance.items()}
+    )
 
     results: list[dict[str, Any]] = []
     ablation: list[dict[str, Any]] = []
@@ -280,12 +301,16 @@ def main(argv: list[str] | None = None) -> int:
     y_test = np.asarray([int(v) for v in splits.test["label"]])
     significance: dict[str, Any] = {}
     if transformer is not None:
-        mc = mcnemar_test(y_test, np.asarray(transformer["_predictions"]), np.asarray(baseline["_predictions"]))
+        mc = mcnemar_test(
+            y_test, np.asarray(transformer["_predictions"]), np.asarray(baseline["_predictions"])
+        )
         acc_r = accuracy_interval(y_test, np.asarray(transformer["_predictions"]))
         acc_b = accuracy_interval(y_test, np.asarray(baseline["_predictions"]))
         significance = {
             "mcnemar": mc.as_dict(),
-            "sentence": significance_sentence("RoBERTa (fine-tuned)", "TF-IDF + LogReg", acc_r, acc_b, mc),
+            "sentence": significance_sentence(
+                "RoBERTa (fine-tuned)", "TF-IDF + LogReg", acc_r, acc_b, mc
+            ),
         }
         log.info("significance", **{"p_value": mc.p_value, "n_discordant": mc.n_discordant})
         log.info("verdict", sentence=significance["sentence"])

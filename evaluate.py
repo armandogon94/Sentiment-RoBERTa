@@ -34,7 +34,7 @@ PRETTY = {
 
 
 def fmt_seconds(seconds: float) -> str:
-    total = int(round(seconds))
+    total = round(seconds)
     if total < 60:
         return f"{total}s"
     return f"{total // 60}m {total % 60:02d}s"
@@ -47,15 +47,14 @@ def fmt_accuracy(block: dict[str, Any]) -> str:
 
 
 def comparison_table(metrics: dict[str, Any]) -> str:
-    rows = ["| Model | Accuracy (Wilson 95% CI) | Precision (macro) | Recall (macro) | F1 (macro) | Train time | Config |",
-            "|---|---|---|---|---|---|---|"]
+    rows = [
+        "| Model | Accuracy (Wilson 95% CI) | Precision (macro) | Recall (macro) | F1 (macro) | Train time | Config |",
+        "|---|---|---|---|---|---|---|",
+    ]
     order = [k for k in ("roberta", "tfidf_logreg") if k in metrics["models"]]
     for key in order:
         block = metrics["models"][key]
-        if key == "roberta":
-            train_s = block["training"]["train_seconds"]
-        else:
-            train_s = block["train_seconds"]
+        train_s = block["training"]["train_seconds"] if key == "roberta" else block["train_seconds"]
         rows.append(
             f"| {PRETTY.get(key, key)} | {fmt_accuracy(block)} | "
             f"{block['precision_macro']:.4f} | {block['recall_macro']:.4f} | {block['f1_macro']:.4f} | "
@@ -102,7 +101,11 @@ def negation_evidence(source: dict[str, Any]) -> str:
             if any(m in f["feature"].split() for m in ("not", "n't", "no", "nor", "never"))
             or f["feature"] in ("not", "n't", "no", "nor", "never")
         ]
-        found = ", ".join(f"`{f}`" for f in neg_features[:6]) if neg_features else "*none — deleted before vectorisation*"
+        found = (
+            ", ".join(f"`{f}`" for f in neg_features[:6])
+            if neg_features
+            else "*none — deleted before vectorisation*"
+        )
         lines.append(f"- **{cell['ablation_label']}** ({lo}, {hi}): {found}")
     if not lines:
         return ""
@@ -176,7 +179,7 @@ def build_report(metrics: dict[str, Any], ablation_source: dict[str, Any] | None
         parts.append(
             "The TF-IDF + logistic-regression row is a **genuine control, not a formality.** "
             "Amazon Review Polarity is close to linearly separable in bag-of-words space: "
-            "\"refund\", \"waste\", \"flawless\" and \"returned\" are not subtle, and a "
+            '"refund", "waste", "flawless" and "returned" are not subtle, and a '
             "well-configured linear model on a few thousand examples is a serious opponent. "
             f"Here it lands {abs(gap):.1f} percentage points "
             f"{'behind' if gap > 0 else 'ahead of'} a fine-tuned 125M-parameter transformer, "
@@ -192,7 +195,7 @@ def build_report(metrics: dict[str, Any], ablation_source: dict[str, Any] | None
             "chain deletes negation twice over. `not`, `no` and `nor` are NLTK English "
             "stopwords, and the `^\\w+$` filter destroys contractions such as `n't` *before* the "
             "stopword filter even runs. With `ngram_range=(1,1)` no bigram can recover the "
-            "structure, so `\"not good\"` and `\"good\"` collapse to the same feature vector — on "
+            'structure, so `"not good"` and `"good"` collapse to the same feature vector — on '
             "the one task where negation decides the label.\n"
         )
         parts.append(
@@ -276,7 +279,9 @@ def build_report(metrics: dict[str, Any], ablation_source: dict[str, Any] | None
 
 
 def main(argv: list[str] | None = None) -> int:
-    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     ap.add_argument("-i", "--run-dir", type=Path, default=REPO_ROOT / "runs" / "latest")
     ap.add_argument(
         "-a",
@@ -289,7 +294,11 @@ def main(argv: list[str] | None = None) -> int:
     args = ap.parse_args(argv)
 
     metrics = read_json(args.run_dir.resolve() / "metrics.json")
-    ablation = read_json(args.ablation_run_dir.resolve() / "metrics.json") if args.ablation_run_dir else None
+    ablation = (
+        read_json(args.ablation_run_dir.resolve() / "metrics.json")
+        if args.ablation_run_dir
+        else None
+    )
 
     report = build_report(metrics, ablation)
     args.out.parent.mkdir(parents=True, exist_ok=True)

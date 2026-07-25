@@ -31,7 +31,7 @@ class SentimentModel(Protocol):
     #: Short, stable identifier used as a key in ``metrics.json`` and a row label in tables.
     name: str
 
-    def fit(self, texts: list[str], labels: list[int]) -> "SentimentModel":
+    def fit(self, texts: list[str], labels: list[int]) -> SentimentModel:
         """Train on ``texts``/``labels``. Returns self so calls can chain."""
         ...
 

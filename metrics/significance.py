@@ -90,7 +90,7 @@ def _z_for(level: float) -> float:
 
 
 def accuracy_interval(
-    y_true: "np.ndarray | list[int]", y_pred: "np.ndarray | list[int]", level: float = 0.95
+    y_true: np.ndarray | list[int], y_pred: np.ndarray | list[int], level: float = 0.95
 ) -> Interval:
     """Wilson interval around an accuracy."""
     y_true = np.asarray(y_true)
@@ -120,13 +120,16 @@ class McNemarResult:
         return asdict(self)
 
     def table(self) -> list[list[int]]:
-        return [[self.a_both_correct, self.b_only_a_correct], [self.c_only_b_correct, self.d_both_wrong]]
+        return [
+            [self.a_both_correct, self.b_only_a_correct],
+            [self.c_only_b_correct, self.d_both_wrong],
+        ]
 
 
 def mcnemar_test(
-    y_true: "np.ndarray | list[int]",
-    pred_a: "np.ndarray | list[int]",
-    pred_b: "np.ndarray | list[int]",
+    y_true: np.ndarray | list[int],
+    pred_a: np.ndarray | list[int],
+    pred_b: np.ndarray | list[int],
     exact: bool = True,
 ) -> McNemarResult:
     """Exact McNemar test on two models' predictions over the *same* examples."""

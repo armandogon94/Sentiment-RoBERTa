@@ -27,6 +27,7 @@ import sys
 import urllib.request
 from pathlib import Path
 
+import pandas as pd
 import pyarrow.parquet as pq
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -89,7 +90,7 @@ def download_shard(name: str, dest_dir: Path) -> Path:
     url = f"{HF_BASE}/{name}"
     print(f"    fetch   {url}")
     tmp = dest.with_suffix(dest.suffix + ".part")
-    with urllib.request.urlopen(url) as resp, tmp.open("wb") as out:  # noqa: S310 - fixed https host
+    with urllib.request.urlopen(url) as resp, tmp.open("wb") as out:
         while block := resp.read(1 << 20):
             out.write(block)
 
@@ -104,14 +105,12 @@ def download_shard(name: str, dest_dir: Path) -> Path:
     return dest
 
 
-def read_rows(shard_paths: list[Path], rows: int) -> "object":
+def read_rows(shard_paths: list[Path], rows: int) -> pd.DataFrame:
     """Read at most ``rows`` rows across ``shard_paths``, in shard order.
 
     Parquet row groups let us stop early, so ``--rows 200000`` reads roughly 6% of a
     shard rather than the whole thing.
     """
-    import pandas as pd
-
     frames: list[pd.DataFrame] = []
     remaining = rows
     for path in shard_paths:

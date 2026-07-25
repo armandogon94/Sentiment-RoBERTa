@@ -47,12 +47,16 @@ def git_sha(short: bool = False) -> str:
     A ``-dirty`` SHA in ``run_meta.json`` is a warning that the number cannot be reproduced
     from any commit, which is worth knowing before it reaches a README.
     """
-    args = ["git", "rev-parse", "--short" if short else "HEAD", "HEAD"] if short else ["git", "rev-parse", "HEAD"]
+    args = (
+        ["git", "rev-parse", "--short" if short else "HEAD", "HEAD"]
+        if short
+        else ["git", "rev-parse", "HEAD"]
+    )
     try:
-        sha = subprocess.run(  # noqa: S603 - fixed argv
+        sha = subprocess.run(
             args, capture_output=True, text=True, check=True, timeout=10
         ).stdout.strip()
-        dirty = subprocess.run(  # noqa: S603 - fixed argv
+        dirty = subprocess.run(
             ["git", "status", "--porcelain"], capture_output=True, text=True, check=True, timeout=10
         ).stdout.strip()
     except (OSError, subprocess.SubprocessError):  # pragma: no cover

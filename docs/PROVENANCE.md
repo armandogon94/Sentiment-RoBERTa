@@ -68,9 +68,9 @@ Correcting a common misreading of the loading cell: `nrows=200000` is how many C
 into memory**, not how many were trained on.
 
 ```python
-nrows=200000                                                        # rows read
-df_train_sample = df_original_train.sample(9000, random_state=42)   # rows TRAINED on
-df_test_sample  = df_original_test.sample(1000,  random_state=42)   # rows TESTED on
+nrows = 200000  # rows read
+df_train_sample = df_original_train.sample(9000, random_state=42)  # rows TRAINED on
+df_test_sample = df_original_test.sample(1000, random_state=42)  # rows TESTED on
 ```
 
 | Property | Value |

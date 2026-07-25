@@ -31,7 +31,7 @@ class TfidfLogisticRegression:
         self,
         *,
         seed: int = 1337,
-        C: float = 1.0,  # noqa: N803 - matches sklearn's parameter name exactly
+        C: float = 1.0,
         max_iter: int = 1000,
         lowercase: bool = True,
         alphanumeric_only: bool = True,
@@ -55,7 +55,7 @@ class TfidfLogisticRegression:
 
     # -- Protocol -----------------------------------------------------------------
 
-    def fit(self, texts: list[str], labels: list[int]) -> "TfidfLogisticRegression":
+    def fit(self, texts: list[str], labels: list[int]) -> TfidfLogisticRegression:
         cleaned = self._clean(texts)
         features = self.vectorizer.fit_transform(cleaned)
         self.classifier.fit(features, np.asarray(labels))

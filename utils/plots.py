@@ -21,7 +21,7 @@ import matplotlib
 # Import-time backend choice: safe by default. scripts/export_figures.py --show swaps it.
 matplotlib.use("Agg", force=True)
 
-import matplotlib.pyplot as plt  # noqa: E402
+import matplotlib.pyplot as plt
 
 #: Okabe-Ito, ordered so the first two are the ones used for the two classes.
 OKABE_ITO = [
@@ -64,21 +64,24 @@ RC_PARAMS = {
 
 def apply_style() -> None:
     """Apply the repo-wide figure style. Called once by the figure entrypoints."""
-    plt.rcParams.update(RC_PARAMS)
+    # rcParams is keyed by a ~300-member Literal union; a plain dict cannot satisfy it.
+    plt.rcParams.update(RC_PARAMS)  # type: ignore[arg-type]
 
 
 def enable_interactive() -> None:
     """Switch to an interactive backend. Only ever called from an explicit ``--show``."""
-    matplotlib.use("MacOSX" if matplotlib.get_backend() == "Agg" else matplotlib.get_backend(), force=True)
+    matplotlib.use(
+        "MacOSX" if matplotlib.get_backend() == "Agg" else matplotlib.get_backend(), force=True
+    )
 
 
-def caption(ax: "plt.Axes", text: str) -> None:
+def caption(ax: plt.Axes, text: str) -> None:
     """Attach a provenance caption naming the model and config that produced the figure."""
     ax.figure.text(0.0, -0.045, text, ha="left", va="top", fontsize=8, color="#444444", wrap=True)
 
 
 def save_figure(
-    fig: "plt.Figure",
+    fig: plt.Figure,
     name: str,
     out_dirs: Iterable[Path],
     *,
@@ -97,6 +100,6 @@ def save_figure(
         fig.savefig(path)
         written.append(path)
     if show:  # pragma: no cover - interactive only
-        plt.show()
+        plt.show()  # reachable only under `if show` — the explicit --show flag, never in CI
     plt.close(fig)
     return written

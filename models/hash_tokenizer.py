@@ -54,7 +54,11 @@ class HashTokenizer:
         return tid
 
     def encode_one(self, text: str, max_length: int | None, truncation: bool) -> list[int]:
-        ids = [self.bos_token_id, *(self._token_id(t) for t in _WORD.findall(text)), self.eos_token_id]
+        ids = [
+            self.bos_token_id,
+            *(self._token_id(t) for t in _WORD.findall(text)),
+            self.eos_token_id,
+        ]
         if truncation and max_length is not None and len(ids) > max_length:
             ids = [*ids[: max_length - 1], self.eos_token_id]
         return ids

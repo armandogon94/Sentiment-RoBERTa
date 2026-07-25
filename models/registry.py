@@ -53,5 +53,5 @@ def _load_builtins() -> None:
     Done lazily: importing ``models.roberta`` pulls in torch and transformers, which costs
     seconds. A caller that only needs the TF-IDF control should not pay that.
     """
-    import models.baselines  # noqa: F401
+    import models.baselines
     import models.roberta  # noqa: F401

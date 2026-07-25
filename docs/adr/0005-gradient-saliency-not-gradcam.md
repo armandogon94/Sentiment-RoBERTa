@@ -22,7 +22,7 @@ than the final hidden state" — so the mislabelling was known at the time of wr
 Separately, the implementation contained a real bug:
 
 ```python
-embeddings = model.roberta.embeddings(input_ids=input_ids)   # the FULL embedding module
+embeddings = model.roberta.embeddings(input_ids=input_ids)  # the FULL embedding module
 outputs = model(inputs_embeds=embeddings, attention_mask=attention_mask, return_dict=True)
 ```
 
@@ -46,9 +46,9 @@ model had never been trained on.
    ```python
    assert torch.allclose(
        model(input_ids=ids, attention_mask=mask).logits,
-       model(inputs_embeds=model.roberta.embeddings.word_embeddings(ids),
-             attention_mask=mask).logits,
-       atol=1e-4)
+       model(inputs_embeds=model.roberta.embeddings.word_embeddings(ids), attention_mask=mask).logits,
+       atol=1e-4,
+   )
    ```
    `tests/test_attribution.py` keeps an `xfail` reproducing the old double-embedding path, so the bug
    remains documented rather than merely absent.

@@ -31,7 +31,9 @@ def resolve_device(requested: DeviceName = "auto") -> torch.device:
         return torch.device("cpu")
     if requested == "mps":
         if not torch.backends.mps.is_available():
-            raise RuntimeError("DEVICE: mps was requested but torch.backends.mps.is_available() is False")
+            raise RuntimeError(
+                "DEVICE: mps was requested but torch.backends.mps.is_available() is False"
+            )
         return torch.device("mps")
     return torch.device("mps" if torch.backends.mps.is_available() else "cpu")
 
@@ -45,7 +47,7 @@ def low_power_mode() -> bool | None:
     if platform.system() != "Darwin":
         return None
     try:
-        out = subprocess.run(  # noqa: S603 - fixed argv, no shell
+        out = subprocess.run(
             ["/usr/bin/pmset", "-g"],
             capture_output=True,
             text=True,

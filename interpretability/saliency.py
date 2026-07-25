@@ -61,7 +61,8 @@ def word_embeddings_of(model: Any, input_ids: torch.Tensor) -> torch.Tensor:
     module and double-applies position/token-type/LayerNorm when its output is passed back in
     as ``inputs_embeds``.
     """
-    return model.roberta.embeddings.word_embeddings(input_ids)
+    embedded: torch.Tensor = model.roberta.embeddings.word_embeddings(input_ids)
+    return embedded
 
 
 def _full_embeddings_of(model: Any, input_ids: torch.Tensor) -> torch.Tensor:
@@ -70,7 +71,8 @@ def _full_embeddings_of(model: Any, input_ids: torch.Tensor) -> torch.Tensor:
     Kept in the library rather than inlined in the test so the diff between right and wrong is
     two named functions side by side.
     """
-    return model.roberta.embeddings(input_ids=input_ids)
+    embedded: torch.Tensor = model.roberta.embeddings(input_ids=input_ids)
+    return embedded
 
 
 def _attribute(

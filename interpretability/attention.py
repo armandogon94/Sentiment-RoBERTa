@@ -39,7 +39,8 @@ class AttentionMap:
 
     def row_for(self, token_index: int) -> np.ndarray:
         """The attention distribution emitted *by* one source token."""
-        return self.matrix[token_index]
+        row: np.ndarray = self.matrix[token_index]
+        return row
 
     def most_attended(self, k: int = 8) -> list[tuple[str, float]]:
         """Tokens receiving the most attention, averaged over all source positions."""
@@ -60,10 +61,10 @@ def last_layer_attention(
 ) -> AttentionMap:
     """Extract the head-mean attention matrix of the final encoder layer."""
     device = device or torch.device("cpu")
-    if model.config._attn_implementation != "eager":  # noqa: SLF001 - see module docstring
+    if model.config._attn_implementation != "eager":
         raise RuntimeError(
             f"attention extraction needs eager attention, model has "
-            f"{model.config._attn_implementation!r}; "  # noqa: SLF001
+            f"{model.config._attn_implementation!r}; "
             "construct the model with attn_implementation='eager' (D8)"
         )
 
@@ -102,7 +103,7 @@ def last_layer_attention(
     return AttentionMap(
         tokens=[tokens[i] for i in keep],
         matrix=head_mean[np.ix_(keep, keep)],
-        layer=int(len(out.attentions)),
+        layer=len(out.attentions),
         n_heads=n_heads,
         predicted_label=int(out.logits.argmax(dim=-1).item()),
     )

@@ -20,13 +20,15 @@ _CONFIGURED = False
 
 def configure(level: str = "INFO", jsonl_path: Path | None = None) -> None:
     """Configure structlog once per process. Idempotent."""
-    global _CONFIGURED  # noqa: PLW0603
+    global _CONFIGURED
     handlers: list[logging.Handler] = [logging.StreamHandler(sys.stdout)]
     if jsonl_path is not None:
         jsonl_path.parent.mkdir(parents=True, exist_ok=True)
         handlers.append(logging.FileHandler(jsonl_path, encoding="utf-8"))
 
-    logging.basicConfig(format="%(message)s", level=getattr(logging, level.upper()), handlers=handlers)
+    logging.basicConfig(
+        format="%(message)s", level=getattr(logging, level.upper()), handlers=handlers
+    )
     structlog.configure(
         processors=[
             structlog.contextvars.merge_contextvars,

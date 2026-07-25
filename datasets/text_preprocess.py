@@ -75,7 +75,7 @@ def tokenize(text: str) -> list[str]:
         from nltk.tokenize import word_tokenize
 
         ensure_nltk_data()
-        return word_tokenize(text)
+        return [str(t) for t in word_tokenize(text)]
     except (LookupError, ImportError):  # pragma: no cover - only without punkt
         return re.findall(r"\w+(?:'\w+)?|[^\w\s]", text)
 

@@ -47,12 +47,12 @@ def stratified_positions(labels: np.ndarray, n: int, rng: np.random.Generator) -
     """
     n = max(0, min(n, len(labels)))
     classes, counts = np.unique(labels, return_counts=True)
-    total = int(counts.sum())
+    total = counts.sum()
     chosen: list[np.ndarray] = []
     allocated = 0
     for i, cls in enumerate(classes):
         group = np.flatnonzero(labels == cls)
-        k = n - allocated if i == len(classes) - 1 else int(round(n * counts[i] / total))
+        k = n - allocated if i == len(classes) - 1 else round(n * counts[i] / total)
         k = max(0, min(k, len(group)))
         chosen.append(rng.choice(group, size=k, replace=False))
         allocated += k
@@ -90,7 +90,7 @@ def make_splits(
     pool = stratified_sample(train_frame, n_train, seed, label_col)
     test = stratified_sample(test_frame, n_test, seed + 1, label_col)
 
-    n_val = int(round(len(pool) * val_fraction))
+    n_val = round(len(pool) * val_fraction)
     rng = np.random.default_rng(seed + 2)
     val_index = stratified_positions(pool[label_col].to_numpy(), n_val, rng)
 

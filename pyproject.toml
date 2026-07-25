@@ -61,6 +61,10 @@ package = false
 [tool.ruff]
 line-length = 100
 target-version = "py312"
+# notebooks/ is excluded on purpose. sentiment_analysis_roberta_ORIGINAL.ipynb is the
+# provenance artifact for a published Kaggle kernel and must stay byte-identical; linting
+# it would tempt a fix, and its defects are the subject of this repo rather than a backlog.
+extend-exclude = ["notebooks"]
 
 [tool.ruff.lint]
 select = [
@@ -78,7 +82,10 @@ select = [
     "T20",       # no print() in library code
     "RUF",
 ]
-ignore = ["E501"]  # line length is enforced by the formatter
+ignore = [
+    "E501",            # line length is enforced by the formatter
+    "RUF001", "RUF002", "RUF003",  # ×, –, ‖ etc. are deliberate typography in prose and captions
+]
 
 [tool.ruff.lint.per-file-ignores]
 # The entrypoints and scripts are allowed to write to stdout.
@@ -86,6 +93,10 @@ ignore = ["E501"]  # line length is enforced by the formatter
 "evaluate.py" = ["T20"]
 "scripts/*" = ["T20"]
 "tests/*" = ["ARG"]
+# NPY002 wants np.random.Generator. set_seed's whole job is to seed the LEGACY global state,
+# because that is what scikit-learn and any third-party code reach for. Using a Generator here
+# would seed nothing that those libraries consult.
+"utils/seeding.py" = ["NPY002"]
 
 [tool.ruff.format]
 quote-style = "double"
@@ -101,10 +112,23 @@ no_implicit_optional = true
 warn_redundant_casts = true
 warn_unused_ignores = true
 strict_equality = true
+explicit_package_bases = true
+mypy_path = "."
+exclude = ["^notebooks/", "^runs/", "^\\.venv/"]
+
+[[tool.mypy.overrides]]
+# Tests are checked for correctness by running them. Requiring `-> None` on 130 test
+# functions buys nothing and makes the signal-to-noise of `make lint` worse.
+module = ["tests.*", "conftest"]
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
 
 [[tool.mypy.overrides]]
 # These ship no stubs. Everything we write is still strictly typed.
-module = ["transformers.*", "nltk.*", "seaborn.*", "statsmodels.*", "sklearn.*"]
+module = [
+    "transformers.*", "nltk.*", "statsmodels.*", "sklearn.*",
+    "scipy.*", "pyarrow.*", "structlog.*",
+]
 ignore_missing_imports = true
 
 # ─────────────────────────────────────────────────────────────────────────────

@@ -25,8 +25,8 @@ CLASS_NAMES = ("negative", "positive")
 
 
 def classification_metrics(
-    y_true: "np.ndarray | list[int]",
-    y_pred: "np.ndarray | list[int]",
+    y_true: np.ndarray | list[int],
+    y_pred: np.ndarray | list[int],
 ) -> dict[str, Any]:
     """Accuracy, macro P/R/F1, per-class P/R/F1, and the confusion matrix.
 
@@ -43,8 +43,12 @@ def classification_metrics(
     cm = confusion_matrix(y_true, y_pred, labels=labels)
     per_class = {
         name: {
-            "precision": float(precision_score(y_true, y_pred, labels=labels, pos_label=i, zero_division=0)),
-            "recall": float(recall_score(y_true, y_pred, labels=labels, pos_label=i, zero_division=0)),
+            "precision": float(
+                precision_score(y_true, y_pred, labels=labels, pos_label=i, zero_division=0)
+            ),
+            "recall": float(
+                recall_score(y_true, y_pred, labels=labels, pos_label=i, zero_division=0)
+            ),
             "f1": float(f1_score(y_true, y_pred, labels=labels, pos_label=i, zero_division=0)),
             "support": int((y_true == i).sum()),
         }
@@ -64,8 +68,8 @@ def classification_metrics(
 
 
 def report_text(
-    y_true: "np.ndarray | list[int]",
-    y_pred: "np.ndarray | list[int]",
+    y_true: np.ndarray | list[int],
+    y_pred: np.ndarray | list[int],
 ) -> str:
     """sklearn's ``classification_report`` string, kept for the notebook narrative."""
     return str(

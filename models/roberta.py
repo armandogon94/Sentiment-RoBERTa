@@ -103,7 +103,9 @@ class RobertaSentiment:
 
         if self.random_weight_layers is not None:
             # Local, tiny, random. No network, no pretrained weights. Smoke path only.
-            config = RobertaConfig(
+            # num_labels reaches PretrainedConfig through **kwargs; it is absent from the
+            # RobertaConfig signature, so mypy cannot see it.
+            config = RobertaConfig(  # type: ignore[call-arg]
                 vocab_size=getattr(self.tokenizer, "vocab_size", 2048),
                 hidden_size=64,
                 num_hidden_layers=self.random_weight_layers,
@@ -115,7 +117,9 @@ class RobertaSentiment:
                 bos_token_id=0,
                 eos_token_id=2,
             )
-            model = RobertaForSequenceClassification._from_config(config, attn_implementation="eager")
+            model = RobertaForSequenceClassification._from_config(
+                config, attn_implementation="eager"
+            )
         else:
             # D8: attn_implementation belongs on the MODEL. On the config it is a no-op and
             # transformers 5.x silently keeps sdpa, which returns no attentions at all.
@@ -124,16 +128,16 @@ class RobertaSentiment:
                 num_labels=self.num_labels,
                 attn_implementation="eager",
             )
-        if model.config._attn_implementation != "eager":  # noqa: SLF001 - the whole point of D8
+        if model.config._attn_implementation != "eager":
             raise RuntimeError(
-                f"expected eager attention, got {model.config._attn_implementation!r}; "  # noqa: SLF001
+                f"expected eager attention, got {model.config._attn_implementation!r}; "
                 "attention figures would be empty"
             )
         return model.to(self.device)
 
     # -- Protocol -------------------------------------------------------------------
 
-    def fit(self, texts: list[str], labels: list[int]) -> "RobertaSentiment":
+    def fit(self, texts: list[str], labels: list[int]) -> RobertaSentiment:
         return self.fit_with_validation(texts, labels, [], [])
 
     def predict(self, texts: list[str]) -> np.ndarray:
@@ -158,7 +162,7 @@ class RobertaSentiment:
         labels: list[int],
         val_texts: list[str],
         val_labels: list[int],
-    ) -> "RobertaSentiment":
+    ) -> RobertaSentiment:
         """Train, selecting the epoch on validation loss and respecting the wall-clock cap."""
         train_ds = self.make_dataset(texts, labels)
         val_ds = self.make_dataset(val_texts, val_labels) if val_texts else None
@@ -172,7 +176,9 @@ class RobertaSentiment:
             worker_init_fn=seed_worker,
         )
         val_loader = (
-            DataLoader(val_ds, batch_size=self.batch_size, shuffle=False, num_workers=self.num_workers)
+            DataLoader(
+                val_ds, batch_size=self.batch_size, shuffle=False, num_workers=self.num_workers
+            )
             if val_ds is not None
             else None
         )
@@ -228,7 +234,9 @@ class RobertaSentiment:
             epoch_started = time.perf_counter()
             train_loss = self._train_one_epoch(train_loader, optimizer, epoch)
             val_loss, val_acc = (
-                self._evaluate_loss(val_loader) if val_loader is not None else (float("nan"), float("nan"))
+                self._evaluate_loss(val_loader)
+                if val_loader is not None
+                else (float("nan"), float("nan"))
             )
             epoch_seconds = time.perf_counter() - epoch_started
 
@@ -256,7 +264,9 @@ class RobertaSentiment:
             if val_loader is None or score < best_val:
                 best_val = score
                 best_epoch = epoch
-                best_state = {k: v.detach().to("cpu").clone() for k, v in self.model.state_dict().items()}
+                best_state = {
+                    k: v.detach().to("cpu").clone() for k, v in self.model.state_dict().items()
+                }
 
         total_seconds = time.perf_counter() - started
         if best_state is not None and best_epoch != len(self.history):
@@ -267,7 +277,9 @@ class RobertaSentiment:
             "epochs_configured": self.epochs,
             "epochs_run": len(self.history),
             "selected_epoch": best_epoch,
-            "selection_criterion": "min validation loss" if val_loader is not None else "last epoch (no val split)",
+            "selection_criterion": "min validation loss"
+            if val_loader is not None
+            else "last epoch (no val split)",
             "wall_clock_capped": capped,
             "wall_clock_cap_min": self.wall_clock_cap_min,
             "train_seconds": total_seconds,
@@ -276,13 +288,15 @@ class RobertaSentiment:
             "truncation_train": train_ds.truncation_report(),
             "steps_per_epoch": len(train_loader),
             "device": str(self.device),
-            "attn_implementation": self.model.config._attn_implementation,  # noqa: SLF001
+            "attn_implementation": self.model.config._attn_implementation,
             "n_parameters": int(sum(p.numel() for p in self.model.parameters())),
         }
         self._fitted = True
         return self
 
-    def _train_one_epoch(self, loader: DataLoader[Any], optimizer: torch.optim.Optimizer, epoch: int) -> float:
+    def _train_one_epoch(
+        self, loader: DataLoader[Any], optimizer: torch.optim.Optimizer, epoch: int
+    ) -> float:
         self.model.train()
         total = 0.0
         for step, batch in enumerate(loader, start=1):
@@ -296,7 +310,13 @@ class RobertaSentiment:
             optimizer.step()
             total += float(out.loss.detach().item())
             if step % self.log_every_steps == 0:
-                log.info("train.step", epoch=epoch, step=step, of=len(loader), loss=round(total / step, 4))
+                log.info(
+                    "train.step",
+                    epoch=epoch,
+                    step=step,
+                    of=len(loader),
+                    loss=round(total / step, 4),
+                )
         return total / max(1, len(loader))
 
     @torch.no_grad()

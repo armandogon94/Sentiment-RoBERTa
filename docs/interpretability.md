@@ -63,9 +63,10 @@ This is verified rather than asserted. In `eval()` mode dropout is off, so the t
 
 ```python
 # tests/test_attribution.py
-logits_ids  = model(input_ids=ids, attention_mask=mask).logits
-logits_embs = model(inputs_embeds=model.roberta.embeddings.word_embeddings(ids),
-                    attention_mask=mask).logits
+logits_ids = model(input_ids=ids, attention_mask=mask).logits
+logits_embs = model(
+    inputs_embeds=model.roberta.embeddings.word_embeddings(ids), attention_mask=mask
+).logits
 assert torch.allclose(logits_ids, logits_embs, atol=1e-4)
 ```
 
@@ -82,7 +83,8 @@ the **model** instead:
 
 ```python
 model = RobertaForSequenceClassification.from_pretrained(
-    "roberta-base", num_labels=2, attn_implementation="eager")
+    "roberta-base", num_labels=2, attn_implementation="eager"
+)
 ```
 
 and confirm the fallback warning disappears.
