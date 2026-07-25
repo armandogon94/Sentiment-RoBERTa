@@ -24,8 +24,8 @@ class SentimentModel(Protocol):
 
     Both models take *strings*, not features. Feature extraction is each model's own business
     — TF-IDF vectorisation for the control, subword tokenisation for the transformer — which
-    keeps the vectorizer strictly inside the control and makes it structurally impossible for
-    it to be fit on the test set.
+    keeps the vectorizer strictly inside the control. ``train.py`` passes training text only,
+    and the leakage test proves a test-only marker never enters the learned vocabulary.
     """
 
     #: Short, stable identifier used as a key in ``metrics.json`` and a row label in tables.

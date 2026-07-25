@@ -9,6 +9,7 @@ on:
 # CI never downloads the 1.15 GB dataset and never fetches roberta-base from the hub.
 # cfg/smoke.yaml builds a 2-layer random-weight model locally with an offline tokenizer, so
 # what is under test is the architecture and the plumbing, not the weights.
+# The TF-IDF control still needs NLTK resources; ADR 0007 documents that cold-run dependency.
 # Rationale: docs/adr/0007-offline-smoke-path.md
 env:
   HF_HUB_OFFLINE: "1"

@@ -17,8 +17,8 @@ The transformer ran 3 of 3 configured epochs in 32m 08s; epoch 1 was selected on
 
 | Model | Accuracy (Wilson 95% CI) | Precision (macro) | Recall (macro) | F1 (macro) | Train time | Config |
 |---|---|---|---|---|---|---|
-| RoBERTa (fine-tuned) | **0.9600** [0.9460, 0.9705] (±1.2 pp) | 0.9605 | 0.9597 | 0.9600 | 32m 08s (MPS, Low Power Mode OFF) | `cfg/small.yaml` |
-| TF-IDF + Logistic Regression (control) | **0.8480** [0.8244, 0.8689] (±2.2 pp) | 0.8481 | 0.8478 | 0.8479 | 4s (CPU, Low Power Mode OFF) | `cfg/small.yaml` |
+| RoBERTa (fine-tuned) | **0.9600** [0.9460, 0.9705] | 0.9605 | 0.9597 | 0.9600 | 32m 08s (MPS, Low Power Mode OFF) | `cfg/small.yaml` |
+| TF-IDF + Logistic Regression (control) | **0.8480** [0.8244, 0.8689] | 0.8481 | 0.8478 | 0.8479 | 4s (CPU, Low Power Mode OFF) | `cfg/small.yaml` |
 
 <sub>seed 1337 · n_train 8,100 / n_test 1,000 · exact McNemar **p = 1.984e-21** on 152 discordant pairs · `uv run python train.py -c cfg/small.yaml` · commit `dcf8b09438190b352e116676a5f8a42be5e745d0`</sub>
 
@@ -28,7 +28,9 @@ The 2×2 discordance table both models were compared on: they agree and are both
 
 ## Reading the control honestly
 
-The TF-IDF + logistic-regression row is a **genuine control, not a formality.** Amazon Review Polarity is close to linearly separable in bag-of-words space: "refund", "waste", "flawless" and "returned" are not subtle, and a well-configured linear model on a few thousand examples is a serious opponent. Here it lands 11.2 percentage points behind a fine-tuned 124,647,170-parameter transformer.
+The `0.8480` TF-IDF row is the **original notebook's control recipe**: destructive preprocessing, unigram TF-IDF, logistic-regression `C=1`, and no validation tuning. It is a legitimate control reproduction, not a tuned TF-IDF baseline given its best shot. The measured implementation uses `title + ". " + text` and a widened vectorizer token pattern; the methodology audit documents both departures and measures the token-pattern sensitivity. Against this control, RoBERTa leads by 11.2 percentage points.
+
+Against the repo's test-selected best TF-IDF cell, *negation preserved, uni+bigram* (0.8700), RoBERTa's 0.9600 lead is 9.0 pp. RoBERTa alone is correct on 110 discordant examples and the best cell alone on 20; exact McNemar **p = 2.9914e-16**. Because `evaluate.py` selects this cell with `max(..., key=accuracy)` on test accuracy, the comparison is post hoc rather than confirmatory.
 
 ## Baseline preprocessing ablation
 
@@ -38,14 +40,14 @@ This grid measures what that costs. All four cells were run on the same splits, 
 
 | Preprocessing | n-grams | Accuracy (Wilson 95% CI) | F1 (macro) | Vocabulary | Fit time | Config |
 |---|---|---|---|---|---|---|
-| notebook chain (alnum filter + stopwords removed + Porter stem) | (1, 1) | **0.8480** [0.8244, 0.8689] (±2.2 pp) | 0.8479 | 20,938 | 4s (CPU) | `cfg/small.yaml` |
-| notebook chain (alnum filter + stopwords removed + Porter stem) | (1, 2) | **0.8380** [0.8139, 0.8595] (±2.3 pp) | 0.8378 | 247,041 | 4s (CPU) | `cfg/small.yaml` |
-| negation preserved (no filter, no stopword removal, no stemming) | (1, 1) | **0.8510** [0.8276, 0.8717] (±2.2 pp) | 0.8510 | 30,449 | 2s (CPU) | `cfg/small.yaml` |
-| negation preserved (no filter, no stopword removal, no stemming) | (1, 2) | **0.8700** [0.8477, 0.8894] (±2.1 pp) | 0.8700 | 275,634 | 3s (CPU) | `cfg/small.yaml` |
+| notebook chain (alnum filter + stopwords removed + Porter stem) | (1, 1) | **0.8480** [0.8244, 0.8689] | 0.8479 | 20,938 | 4s (CPU) | `cfg/small.yaml` |
+| notebook chain (alnum filter + stopwords removed + Porter stem) | (1, 2) | **0.8380** [0.8139, 0.8595] | 0.8378 | 247,041 | 4s (CPU) | `cfg/small.yaml` |
+| negation preserved (no filter, no stopword removal, no stemming) | (1, 1) | **0.8510** [0.8276, 0.8717] | 0.8510 | 30,449 | 2s (CPU) | `cfg/small.yaml` |
+| negation preserved (no filter, no stopword removal, no stemming) | (1, 2) | **0.8700** [0.8477, 0.8894] | 0.8700 | 275,634 | 3s (CPU) | `cfg/small.yaml` |
 
-Spread across the grid: **3.2 percentage points**, from 0.8380 (*notebook chain, uni+bigram*) to 0.8700 (*negation preserved, uni+bigram*). The two Wilson intervals overlap, so on this test set the difference is not resolvable.
+Spread across the grid: **3.2 percentage points**, from 0.8380 (*notebook chain, uni+bigram*) to 0.8700 (*negation preserved, uni+bigram*). This endpoint description is descriptive; the paired test and paired interval below address the difference.
 
-**Paired test, best cell vs the notebook's chain.** *negation preserved, uni+bigram* (0.8700) against *notebook chain, unigram* (0.8480) is a gap of 2.2 percentage points. The two cells disagree on 140 of the 1000 test examples; exact McNemar gives **p = 0.07555**, so the difference is not distinguishable from zero. Their Wilson intervals overlap, but the intervals ignore the pairing — both cells scored the same examples, so the paired test is the one that answers the question.
+**Paired test, best cell vs the notebook's chain.** *negation preserved, uni+bigram* (0.8700) against *notebook chain, unigram* (0.8480) is a gap of 2.2 percentage points. The two cells disagree on 140 of the 1000 test examples; exact McNemar gives **p = 0.075551**. The conditional exact 95% CI for the paired accuracy difference is [-0.22, 4.52] pp. Conditional on the observed discordance, the exact test has 40.0% power at this effect; approximately 3.5 pp would be required for 80% power. This is an underpowered result, not evidence of no effect. The best cell was selected by maximum test accuracy, so this comparison is post hoc.
 
 Negation markers among each cell's 20 most negative coefficients — the direct check that the preprocessing chain is or is not destroying them:
 
@@ -62,7 +64,9 @@ Negation markers among each cell's 20 most negative coefficients — the direct 
 | 2 | 0.1001 | 0.1793 | 0.9389 | 11m 09s |
 | 3 | 0.0620 | 0.1563 | 0.9456 | 10m 33s |
 
-The source notebook had no validation split, which is why its choice of 5 epochs was unjustifiable: there was nothing to early-stop on, and selecting an epoch by test accuracy would have been leakage dressed up as model selection.
+The published train and validation losses were computed as an unweighted mean of batch means. With final batches smaller than the others, those three loss values are not per-example means. The bug is fixed for future runs; re-deriving the published losses would require retraining, so the recorded values remain unchanged. Validation accuracy was correctly computed as `correct / seen` and is unaffected: epoch 1 was tied best at 0.9456, epoch 2 fell to 0.9389, and epoch 3 returned to 0.9456. The published 0.9600 is epoch 1's test accuracy and is also untouched.
+
+Validation loss rose after epoch 1 and validation accuracy did not improve through epoch 3, so the notebook's fixed 5-epoch schedule with no checkpoint selection had no support in this run's evidence. Epochs 4 and 5 were never run; no claim is made about what their test accuracy would have been.
 
 Sequence truncation, measured rather than assumed: at `max_len` 256, **0.1%** of test reviews are truncated (median 92 tokens, p95 204, max 304).
 
@@ -81,7 +85,7 @@ All regenerable with `make figures`, which defaults explicitly to `runs/run_2` p
 
 ## What these numbers do not support
 
-- A 1,000-example test set gives Wilson intervals up to ±2.2 percentage points wide at these accuracies. Gaps smaller than that are not resolvable here, whatever the point estimates look like.
+- Marginal Wilson intervals describe each model's accuracy; they do not resolve a paired model difference. Paired differences above use McNemar and a paired interval.
 - 8,100 training rows is a small fraction of the 3.6M available. These results are about this data scale and do not transfer to full-data training.
 - One seed, one split. There is no repeated-CV variance estimate, so the run-to-run standard deviation is unknown rather than small.
 - MPS fp32 only, no mixed precision, no `torch.compile`. The timings are not comparable to published CUDA figures.

@@ -1,14 +1,14 @@
-# ADR 0007 — CI tests the architecture with random weights, never the hub
+# ADR 0007 — CI avoids model/data fetches; NLTK remains a cold-machine prerequisite
 
 **Status:** accepted · **Date:** 2026-07-25
 
 ## Context
 
-The smoke test has to prove the documented quickstart works from a fresh clone with nothing but
-committed files. Two things stand in the way of doing that in CI:
+The smoke test has to prove the documented quickstart works without fetching review data or model
+weights. Two large external inputs stand in the way:
 
-- the dataset is ~1.15 GB upstream, and even the bounded subset this repo fetches is 377 MB;
-- `roberta-base` is roughly 500 MB from the HuggingFace hub, per job, per matrix leg.
+- the review dataset is not committed;
+- pretrained `roberta-base` weights live on the Hugging Face hub.
 
 Downloading either on every push is slow, flaky, and rude to the hub. Caching `roberta-base` with
 `actions/cache` would work but makes a green CI depend on a warm cache and on network reachability —
@@ -16,8 +16,8 @@ the first cold run, or a fork, would fail for a reason unrelated to the code.
 
 ## Decision
 
-**The smoke path is fully offline, and what it tests is the architecture and the plumbing — never the
-weights.**
+**The smoke path is independent of the dataset host and Hugging Face hub, and what it tests is the
+architecture and plumbing—never pretrained quality. It is not cold-machine offline.**
 
 Three pieces:
 
@@ -28,7 +28,7 @@ Three pieces:
    fabricated number — it does not ship a leak anywhere.
 2. **Model** — `MODEL.RANDOM_WEIGHT_LAYERS: 2` builds a `RobertaForSequenceClassification` from a
    local `RobertaConfig` (hidden 64, 2 heads, 2 layers) with `attn_implementation="eager"`. No
-   `from_pretrained`, no network.
+   `from_pretrained`, so no model-weight network request is made.
 3. **Tokenizer** — `models/hash_tokenizer.py`, a deterministic blake2b hashing tokenizer that
    implements the exact subset of the `transformers` tokenizer API this repo calls, with RoBERTa's
    reserved ids 0–3 (`<s>`, `<pad>`, `</s>`, `<unk>`) preserved so the special-token-stripping code
@@ -39,6 +39,11 @@ future `from_pretrained` fails loudly rather than quietly adding a network depen
 `tests/test_smoke.py::test_smoke_run_used_random_weights_and_says_so` asserts
 `metrics["models"]["roberta"]["random_weights"] is True` for the same reason.
 
+The TF-IDF control still calls `ensure_nltk_data()` for `punkt`, `punkt_tab`, and `stopwords`.
+Those resources are requested by mutable NLTK package name and are not vendored or checksum-pinned.
+On a cold machine they require network access; after they are present locally, the smoke run can
+reuse them. This task chose to correct the offline claim rather than add third-party data assets.
+
 ## Consequences
 
 - **The smoke run's accuracy is real and meaningless**, and every place it appears says so: a
@@ -46,14 +51,15 @@ future `from_pretrained` fails loudly rather than quietly adding a network depen
   that artifacts were produced — and it is published nowhere. The docstring of `tests/test_smoke.py`
   and the header of `cfg/smoke.yaml` both state this explicitly, because a number in a repo tends to
   escape into a README unless something is written down to stop it.
-- CI is fast and works on a cold cache, on a fork, and behind a proxy.
+- CI avoids fetching review data and model weights. A cold runner still needs dependency
+  installation and NLTK resource access.
 - **What CI does not test is whether pretrained fine-tuning works.** That is verified by running
   `cfg/dev.yaml` and `cfg/small.yaml` locally, and their numbers are what the README publishes. The
   gap is real and is named here rather than papered over.
 
 ## Alternatives considered
 
-- **`actions/cache` on `~/.cache/huggingface`.** Rejected: a green build should not depend on a warm
+- **`actions/cache` on the Hugging Face cache.** Rejected: a green build should not depend on a warm
   cache, and the first run on any fork would fail.
 - **A tiny public model such as `hf-internal-testing/tiny-random-roberta`.** Rejected: it is still a
   network fetch, and it is a dependency on someone else's repository staying available.

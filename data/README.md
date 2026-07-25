@@ -56,7 +56,10 @@ identical frames on the same 100 rows. Getting this wrong inverts every label.
 | `title` | `string` | characters | upstream: yes | Review headline. Rows with a null title are dropped. |
 | `text` | `string` | characters | upstream: yes | Review body (`content` upstream). Rows with a null body are dropped. |
 
-Derived at load time: `joined_text = title + " " + text` — the field both models consume.
+Derived at load time: `joined_text = title + ". " + text` — the exact field both published models
+consumed. The source notebook and its data dictionary used a single-space separator. The added
+period is therefore a documented implementation departure: it becomes a RoBERTa token and survives
+the repo's widened TF-IDF token pattern.
 
 ## The subset actually used
 
@@ -70,11 +73,12 @@ in the results table's `Config` column and in `runs/run_N/run_meta.json`.**
 | `cfg/dev.yaml` | 200,000 / 20,000 | 1,800 | 200 | 500 | 1 | 128 | ✅ calibration |
 | `cfg/small.yaml` | 200,000 / 20,000 | 8,100 | 900 | 1,000 | 3 | 256 | ✅ **the published run** |
 | `cfg/default.yaml` | 200,000 / 20,000 | 8,100 | 900 | 1,000 | 5 | 256 | ❌ over the 45-min cap |
-| `cfg/full.yaml` | 200,000 / 20,000 | 180,000 | 20,000 | 20,000 | 5 | 256 | ❌ derived at 36–69 h |
+| `cfg/full.yaml` | 200,000 / 20,000 | 180,000 | 20,000 | 20,000 | 5 | 256 | ❌ not run; runtime unknown |
 
-`cfg/default.yaml` reproduces the original notebook's data scale exactly (9,000 train / 1,000 test,
-seq 256, batch 32, lr 2e-5, 5 epochs). Its one departure is the 10% validation split, which the
-notebook lacked — see [`../docs/adr/0004-subset-size-and-published-config.md`](../docs/adr/0004-subset-size-and-published-config.md).
+`cfg/default.yaml` preserves the original notebook's data scale and training schedule (9,000 /
+1,000, seq 256, batch 32, lr 2e-5, 5 epochs). Documented implementation departures are the 10%
+validation split, period-joined input, and widened TF-IDF token pattern — see
+[`../docs/adr/0004-subset-size-and-published-config.md`](../docs/adr/0004-subset-size-and-published-config.md).
 `ROWS_READ_*` and `N_*` are separate config keys on purpose: in the notebook "200K" and "9K" were two
 unrelated literals that readers routinely conflate.
 

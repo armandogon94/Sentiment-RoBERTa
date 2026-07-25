@@ -4,9 +4,9 @@
 
 ## Context
 
-`REFERENCE-STYLE-GUIDE.md` §1.1 convention 9 records that **0 of 7** reference repos contain any
-`.ipynb`, and calls this "a deliberate, uniform stance: the repo presents only the productionized
-path." Following that convention here would mean deleting the artifact this repository was built from.
+The portfolio style guide generally prefers a productionized path over notebooks. Following that
+preference literally here would mean deleting the artifact this repository was built from; no
+reference-repository count is repeated because the guide is outside this repository.
 
 That convention exists for a reason: in most repos a notebook is a *substitute* for a pipeline — the
 analysis lives in cell order, nothing is importable, nothing is tested, and the notebook is the reason
@@ -23,8 +23,8 @@ verifiable.
 Keep two notebooks in `notebooks/`, with distinct jobs:
 
 - **`sentiment_analysis_roberta_ORIGINAL.ipynb`** — the published Kaggle notebook, **unmodified,
-  never edited**. It is evidence, not code. Pre-commit `nbstripout` must be scoped so it does not
-  touch this file's content beyond what is already committed.
+  digest-pinned at HEAD**. It is evidence, not code. A custom notebook guard checks its fixed digest;
+  there is deliberately no `nbstripout` hook.
 - **`sentiment_analysis_roberta.ipynb`** — a narrative walkthrough that **imports** the packages
   rather than redefining them, re-run with outputs saved, pointed at `cfg/dev.yaml` so it executes in
   minutes and its outputs honestly correspond to a cheap config.
@@ -42,9 +42,9 @@ claim explicitly links to the saved cell rather than presenting it as a `runs/` 
 in five minutes, which the package layout is not. Deviating from a documented convention *with a
 stated reason* is a stronger signal than following it unexamined.
 
-**Negative.** Two notebooks is one more thing to keep in sync, and the `nbstripout` scoping is a real
-footgun — misconfigured, it silently erases the saved outputs of the re-run notebook, which is the
-entire point of that file. Verify the staged diff after configuring pre-commit.
+**Negative.** Two notebooks is one more thing to keep in sync. A generic notebook formatter or
+stripper can silently rewrite the provenance artifact or erase saved re-run outputs, which is why
+the repository uses a purpose-built guard.
 
 **Rejected alternatives.** *Delete both* — breaks provenance for no gain. *Keep only the original* —
 its cells reference module-level definitions that no longer exist in that form, so it would drift out

@@ -20,7 +20,12 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from metrics.classification import classification_metrics  # noqa: E402
-from metrics.significance import accuracy_interval, mcnemar_test  # noqa: E402
+from metrics.significance import (  # noqa: E402
+    accuracy_interval,
+    conditional_mcnemar_power,
+    mcnemar_test,
+    paired_accuracy_difference_interval,
+)
 
 NUMBER = r"[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?"
 RUN_2_COLUMNS = ["index", "label", "tfidf_logreg", "roberta", "text_sha256"]
@@ -405,18 +410,17 @@ def _check_comparison_table(
             raise EvidenceMismatch(f"{source}: missing {model_name} comparison-table row")
         cells = rows[model_name]
         accuracy_tokens = re.findall(NUMBER, cells[1].replace(",", ""))
-        if len(accuracy_tokens) < 4:
+        if len(accuracy_tokens) < 3:
             raise EvidenceMismatch(f"{source}: cannot parse {model_name} accuracy/interval cell")
         block = recomputed_models[model_name]
         expected_accuracy = (
             block["accuracy"],
             block["accuracy_ci"]["low"],
             block["accuracy_ci"]["high"],
-            100.0 * (block["accuracy_ci"]["high"] - block["accuracy_ci"]["low"]) / 2.0,
         )
-        names = ("accuracy", "ci.low", "ci.high", "ci.halfwidth_pp")
+        names = ("accuracy", "ci.low", "ci.high")
         for name, token, expected in zip(
-            names, accuracy_tokens[:4], expected_accuracy, strict=True
+            names, accuracy_tokens[:3], expected_accuracy, strict=True
         ):
             _check_printed(checked, source, f"{model_name}.{name}", token, expected)
         for column, field in ((2, "precision_macro"), (3, "recall_macro"), (4, "f1_macro")):
@@ -454,6 +458,7 @@ def _check_accuracy_pairs(
     source: Path,
     text: str,
     recomputed_models: dict[str, dict[str, Any]],
+    ablation_cells: list[dict[str, Any]],
 ) -> None:
     pattern = re.compile(
         r"(?P<roberta>0\.9\d+)(?:(?!\n\n).){0,120}?"
@@ -474,9 +479,17 @@ def _check_accuracy_pairs(
         _check_printed(
             checked,
             source,
-            f"accuracy_pair[{index}].tfidf_logreg",
+            (
+                f"accuracy_pair[{index}].post_hoc_best_tfidf"
+                if float(match.group("tfidf")) > 0.86
+                else f"accuracy_pair[{index}].tfidf_logreg"
+            ),
             match.group("tfidf"),
-            recomputed_models["tfidf_logreg"]["accuracy"],
+            (
+                ablation_cells[-1]["accuracy"]
+                if float(match.group("tfidf")) > 0.86
+                else recomputed_models["tfidf_logreg"]["accuracy"]
+            ),
         )
 
 
@@ -516,15 +529,6 @@ def _check_ablation_table(
             f1_match.group(),
             cell["f1_macro"],
         )
-        if len(accuracy_tokens) >= 4:
-            halfwidth = 100.0 * (cell["accuracy_ci"]["high"] - cell["accuracy_ci"]["low"]) / 2.0
-            _check_printed(
-                checked,
-                source,
-                f"ablation[{index}].ci.halfwidth_pp",
-                accuracy_tokens[3],
-                halfwidth,
-            )
         vocabulary = re.search(NUMBER, row[4].replace(",", ""))
         if not vocabulary:
             raise EvidenceMismatch(f"{source}: cannot parse ablation[{index}].n_features")
@@ -559,19 +563,30 @@ def _line_for_offset(text: str, offset: int) -> str:
     return text[start : len(text) if end == -1 else end]
 
 
-def _is_ablation_context(line: str) -> bool:
+def _comparison_kind(line: str) -> str:
     lowered = line.lower()
-    return any(
+    if any(
+        marker in lowered
+        for marker in (
+            "best tf-idf",
+            "test-selected best",
+            "best cell alone",
+        )
+    ):
+        return "roberta_best"
+    if any(
         marker in lowered
         for marker in (
             "paired p",
-            "best cell",
+            "best cell vs",
             "notebook's chain",
             "two cells",
             "140 disagreement",
             "negation preserved",
         )
-    )
+    ):
+        return "ablation"
+    return "main"
 
 
 def _check_ablation_gaps(
@@ -601,6 +616,8 @@ def _check_ablation_gaps(
         ),
         "ablation.roberta_vs_best_pp": (
             rf"trails the transformer by\s+(?P<value>{NUMBER})\s+points",
+            rf"lead is\s+(?P<value>{NUMBER})\s+pp",
+            rf"the\s+(?P<value>{NUMBER})\s+pp gap has exact",
         ),
     }
     for metric, metric_patterns in patterns.items():
@@ -609,7 +626,7 @@ def _check_ablation_gaps(
             for pattern in metric_patterns
             for match in re.finditer(pattern, text, flags=re.IGNORECASE)
         ]
-        if metric != "ablation.roberta_vs_best_pp" and not matches:
+        if not matches:
             raise EvidenceMismatch(f"{source}: found no {metric} claim")
         for index, match in enumerate(matches, start=1):
             _check_printed(
@@ -619,6 +636,77 @@ def _check_ablation_gaps(
                 match.group("value"),
                 expected[metric],
             )
+
+
+def _check_ablation_inference(
+    checked: list[CheckedNumber],
+    source: Path,
+    text: str,
+    cells: list[dict[str, Any]],
+    ablation_mc: dict[str, Any],
+    n_total: int,
+) -> None:
+    paired_ci = paired_accuracy_difference_interval(
+        n_total=n_total,
+        only_a_correct=ablation_mc["b_only_a_correct"],
+        only_b_correct=ablation_mc["c_only_b_correct"],
+    )
+    power = conditional_mcnemar_power(
+        n_total=n_total,
+        only_a_correct=ablation_mc["b_only_a_correct"],
+        only_b_correct=ablation_mc["c_only_b_correct"],
+    )
+    interval_match = re.search(
+        rf"conditional exact\s+95% CI.*?\[(?P<low>{NUMBER}),\s*(?P<high>{NUMBER})\]\s*pp",
+        text,
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+    if not interval_match:
+        raise EvidenceMismatch(f"{source}: paired ablation-difference interval is missing")
+    _check_printed(
+        checked,
+        source,
+        "ablation.paired_ci.low_pp",
+        interval_match.group("low"),
+        paired_ci.low_pp,
+    )
+    _check_printed(
+        checked,
+        source,
+        "ablation.paired_ci.high_pp",
+        interval_match.group("high"),
+        paired_ci.high_pp,
+    )
+
+    power_match = re.search(
+        rf"(?P<power>{NUMBER})%\s+power.*?(?P<gap80>{NUMBER})\s+pp.*?80%\s+power",
+        text,
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+    if not power_match:
+        raise EvidenceMismatch(f"{source}: conditional ablation power statement is missing")
+    _check_printed(
+        checked,
+        source,
+        "ablation.conditional_power_pct",
+        power_match.group("power"),
+        100.0 * power.power,
+    )
+    _check_printed(
+        checked,
+        source,
+        "ablation.gap_for_80pct_power_pp",
+        power_match.group("gap80"),
+        power.gap_for_80_percent_power_pp,
+    )
+    expected_gap = 100.0 * (cells[-1]["accuracy"] - cells[0]["accuracy"])
+    _check_printed(
+        checked,
+        source,
+        "ablation.observed_gap_pp",
+        f"{expected_gap:.1f}",
+        power.observed_gap_pp,
+    )
 
 
 def _check_ablation_endpoints(
@@ -1004,6 +1092,7 @@ def _check_document_claims(
     source: Path,
     recomputed_models: dict[str, dict[str, Any]],
     mc: dict[str, Any],
+    best_mc: dict[str, Any],
     ablation_cells: list[dict[str, Any]],
     ablation_mc: dict[str, Any],
     metrics: dict[str, Any],
@@ -1011,7 +1100,7 @@ def _check_document_claims(
 ) -> None:
     text = source.read_text(encoding="utf-8")
     _check_comparison_table(checked, source, text, recomputed_models, metrics)
-    _check_accuracy_pairs(checked, source, text, recomputed_models)
+    _check_accuracy_pairs(checked, source, text, recomputed_models, ablation_cells)
     _check_ablation_table(
         checked,
         source,
@@ -1020,6 +1109,14 @@ def _check_document_claims(
         stored_ablation_cells,
     )
     _check_ablation_gaps(checked, source, text, recomputed_models, ablation_cells)
+    _check_ablation_inference(
+        checked,
+        source,
+        text,
+        ablation_cells,
+        ablation_mc,
+        recomputed_models["roberta"]["n"],
+    )
     _check_ablation_endpoints(checked, source, text, recomputed_models, ablation_cells)
     _check_training_claims(checked, source, text, metrics)
     _check_recorded_claims(checked, source, text, metrics)
@@ -1051,16 +1148,18 @@ def _check_document_claims(
                     expected,
                 )
 
-    p_counts = {"main": 0, "ablation": 0}
+    p_counts = {"main": 0, "ablation": 0, "roberta_best": 0}
     for match in re.finditer(rf"\bp\s*=\s*(?:\*\*)?(?P<value>{NUMBER})", text):
         line = _line_for_offset(text, match.start())
-        kind = "ablation" if _is_ablation_context(line) else "main"
+        kind = _comparison_kind(line)
         p_counts[kind] += 1
-        expected_mc = ablation_mc if kind == "ablation" else mc
+        expected_mc = (
+            ablation_mc if kind == "ablation" else (best_mc if kind == "roberta_best" else mc)
+        )
         _check_printed(
             checked,
             source,
-            f"{'ablation.' if kind == 'ablation' else ''}mcnemar.p_value[{p_counts[kind]}]",
+            f"{kind}.mcnemar.p_value[{p_counts[kind]}]",
             match.group("value"),
             expected_mc["p_value"],
         )
@@ -1078,19 +1177,18 @@ def _check_document_claims(
     disagreement_counts = {"main": 0, "ablation": 0}
     for match in disagreement_pattern.finditer(text):
         line = _line_for_offset(text, match.start())
-        kind = "ablation" if _is_ablation_context(line) else "main"
+        kind = _comparison_kind(line)
         token = (
             match.group("disagree") or match.group("over") or match.group("discordant")
         ).replace(",", "")
         disagreement_counts[kind] += 1
-        expected_mc = ablation_mc if kind == "ablation" else mc
+        expected_mc = (
+            ablation_mc if kind == "ablation" else (best_mc if kind == "roberta_best" else mc)
+        )
         _check_printed(
             checked,
             source,
-            (
-                f"{'ablation.' if kind == 'ablation' else ''}"
-                f"mcnemar.n_discordant[{disagreement_counts[kind]}]"
-            ),
+            (f"{kind}.mcnemar.n_discordant[{disagreement_counts[kind]}]"),
             token,
             expected_mc["n_discordant"],
         )
@@ -1098,10 +1196,7 @@ def _check_document_claims(
             _check_printed(
                 checked,
                 source,
-                (
-                    f"{'ablation.' if kind == 'ablation' else ''}"
-                    f"mcnemar.n_total[{disagreement_counts[kind]}]"
-                ),
+                (f"{kind}.mcnemar.n_total[{disagreement_counts[kind]}]"),
                 match.group("total").replace(",", ""),
                 recomputed_models["roberta"]["n"],
             )
@@ -1202,6 +1297,12 @@ def validate_published_documents(
         evidence_dir / "run_3" / "predictions.csv", dtype={"text_sha256": str}
     )
     ablation_cells, ablation_mc = _recompute_ablation(run_3_frame)
+    best_mc = mcnemar_test(
+        y_true,
+        frame["roberta"].to_numpy(),
+        run_3_frame[ABLATION_MODELS[-1]].to_numpy(),
+        exact=True,
+    ).as_dict()
     run_3_metrics = _load_json(evidence_dir / "run_3" / "metrics.json")
     stored_ablation_cells = run_3_metrics["ablation"]
 
@@ -1212,6 +1313,7 @@ def validate_published_documents(
             document,
             recomputed_models,
             mc,
+            best_mc,
             ablation_cells,
             ablation_mc,
             metrics,

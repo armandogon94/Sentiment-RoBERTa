@@ -77,6 +77,7 @@ class ModelCfg(_Block):
 
     NAME: Literal["roberta"] = "roberta"
     PRETRAINED: str = "roberta-base"
+    REVISION: str | None = None
     MAX_LEN: int = Field(default=256, gt=0, le=512)
     BATCH_SIZE: int = Field(default=32, gt=0)
     EPOCHS: int = Field(default=5, gt=0)
@@ -84,8 +85,8 @@ class ModelCfg(_Block):
     WEIGHT_DECAY: float = Field(default=0.01, ge=0)
     NUM_LABELS: int = Field(default=2, ge=2)
     #: When set, build a tiny randomly-initialised model with this many layers instead of
-    #: downloading pretrained weights. Used by cfg/smoke.yaml so CI never touches the
-    #: network — the smoke test verifies the architecture and the plumbing, not the weights.
+    #: downloading pretrained weights. Used by cfg/smoke.yaml so CI does not contact the
+    #: Hugging Face hub; the TF-IDF path still has documented NLTK prerequisites.
     RANDOM_WEIGHT_LAYERS: int | None = None
 
 
@@ -99,9 +100,8 @@ class BaselineCfg(_Block):
 class RuntimeCfg(_Block):
     """Device selection and the hard compute bound.
 
-    ``WALL_CLOCK_CAP_MIN`` is not advisory. ``train.py`` checkpoints after every epoch and
-    stops before starting an epoch it projects cannot finish inside the cap, then reports
-    the truncation in ``metrics.json``. No run in this repo is unbounded.
+    ``WALL_CLOCK_CAP_MIN`` is checked inside the training loop. A run can exceed the cap by
+    at most one in-flight optimizer step, then stops cleanly and records a partial epoch.
     """
 
     DEVICE: Literal["auto", "mps", "cpu"] = "auto"

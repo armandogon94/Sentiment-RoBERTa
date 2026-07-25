@@ -1,9 +1,10 @@
-"""End-to-end pipeline on the committed sample, offline, in well under 60 seconds.
+"""End-to-end pipeline on the committed sample in well under 60 seconds.
 
 This is what ``scripts/verify_fresh_clone.sh`` runs, and it is the test that proves the
-documented quickstart works from nothing but committed files. It must never reach the
-network: ``cfg/smoke.yaml`` uses the committed 1,000-row sample and a 2-layer random-weight
-model with an offline tokenizer.
+documented quickstart works with committed review data and no Hugging Face fetch:
+``cfg/smoke.yaml`` uses the committed 1,000-row sample and a 2-layer random-weight model
+with a local tokenizer. The TF-IDF control still needs the NLTK resources documented in
+ADR 0007, which may require a download on a cold machine.
 
 What it asserts is that the pipeline produces *artifacts*, not that the model is good. The
 accuracy of a random-weight model on 160 training rows is meaningless, and this file is
@@ -109,6 +110,19 @@ def test_run_meta_records_provenance(smoke_run):
     ):
         assert key in meta
     assert meta["hardware"]["device"] == "cpu"
+    assert meta["model_source"] == {"name": "roberta-base", "revision": None}
+
+
+def test_split_overlap_audit_is_recorded_and_clean(smoke_run):
+    _, metrics, _ = smoke_run
+    assert metrics["split_overlap_audit"] == {
+        "exact_train_val": 0,
+        "exact_train_test": 0,
+        "exact_val_test": 0,
+        "normalized_train_val": 0,
+        "normalized_train_test": 0,
+        "normalized_val_test": 0,
+    }
 
 
 def test_predictions_are_persisted_for_later_pairing(smoke_run):
@@ -168,3 +182,4 @@ def test_report_can_be_generated_from_the_run(smoke_run, tmp_path):
     text = out.read_text()
     assert "Wilson 95% CI" in text
     assert "McNemar" in text
+    assert "±" not in text

@@ -317,6 +317,7 @@ def _load_model_for_figures(run_dir: Path, metrics: dict[str, Any]) -> Any:
         create_model(
             "roberta",
             pretrained=cfg.MODEL.PRETRAINED,
+            revision=cfg.MODEL.REVISION,
             num_labels=cfg.MODEL.NUM_LABELS,
             max_len=cfg.MODEL.MAX_LEN,
             batch_size=cfg.MODEL.BATCH_SIZE,

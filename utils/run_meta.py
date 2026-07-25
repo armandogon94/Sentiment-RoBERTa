@@ -83,6 +83,10 @@ def build_run_meta(
         "argv": sys.argv,
         "hardware": capability_report(device),
         "library_versions": _pkg_versions(),
+        "model_source": {
+            "name": config.get("MODEL", {}).get("PRETRAINED"),
+            "revision": config.get("MODEL", {}).get("REVISION"),
+        },
     }
     if extra:
         meta.update(extra)

@@ -7,6 +7,8 @@
 
 UV ?= uv
 PY := $(UV) run python
+PYTHONHASHSEED ?= 1337
+export PYTHONHASHSEED
 
 # ── Reserved ports (docs/ports.example.md). Nothing in this repo binds any of them. ──
 MLFLOW_PORT ?= 9330

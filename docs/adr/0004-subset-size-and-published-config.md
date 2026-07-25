@@ -59,11 +59,12 @@ selects its epoch on validation loss and scores the test set exactly once.
 | `cfg/smoke.yaml` | committed 1k sample, random weights, CPU | ✅ | CI and fresh-clone path. Publishes nothing. |
 | `cfg/dev.yaml` | 2,000 / 500, 1 epoch, seq 128 | ✅ | Calibration and quickstart. Its numbers are published *labelled as dev*. |
 | `cfg/small.yaml` | 9,000 / 1,000, 3 epochs, seq 256 | ✅ | **The published run.** |
-| `cfg/default.yaml` | 9,000 / 1,000, 5 epochs, seq 256 | ❌ | The notebook exactly. Projected 51–55 min, over the cap. |
-| `cfg/full.yaml` | 200,000 / 20,000, 5 epochs | ❌ | Derived at 36–69 h on MPS fp32. Committed as a record of scope. |
+| `cfg/default.yaml` | 9,000 / 1,000, 5 epochs, seq 256 | ❌ | Notebook-scale fixed schedule. Projected 51–55 min, over the cap. |
+| `cfg/full.yaml` | 200,000 / 20,000, 5 epochs | ❌ | Scope record only; no runtime is claimed without a full run or matched benchmark. |
 
-`cfg/full.yaml` keeps `WALL_CLOCK_CAP_MIN: 45` deliberately. Launching it as-is trains for 45
-minutes, records `wall_clock_capped: true`, and stops. It cannot silently consume the machine.
+`cfg/full.yaml` keeps `WALL_CLOCK_CAP_MIN: 45` deliberately. The deadline is checked before every
+optimizer step, including epoch 1. A capped run records its partial epoch and saves the best
+completed validation checkpoint, or the partial model if none exists yet.
 
 ## Consequences
 

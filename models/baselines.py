@@ -1,13 +1,13 @@
 """TF-IDF + logistic regression — a genuine control, not a formality.
 
-Amazon Review Polarity is close to linearly separable in bag-of-words space: the vocabulary
-alone carries most of the signal, because "refund", "waste", "flawless" and "returned" are
-not subtle. A well-configured linear model on 9,000 examples is a serious opponent, and this
-repo's job is to report how close it gets *even if it is very close*.
+This class reproduces the source notebook's deliberately fixed preprocessing, unigram,
+``C=1`` control recipe and the repo's ablation cells. Its widened vectorizer token pattern
+is one documented departure from the notebook's bare ``TfidfVectorizer()``. The published
+control is not a validation-tuned best-shot baseline; the report labels both distinctions.
 
 The vectorizer lives inside this class and is fit inside ``fit``. That is not stylistic: it
-makes it structurally impossible to fit it on anything other than the training split, which
-is the most common silent leak in TF-IDF pipelines. ``tests/test_splits.py`` asserts it.
+keeps fitting and transformation in one object. ``train.py`` supplies training text only, and
+``tests/test_splits.py`` proves a test-only marker never enters the learned vocabulary.
 """
 
 from __future__ import annotations

@@ -257,9 +257,9 @@ def test_scientific_notation_precision_controls_numeric_tolerance(printed: str, 
             r"mcnemar\.n_total",
         ),
         (
-            "not resolvable on 1,000 examples",
-            "not resolvable on 999 examples",
-            r"n_test",
+            "the 9.0 pp gap has exact",
+            "the 9.1 pp gap has exact",
+            r"ablation\.roberta_vs_best_pp",
         ),
         ("(`0.1238`)", "(`0.1239`)", r"history\.minimum"),
         ("**0.1%** of test reviews", "**0.2%** of test reviews", r"truncation_test"),
@@ -271,9 +271,9 @@ def test_scientific_notation_precision_controls_numeric_tolerance(printed: str, 
         ("32m 08s (MPS", "32m 09s (MPS", r"roberta\.train_seconds"),
         ("| 4s (CPU", "| 5s (CPU", r"tfidf_logreg\.train_seconds"),
         (
-            "linear model on 8,100 examples",
-            "linear model on 8,101 examples",
-            r"splits\.control_n_train",
+            "conditional exact\n95% CI for the paired accuracy difference is **[-0.22, 4.52] pp**",
+            "conditional exact\n95% CI for the paired accuracy difference is **[-0.21, 4.52] pp**",
+            r"ablation\.paired_ci\.low_pp",
         ),
         (
             "training loss falls monotonically from 0.224 to 0.062",
@@ -306,7 +306,16 @@ def test_document_claim_perturbations_fail_at_named_metric(
 @pytest.mark.parametrize(
     ("old", "new", "metric"),
     [
-        ("(±2.1 pp)", "(±2.2 pp)", r"ablation\[3\]\.ci\.halfwidth_pp"),
+        (
+            "difference is [-0.22, 4.52] pp",
+            "difference is [-0.21, 4.52] pp",
+            r"ablation\.paired_ci\.low_pp",
+        ),
+        (
+            "has 40.0% power at this effect",
+            "has 41.0% power at this effect",
+            r"ablation\.conditional_power_pct",
+        ),
         (
             "at `max_len` 256, **0.1%**",
             "at `max_len` 256, **0.2%**",

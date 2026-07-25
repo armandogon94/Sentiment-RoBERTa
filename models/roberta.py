@@ -14,9 +14,8 @@ Four things here are deliberate and not obvious:
    (``docs/adr/0003-mps-constraints.md``).
 
 3. **A validation split and a hard wall-clock cap.** The epoch is selected on validation
-   loss, the best checkpoint is kept, and no epoch is *started* if the measured per-epoch
-   rate says it cannot finish inside ``WALL_CLOCK_CAP_MIN``. A truncated run records
-   ``wall_clock_capped: true`` rather than pretending it ran to completion.
+   loss, the best checkpoint is kept, and the deadline is checked before every optimizer
+   step. A truncated run records its partial epoch and ``wall_clock_capped: true``.
 
 4. **Epoch-1 wall clock and the projected total are reported before epoch 2 begins**, so a
    multi-hour job is visible before it is committed to rather than after.
@@ -40,6 +39,16 @@ from utils.seeding import seed_worker, torch_generator
 log = get_logger(__name__)
 
 
+class _WallClockCapReached(RuntimeError):
+    """Internal control flow carrying honest partial-epoch progress."""
+
+    def __init__(self, *, mean_loss: float | None, seen: int, steps_run: int) -> None:
+        super().__init__("WALL_CLOCK_CAP_MIN reached inside training epoch")
+        self.mean_loss = mean_loss
+        self.seen = seen
+        self.steps_run = steps_run
+
+
 class RobertaSentiment:
     """Fine-tuned ``roberta-base`` sequence classifier.
 
@@ -51,6 +60,7 @@ class RobertaSentiment:
         self,
         *,
         pretrained: str = "roberta-base",
+        revision: str | None = None,
         num_labels: int = 2,
         max_len: int = 256,
         batch_size: int = 32,
@@ -67,6 +77,7 @@ class RobertaSentiment:
     ) -> None:
         self.name = name
         self.pretrained = pretrained
+        self.revision = revision
         self.num_labels = num_labels
         self.max_len = max_len
         self.batch_size = batch_size
@@ -96,7 +107,7 @@ class RobertaSentiment:
             return HashTokenizer(vocab_size=2048)
         from transformers import AutoTokenizer
 
-        return AutoTokenizer.from_pretrained(self.pretrained)
+        return AutoTokenizer.from_pretrained(self.pretrained, revision=self.revision)
 
     def _build_model(self) -> Any:
         from transformers import RobertaConfig, RobertaForSequenceClassification
@@ -123,8 +134,10 @@ class RobertaSentiment:
         else:
             # D8: attn_implementation belongs on the MODEL. On the config it is a no-op and
             # transformers 5.x silently keeps sdpa, which returns no attentions at all.
+            # The transformers model stub types revision as str, although runtime accepts None.
             model = RobertaForSequenceClassification.from_pretrained(
                 self.pretrained,
+                revision=self.revision,  # type: ignore[arg-type]
                 num_labels=self.num_labels,
                 attn_implementation="eager",
             )
@@ -145,7 +158,7 @@ class RobertaSentiment:
         return np.asarray(logits.argmax(axis=1), dtype=np.int64)
 
     def save(self, path: Path) -> Path:
-        """Save the fine-tuned weights. Gitignored — a run artifact, ~500 MB."""
+        """Save the fine-tuned weights. Gitignored — a run artifact."""
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
         torch.save(self.model.state_dict(), path)
@@ -193,6 +206,7 @@ class RobertaSentiment:
         best_epoch = 0
         best_state: dict[str, torch.Tensor] | None = None
         capped = False
+        partial_epoch: dict[str, Any] | None = None
 
         log.info(
             "train.start",
@@ -232,7 +246,32 @@ class RobertaSentiment:
                     break
 
             epoch_started = time.perf_counter()
-            train_loss = self._train_one_epoch(train_loader, optimizer, epoch)
+            try:
+                train_loss = self._train_one_epoch(
+                    train_loader,
+                    optimizer,
+                    epoch,
+                    deadline=started + cap_seconds,
+                )
+            except _WallClockCapReached as stopped:
+                capped = True
+                partial_epoch = {
+                    "epoch": epoch,
+                    "train_loss": stopped.mean_loss,
+                    "examples_seen": stopped.seen,
+                    "steps_run": stopped.steps_run,
+                    "steps_total": len(train_loader),
+                    "epoch_seconds": time.perf_counter() - epoch_started,
+                }
+                log.warning(
+                    "train.capped_inside_epoch",
+                    epoch=epoch,
+                    steps_run=stopped.steps_run,
+                    steps_total=len(train_loader),
+                    examples_seen=stopped.seen,
+                    cap_min=self.wall_clock_cap_min,
+                )
+                break
             val_loss, val_acc = (
                 self._evaluate_loss(val_loader)
                 if val_loader is not None
@@ -269,22 +308,28 @@ class RobertaSentiment:
                 }
 
         total_seconds = time.perf_counter() - started
-        if best_state is not None and best_epoch != len(self.history):
+        if best_state is not None and (
+            partial_epoch is not None or best_epoch != len(self.history)
+        ):
             self.model.load_state_dict(best_state)
             log.info("train.restored_best", epoch=best_epoch, val_loss=round(best_val, 4))
 
+        selection_criterion = (
+            "partial epoch only (no validation checkpoint)"
+            if best_epoch == 0 and partial_epoch is not None
+            else ("min validation loss" if val_loader is not None else "last epoch (no val split)")
+        )
         self.train_report = {
             "epochs_configured": self.epochs,
             "epochs_run": len(self.history),
             "selected_epoch": best_epoch,
-            "selection_criterion": "min validation loss"
-            if val_loader is not None
-            else "last epoch (no val split)",
+            "selection_criterion": selection_criterion,
             "wall_clock_capped": capped,
             "wall_clock_cap_min": self.wall_clock_cap_min,
             "train_seconds": total_seconds,
             "epoch_seconds": [h["epoch_seconds"] for h in self.history],
             "history": self.history,
+            "partial_epoch": partial_epoch,
             "truncation_train": train_ds.truncation_report(),
             "steps_per_epoch": len(train_loader),
             "device": str(self.device),
@@ -295,29 +340,44 @@ class RobertaSentiment:
         return self
 
     def _train_one_epoch(
-        self, loader: DataLoader[Any], optimizer: torch.optim.Optimizer, epoch: int
+        self,
+        loader: DataLoader[Any],
+        optimizer: torch.optim.Optimizer,
+        epoch: int,
+        *,
+        deadline: float | None = None,
     ) -> float:
         self.model.train()
         total = 0.0
+        seen = 0
         for step, batch in enumerate(loader, start=1):
+            if deadline is not None and time.perf_counter() >= deadline:
+                raise _WallClockCapReached(
+                    mean_loss=(total / seen if seen else None),
+                    seen=seen,
+                    steps_run=step - 1,
+                )
             optimizer.zero_grad(set_to_none=True)
+            labels = batch["labels"].to(self.device)
             out = self.model(
                 input_ids=batch["input_ids"].to(self.device),
                 attention_mask=batch["attention_mask"].to(self.device),
-                labels=batch["labels"].to(self.device),
+                labels=labels,
             )
             out.loss.backward()
             optimizer.step()
-            total += float(out.loss.detach().item())
+            batch_size = int(labels.shape[0])
+            total += float(out.loss.detach().item()) * batch_size
+            seen += batch_size
             if step % self.log_every_steps == 0:
                 log.info(
                     "train.step",
                     epoch=epoch,
                     step=step,
                     of=len(loader),
-                    loss=round(total / step, 4),
+                    loss=round(total / seen, 4),
                 )
-        return total / max(1, len(loader))
+        return total / seen
 
     @torch.no_grad()
     def _evaluate_loss(self, loader: DataLoader[Any]) -> tuple[float, float]:
@@ -332,10 +392,11 @@ class RobertaSentiment:
                 attention_mask=batch["attention_mask"].to(self.device),
                 labels=labels,
             )
-            total += float(out.loss.detach().item())
+            batch_size = int(labels.shape[0])
+            total += float(out.loss.detach().item()) * batch_size
             correct += int((out.logits.argmax(dim=-1) == labels).sum().item())
-            seen += int(labels.shape[0])
-        return total / max(1, len(loader)), (correct / seen if seen else float("nan"))
+            seen += batch_size
+        return total / seen, correct / seen
 
     # -- inference ------------------------------------------------------------------
 

@@ -42,8 +42,7 @@ def fmt_seconds(seconds: float) -> str:
 
 def fmt_accuracy(block: dict[str, Any]) -> str:
     ci = block["accuracy_ci"]
-    half = 100.0 * (ci["high"] - ci["low"]) / 2.0
-    return f"**{block['accuracy']:.4f}** [{ci['low']:.4f}, {ci['high']:.4f}] (±{half:.1f} pp)"
+    return f"**{block['accuracy']:.4f}** [{ci['low']:.4f}, {ci['high']:.4f}]"
 
 
 def comparison_table(metrics: dict[str, Any]) -> str:
@@ -98,11 +97,8 @@ def ablation_table(source: dict[str, Any]) -> str:
 def ablation_significance(source: dict[str, Any], run_dir: Path) -> str:
     """Paired McNemar between the notebook's chain and the best ablation cell.
 
-    Wilson intervals for two cells measured on the *same* 1,000 examples will overlap long
-    before the paired difference stops being detectable — the intervals ignore the pairing.
-    The predictions for all four cells are in one ``predictions.parquet``, so the correct test
-    costs a file read. Reporting only the overlapping intervals would understate the evidence;
-    reporting only the point gap would overstate it.
+    The predictions for all four cells are in one prediction artifact, so McNemar, a paired
+    difference interval, and conditional power can all preserve the example pairing.
     """
     cells = source.get("ablation") or []
     if len(cells) < 2:
@@ -114,7 +110,11 @@ def ablation_significance(source: dict[str, Any], run_dir: Path) -> str:
 
     import pandas as pd
 
-    from metrics.significance import mcnemar_test
+    from metrics.significance import (
+        conditional_mcnemar_power,
+        mcnemar_test,
+        paired_accuracy_difference_interval,
+    )
 
     frame = pd.read_parquet(parquet_path) if parquet_path.exists() else pd.read_csv(csv_path)
     baseline_cell = next(
@@ -132,16 +132,72 @@ def ablation_significance(source: dict[str, Any], run_dir: Path) -> str:
         frame[baseline_cell["model"]].to_numpy(),
     )
     gap = 100.0 * (best_cell["accuracy"] - baseline_cell["accuracy"])
-    verdict = "is" if mc.p_value < 0.05 else "is not"
+    n_total = mc.a_both_correct + mc.b_only_a_correct + mc.c_only_b_correct + mc.d_both_wrong
+    paired_ci = paired_accuracy_difference_interval(
+        n_total=n_total,
+        only_a_correct=mc.b_only_a_correct,
+        only_b_correct=mc.c_only_b_correct,
+    )
+    power = conditional_mcnemar_power(
+        n_total=n_total,
+        only_a_correct=mc.b_only_a_correct,
+        only_b_correct=mc.c_only_b_correct,
+    )
     return (
         f"**Paired test, best cell vs the notebook's chain.** *{best_cell['ablation_label']}* "
         f"({best_cell['accuracy']:.4f}) against *{baseline_cell['ablation_label']}* "
         f"({baseline_cell['accuracy']:.4f}) is a gap of {gap:.1f} percentage points. The two cells "
-        f"disagree on {mc.n_discordant} of the {mc.a_both_correct + mc.b_only_a_correct + mc.c_only_b_correct + mc.d_both_wrong} "
-        f"test examples; exact McNemar gives **p = {mc.p_value:.4g}**, so the difference {verdict} "
-        f"distinguishable from zero. Their Wilson intervals overlap, but the intervals ignore the "
-        f"pairing — both cells scored the same examples, so the paired test is the one that answers "
-        f"the question."
+        f"disagree on {mc.n_discordant} of the {n_total} test examples; exact McNemar gives "
+        f"**p = {mc.p_value:.5g}**. The conditional exact 95% CI for the paired accuracy "
+        f"difference is [{paired_ci.low_pp:.2f}, {paired_ci.high_pp:.2f}] pp. Conditional on "
+        f"the observed discordance, the exact test has {100 * power.power:.1f}% power at this "
+        f"effect; approximately {power.gap_for_80_percent_power_pp:.1f} pp would be required "
+        "for 80% power. This is an underpowered result, not evidence of no effect. The best "
+        "cell was selected by maximum test accuracy, so this comparison is post hoc."
+    )
+
+
+def post_hoc_best_comparison(
+    metrics: dict[str, Any],
+    source: dict[str, Any],
+    run_dir: Path,
+    ablation_run_dir: Path,
+) -> str:
+    """RoBERTa versus the test-selected best TF-IDF cell."""
+    cells = source.get("ablation") or []
+    if not cells:
+        return ""
+    best = max(cells, key=lambda cell: cell["accuracy"])
+
+    import pandas as pd
+
+    from metrics.significance import mcnemar_test
+
+    def read_predictions(path: Path) -> Any:
+        parquet = path / "predictions.parquet"
+        return (
+            pd.read_parquet(parquet) if parquet.exists() else pd.read_csv(path / "predictions.csv")
+        )
+
+    published = read_predictions(run_dir)
+    ablation = read_predictions(ablation_run_dir)
+    if len(published) != len(ablation) or not published["label"].equals(ablation["label"]):
+        raise ValueError("published and ablation prediction rows do not align")
+    mc = mcnemar_test(
+        published["label"].to_numpy(),
+        published["roberta"].to_numpy(),
+        ablation[best["model"]].to_numpy(),
+        exact=True,
+    )
+    roberta_accuracy = metrics["models"]["roberta"]["accuracy"]
+    gap = 100.0 * (roberta_accuracy - best["accuracy"])
+    return (
+        f"Against the repo's test-selected best TF-IDF cell, *{best['ablation_label']}* "
+        f"({best['accuracy']:.4f}), RoBERTa's {roberta_accuracy:.4f} lead is {gap:.1f} pp. "
+        f"RoBERTa alone is correct on {mc.b_only_a_correct} discordant examples and the best "
+        f"cell alone on {mc.c_only_b_correct}; exact McNemar **p = {mc.p_value:.5g}**. "
+        "Because `evaluate.py` selects this cell with `max(..., key=accuracy)` on test "
+        "accuracy, the comparison is post hoc rather than confirmatory."
     )
 
 
@@ -175,6 +231,7 @@ def negation_evidence(source: dict[str, Any]) -> str:
 def build_report(
     metrics: dict[str, Any],
     ablation_source: dict[str, Any] | None,
+    run_dir: Path | None = None,
     ablation_run_dir: Path | None = None,
 ) -> str:
     cfg_name = metrics["config_name"]
@@ -237,17 +294,20 @@ def build_report(
 
     if control is not None and roberta is not None:
         gap = 100.0 * (roberta["accuracy"] - control["accuracy"])
-        n_parameters = int(roberta["training"]["n_parameters"])
         parts.append("## Reading the control honestly\n")
         parts.append(
-            "The TF-IDF + logistic-regression row is a **genuine control, not a formality.** "
-            "Amazon Review Polarity is close to linearly separable in bag-of-words space: "
-            '"refund", "waste", "flawless" and "returned" are not subtle, and a '
-            "well-configured linear model on a few thousand examples is a serious opponent. "
-            f"Here it lands {abs(gap):.1f} percentage points "
-            f"{'behind' if gap > 0 else 'ahead of'} a fine-tuned "
-            f"{n_parameters:,}-parameter transformer.\n"
+            "The `0.8480` TF-IDF row is the **original notebook's control recipe**: destructive "
+            "preprocessing, unigram TF-IDF, logistic-regression `C=1`, and no validation "
+            "tuning. It is a legitimate control reproduction, not a tuned TF-IDF baseline "
+            'given its best shot. The measured implementation uses `title + ". " + text` '
+            "and a widened vectorizer token pattern; the methodology audit documents both "
+            "departures and measures the token-pattern sensitivity. "
+            f"Against this control, RoBERTa leads by {abs(gap):.1f} percentage points.\n"
         )
+        if run_dir is not None and ablation_run_dir is not None:
+            post_hoc = post_hoc_best_comparison(metrics, abl, run_dir, ablation_run_dir)
+            if post_hoc:
+                parts.append(post_hoc + "\n")
 
     abl_table = ablation_table(abl)
     if abl_table:
@@ -271,13 +331,11 @@ def build_report(
             worst = min(cells, key=lambda c: c["accuracy"])
             best = max(cells, key=lambda c: c["accuracy"])
             spread = 100.0 * (best["accuracy"] - worst["accuracy"])
-            overlap = worst["accuracy_ci"]["high"] >= best["accuracy_ci"]["low"]
             parts.append(
                 f"Spread across the grid: **{spread:.1f} percentage points**, from "
                 f"{worst['accuracy']:.4f} (*{worst['ablation_label']}*) to {best['accuracy']:.4f} "
-                f"(*{best['ablation_label']}*). The two Wilson intervals "
-                f"{'overlap, so on this test set the difference is not resolvable' if overlap else 'do not overlap'}"
-                ".\n"
+                f"(*{best['ablation_label']}*). This endpoint description is descriptive; "
+                "the paired test and paired interval below address the difference.\n"
             )
         if ablation_run_dir is not None:
             sig_text = ablation_significance(abl, ablation_run_dir)
@@ -300,9 +358,20 @@ def build_report(
             )
         parts.append("")
         parts.append(
-            "The source notebook had no validation split, which is why its choice of 5 epochs "
-            "was unjustifiable: there was nothing to early-stop on, and selecting an epoch by "
-            "test accuracy would have been leakage dressed up as model selection.\n"
+            "The published train and validation losses were computed as an unweighted mean "
+            "of batch means. With final batches smaller than the others, those three loss "
+            "values are not per-example means. The bug is fixed for future runs; re-deriving "
+            "the published losses would require retraining, so the recorded values remain "
+            "unchanged. Validation accuracy was correctly computed as `correct / seen` and is "
+            "unaffected: epoch 1 was tied best at 0.9456, epoch 2 fell to 0.9389, and epoch 3 "
+            "returned to 0.9456. The published 0.9600 is epoch 1's test accuracy and is also "
+            "untouched.\n"
+        )
+        parts.append(
+            "Validation loss rose after epoch 1 and validation accuracy did not improve through "
+            "epoch 3, so the notebook's fixed 5-epoch schedule with no checkpoint selection had "
+            "no support in this run's evidence. Epochs 4 and 5 were never run; no claim is made "
+            "about what their test accuracy would have been.\n"
         )
         trunc = roberta.get("truncation_test", {})
         if trunc:
@@ -331,15 +400,10 @@ def build_report(
         parts.append(f"- [`docs/images/{name}.png`](../docs/images/{name}.png) — {alt}")
     parts.append("")
 
-    widest = max(
-        (b["accuracy_ci"]["high"] - b["accuracy_ci"]["low"]) / 2.0
-        for b in metrics["models"].values()
-    )
     parts.append("## What these numbers do not support\n")
     parts.append(
-        f"- A {splits['n_test']:,}-example test set gives Wilson intervals up to "
-        f"±{100 * widest:.1f} percentage points wide at these accuracies. Gaps smaller than that "
-        "are not resolvable here, whatever the point estimates look like.\n"
+        "- Marginal Wilson intervals describe each model's accuracy; they do not resolve a "
+        "paired model difference. Paired differences above use McNemar and a paired interval.\n"
         f"- {splits['n_train']:,} training rows is a small fraction of the 3.6M available. These "
         "results are about this data scale and do not transfer to full-data training.\n"
         "- One seed, one split. There is no repeated-CV variance estimate, so the run-to-run "
@@ -373,7 +437,10 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     report = build_report(
-        metrics, ablation, args.ablation_run_dir.resolve() if args.ablation_run_dir else None
+        metrics,
+        ablation,
+        args.run_dir.resolve(),
+        args.ablation_run_dir.resolve() if args.ablation_run_dir else None,
     )
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(report, encoding="utf-8")

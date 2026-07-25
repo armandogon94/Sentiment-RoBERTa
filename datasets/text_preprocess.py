@@ -67,9 +67,10 @@ NEGATION_STOPWORDS = ("no", "nor", "not", "don't", "isn't", "wasn't", "couldn't"
 def tokenize(text: str) -> list[str]:
     """Word-tokenize, falling back to a regex split if NLTK's ``punkt`` is unavailable.
 
-    The fallback exists so CI and a fresh clone with no network still run. It is a strictly
-    worse tokenizer, so it is reported rather than silent: ``ensure_nltk_data`` returns the
-    resource status and ``train.py`` records it in ``run_meta.json``.
+    This fallback covers tokenization only. The notebook-control path also requires NLTK
+    stopwords and has no fallback, so the overall smoke path is not cold-machine offline.
+    ``ensure_nltk_data`` returns resource status and ``train.py`` records it in
+    ``run_meta.json``.
     """
     try:
         from nltk.tokenize import word_tokenize
@@ -90,9 +91,10 @@ def preprocess_text(
 ) -> str:
     """Apply the configured chain to one string and return it re-joined by spaces.
 
-    With all flags ``True`` this reproduces the notebook exactly, including its
-    negation-destroying behaviour. That configuration is kept runnable on purpose — it is the
-    control cell of the ablation, and "the old way" has to be measurable to be criticised.
+    With all flags ``True`` this reproduces the notebook's preprocessing chain, including
+    its negation-destroying behaviour. The downstream vectorizer's documented token-pattern
+    departure is separate. This chain is kept runnable on purpose — "the old way" has to be
+    measurable to be criticised.
     """
     tokens: Iterable[str] = tokenize(text.lower() if lowercase else text)
     if alphanumeric_only:

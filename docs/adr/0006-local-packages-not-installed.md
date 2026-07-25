@@ -53,5 +53,6 @@ reader might install this into.
   the name is taken and would be actively confusing.
 - **Keep it installable and accept the shadowing.** Rejected: it breaks silently and at a distance,
   which is the worst kind of breakage.
-- **Nest everything under `sentiment_roberta/`.** Rejected: convention 2 is explicit that six of the
-  seven reference repos use packages-at-root, and that is the aesthetic being matched.
+- **Nest everything under `sentiment_roberta/`.** Rejected: the local portfolio convention uses
+  packages at the repository root. No external reference-repository count is needed to justify the
+  local layout decision.

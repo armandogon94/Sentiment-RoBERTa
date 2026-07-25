@@ -1,21 +1,15 @@
 # Full config — 200,000 train / 20,000 test, 5 epochs, seq 256.
 #
-# ⚠️  DO NOT RUN THIS ON A LAPTOP. Derived at 36–69 hours on this hardware
-# (Apple Silicon, MPS fp32, no mixed precision, no torch.compile). It is committed as a
-# specification, not as an invitation: it records what "the full-scale version of this
-# study" would mean so the gap between what was measured and what was not is explicit
-# rather than implied.
+# ⚠️  NOT RUN. No runtime is claimed: this repo has neither a full-scale run nor a
+# hardware-matched benchmark from which to support one. The file records experiment scope.
 #
 # The 45-minute cap in RUNTIME is left in place deliberately. Launching this file as-is
-# trains for 45 minutes, writes a partial checkpoint, records `wall_clock_capped: true`
-# in metrics.json, and stops. It cannot silently consume the machine overnight.
-#
-# On a single A100 the same job is roughly a one-hour affair. That, not the laptop, is
-# where this config belongs.
+# checks the deadline before every optimizer step, can interrupt epoch 1, saves the partial
+# model if no completed validation checkpoint exists, and records the partial epoch.
 NAME: full
 DESCRIPTION: >-
-  Full-scale specification: 200,000 / 20,000, 5 epochs, seq 256. NOT RUN — derived at
-  36-69 h on Apple Silicon MPS. Committed as a record of scope, not as a runnable target.
+  Full-scale specification: 200,000 / 20,000, 5 epochs, seq 256. NOT RUN; no runtime
+  estimate is published without a full-scale run or a hardware-matched benchmark.
 
 SEED: 1337
 
@@ -39,6 +33,8 @@ PREPROCESSING:
 MODEL:
   NAME: roberta
   PRETRAINED: roberta-base
+  # Deliberately unset until an online run records the resolved immutable revision.
+  REVISION: null
   MAX_LEN: 256
   BATCH_SIZE: 32
   EPOCHS: 5
@@ -53,7 +49,7 @@ BASELINE:
 
 RUNTIME:
   DEVICE: auto
-  WALL_CLOCK_CAP_MIN: 45.0       # left low on purpose — this config must not run unbounded
+  WALL_CLOCK_CAP_MIN: 45.0       # enforced inside epochs, including epoch 1
   LOG_EVERY_STEPS: 100
   NUM_WORKERS: 0
 

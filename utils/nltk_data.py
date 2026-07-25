@@ -1,4 +1,4 @@
-"""Idempotent, quiet, offline-tolerant NLTK resource setup.
+"""Idempotent, quiet NLTK resource setup with explicit cold-machine downloads.
 
 The source notebook called bare ``nltk.download()``. With no arguments that opens an
 interactive Tk resource browser and blocks forever — it cannot run unattended and would
@@ -23,10 +23,10 @@ REQUIRED = (
 def ensure_nltk_data(quiet: bool = True) -> dict[str, str]:
     """Ensure every required NLTK resource is present. Returns per-resource status.
 
-    Resources already on disk are not re-fetched, so this is cheap to call on every run and
-    works with no network once warm. A download failure is reported in the return value
-    rather than raised: the caller decides whether the missing resource is fatal, and for
-    the transformer path it never is.
+    Resources already on disk are not re-fetched. Missing resources are downloaded by
+    mutable NLTK package name, with no vendored asset or checksum pin. A download failure is
+    reported in the return value rather than raised here; callers such as the stopword path
+    can still fail when they subsequently require an unavailable corpus.
     """
     status: dict[str, str] = {}
     for probe, name in REQUIRED:

@@ -73,13 +73,20 @@ def test_reversed_ngram_range_is_rejected(tmp_path):
         load_config(path)
 
 
-def test_smoke_config_never_touches_the_network():
-    """CI depends on this: random weights, CPU, and the committed sample only."""
+def test_smoke_config_never_fetches_model_weights_or_review_data():
+    """NLTK assets are separate; this proves only the model/data paths are local."""
     cfg = load_config(CFG_DIR / "smoke.yaml")
     assert cfg.MODEL.RANDOM_WEIGHT_LAYERS is not None
     assert cfg.RUNTIME.DEVICE == "cpu"
     assert "data/sample" in str(cfg.DATA.TRAIN_PATH)
     assert "data/sample" in str(cfg.DATA.TEST_PATH)
+
+
+def test_model_revision_is_explicitly_unset_until_an_online_run_resolves_it():
+    """No revision hash may be guessed merely to make the schema look pinned."""
+    for path in CONFIG_FILES:
+        cfg = load_config(path)
+        assert cfg.MODEL.REVISION is None
 
 
 def test_smoke_train_and_test_sources_are_different_files():

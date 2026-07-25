@@ -18,9 +18,10 @@ import torch
 def set_seed(seed: int) -> None:
     """Seed every source of randomness this repo touches.
 
-    Includes ``PYTHONHASHSEED`` (affects set iteration order, which reaches
-    ``TfidfVectorizer`` vocabulary ordering) and ``torch.mps``, which has its own generator
-    separate from the CPU one.
+    ``PYTHONHASHSEED`` is assigned for child processes and provenance, but Python reads it
+    only before interpreter startup. The Makefile and CI export it before launching Python;
+    this function cannot retroactively change the running process's hash randomisation.
+    ``torch.mps`` has its own generator separate from the CPU one.
     """
     os.environ["PYTHONHASHSEED"] = str(seed)
     random.seed(seed)

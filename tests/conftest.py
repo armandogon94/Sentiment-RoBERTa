@@ -1,10 +1,11 @@
-"""Shared fixtures. Everything here is local — no network, no downloaded dataset.
+"""Shared fixtures with local model and review-data paths.
 
 The only model any test constructs is a 2-layer randomly-initialised
 ``RobertaForSequenceClassification`` built from a local ``RobertaConfig``, paired with the
-offline ``HashTokenizer``. Nothing in the suite reaches the Hugging Face hub, so CI stays
-fast and works on a fork with no cache. What that buys is coverage of the *architecture* and
-the plumbing; the quality of pretrained weights is not something a unit test can assert.
+local ``HashTokenizer``. Nothing in the suite reaches the Hugging Face hub. Tests that
+exercise the notebook-control preprocessing still require NLTK resources and can download
+them on a cold machine. This covers the *architecture* and plumbing; pretrained quality is
+not something a unit test can assert.
 See ``docs/adr/0007-offline-smoke-path.md``.
 """
 

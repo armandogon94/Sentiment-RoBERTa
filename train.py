@@ -13,9 +13,9 @@ evaluates both on the *same* held-out test rows, and writes everything to
     log.jsonl           the structured run log
     figures/            per-run copies of the figures
 
-Compute is bounded by ``RUNTIME.WALL_CLOCK_CAP_MIN``: after epoch 1 the per-epoch rate is
-measured, the projected total is logged, and no epoch is started that the projection says
-cannot finish inside the cap. Nothing here can run unbounded.
+Compute is bounded by ``RUNTIME.WALL_CLOCK_CAP_MIN``: the deadline is checked before every
+optimizer step, so even epoch 1 can be interrupted. The run records any partial epoch and
+saves the best completed validation checkpoint, or the partial model if none exists yet.
 
 Examples
 --------
@@ -44,7 +44,7 @@ if str(REPO_ROOT) not in sys.path:
 
 from cfg.schema import Config, apply_overrides, load_config  # noqa: E402
 from datasets.loading import class_balance, load_any  # noqa: E402
-from datasets.splits import combined_text, make_splits  # noqa: E402
+from datasets.splits import audit_split_overlap, combined_text, make_splits  # noqa: E402
 from metrics.classification import classification_metrics  # noqa: E402
 from metrics.significance import (  # noqa: E402
     accuracy_interval,
@@ -171,6 +171,7 @@ def fit_transformer(cfg: Config, splits: Any, device: Any) -> dict[str, Any]:
         create_model(
             "roberta",
             pretrained=cfg.MODEL.PRETRAINED,
+            revision=cfg.MODEL.REVISION,
             num_labels=cfg.MODEL.NUM_LABELS,
             max_len=cfg.MODEL.MAX_LEN,
             batch_size=cfg.MODEL.BATCH_SIZE,
@@ -204,6 +205,7 @@ def fit_transformer(cfg: Config, splits: Any, device: Any) -> dict[str, Any]:
         "kind": "roberta_finetuned",
         "config_name": cfg.NAME,
         "pretrained": cfg.MODEL.PRETRAINED,
+        "revision": cfg.MODEL.REVISION,
         "random_weights": cfg.MODEL.RANDOM_WEIGHT_LAYERS is not None,
         "n_train": len(x_train),
         "n_val": len(x_val),
@@ -280,8 +282,18 @@ def main(argv: list[str] | None = None) -> int:
     write_json(run_dir / "run_meta.json", meta)
 
     splits, source_balance = build_splits(cfg)
+    split_overlap_audit = audit_split_overlap(splits)
+    if any(split_overlap_audit.values()):
+        raise RuntimeError(
+            f"split content overlap detected; refusing to train: {split_overlap_audit}"
+        )
+    meta["split_overlap_audit"] = split_overlap_audit
+    write_json(run_dir / "run_meta.json", meta)
     log.info(
-        "splits.built", **splits.sizes(), **{f"source_{k}": v for k, v in source_balance.items()}
+        "splits.built",
+        **splits.sizes(),
+        **split_overlap_audit,
+        **{f"source_{k}": v for k, v in source_balance.items()},
     )
 
     results: list[dict[str, Any]] = []
@@ -335,6 +347,7 @@ def main(argv: list[str] | None = None) -> int:
         "git_sha": meta["git_sha"],
         "splits": splits.sizes(),
         "source_class_balance": source_balance,
+        "split_overlap_audit": split_overlap_audit,
         "models": {r["model"]: strip_private(r) for r in results},
         "ablation": [strip_private(c) for c in ablation],
         "significance": significance,

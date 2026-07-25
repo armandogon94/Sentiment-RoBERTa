@@ -1,21 +1,19 @@
-# Default config — a faithful reproduction of the source Kaggle notebook:
+# Default config — the source Kaggle notebook's scale and fixed 5-epoch schedule:
 # 9,000 train / 1,000 test, seq 256, batch 32, lr 2e-5, 5 epochs.
 #
-# ⚠️  NOT RUN. Derived at 1.6–3.1 hours on this hardware (Apple Silicon, MPS fp32),
-# which exceeds this repo's 45-minute per-run wall-clock cap. No number anywhere in this
-# repo came from this file, and none is presented as if it had.
+# ⚠️  NOT RUN. The measured cfg/small.yaml epoch rate projects this schedule at 51–55
+# minutes, beyond the 45-minute cap. No number anywhere in this repo came from this file.
 #
-# It exists so the notebook's exact configuration is preserved as executable data rather
-# than prose, and so `make train` can be pointed at it on a machine with the budget.
-# The one deliberate departure from the notebook is VAL_FRACTION: the notebook had no
-# validation split at all, which made "5 epochs" an unjustifiable choice.
+# It preserves the schedule as executable data with documented implementation departures:
+# VAL_FRACTION adds validation; combined text uses `title + ". " + text`; and the control's
+# vectorizer widens sklearn's token pattern. See README and docs/PROVENANCE.md.
 #
-# To run it, raise the cap explicitly and accept the hours:
-#   uv run python train.py -c cfg/default.yaml   # then edit WALL_CLOCK_CAP_MIN
+# To run all five epochs, raise the cap explicitly:
+#   PYTHONHASHSEED=1337 uv run python train.py -c cfg/default.yaml  # after editing the cap
 NAME: default
 DESCRIPTION: >-
-  Faithful reproduction of the source Kaggle notebook (9,000 / 1,000, seq 256, 5 epochs).
-  NOT RUN in this repo — projected at 1.6-3.1 h, over the 45-minute cap.
+  Notebook-scale schedule specification (9,000 / 1,000, seq 256, 5 epochs).
+  NOT RUN in this repo — projected at 51-55 min from the measured cfg/small.yaml rate.
 
 SEED: 1337
 
@@ -39,6 +37,8 @@ PREPROCESSING:
 MODEL:
   NAME: roberta
   PRETRAINED: roberta-base
+  # Deliberately unset until an online run records the resolved immutable revision.
+  REVISION: null
   MAX_LEN: 256
   BATCH_SIZE: 32
   EPOCHS: 5                      # the notebook's value, and the reason this config is over cap
@@ -53,7 +53,7 @@ BASELINE:
 
 RUNTIME:
   DEVICE: auto
-  WALL_CLOCK_CAP_MIN: 45.0       # will truncate this config. That is intentional and reported.
+  WALL_CLOCK_CAP_MIN: 45.0       # can interrupt epoch 1; any partial epoch is recorded
   LOG_EVERY_STEPS: 25
   NUM_WORKERS: 0
 

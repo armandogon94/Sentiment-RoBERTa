@@ -10,6 +10,8 @@ epoch on validation loss and scores the test set exactly once, on the selected c
 
 from __future__ import annotations
 
+import re
+import unicodedata
 from dataclasses import dataclass
 
 import numpy as np
@@ -84,8 +86,8 @@ def make_splits(
 ) -> Splits:
     """Build train/val/test.
 
-    ``test_frame`` is the upstream *test* split, never a slice of train, so train/test
-    overlap is structurally impossible rather than merely unlikely.
+    ``test_frame`` is the upstream *test* split, never a slice of train. Separate files do
+    not prove content disjointness, so callers must run :func:`audit_split_overlap`.
     """
     pool = stratified_sample(train_frame, n_train, seed, label_col)
     test = stratified_sample(test_frame, n_test, seed + 1, label_col)
@@ -108,9 +110,43 @@ def make_splits(
 
 
 def combined_text(frame: pd.DataFrame) -> pd.Series:
-    """``title`` + ``text``, the single field both models consume.
+    """``title + ". " + text``, the exact field both published models consumed.
 
     Both models see exactly the same string, so any accuracy difference is attributable to
-    the model rather than to what it was shown.
+    the model rather than to what it was shown. The period differs from the source
+    notebook's documented single-space separator and is therefore part of run provenance.
     """
     return (frame["title"].astype(str) + ". " + frame["text"].astype(str)).str.strip()
+
+
+def normalize_for_overlap(text: str) -> str:
+    """Case/punctuation/spacing-insensitive form used by the content-overlap audit."""
+    normalized = unicodedata.normalize("NFKC", str(text)).casefold()
+    return re.sub(r"[^\w]+", " ", normalized, flags=re.UNICODE).strip()
+
+
+def count_text_overlap(left: pd.Series, right: pd.Series) -> tuple[int, int]:
+    """Return unique exact and normalized overlap counts for two text series."""
+    exact_left = set(left.astype(str).str.strip())
+    exact_right = set(right.astype(str).str.strip())
+    normalized_left = {normalize_for_overlap(value) for value in exact_left}
+    normalized_right = {normalize_for_overlap(value) for value in exact_right}
+    return len(exact_left & exact_right), len(normalized_left & normalized_right)
+
+
+def audit_split_overlap(splits: Splits) -> dict[str, int]:
+    """Count exact and normalized content overlap for every split pair."""
+    train = combined_text(splits.train)
+    val = combined_text(splits.val)
+    test = combined_text(splits.test)
+    exact_train_val, normalized_train_val = count_text_overlap(train, val)
+    exact_train_test, normalized_train_test = count_text_overlap(train, test)
+    exact_val_test, normalized_val_test = count_text_overlap(val, test)
+    return {
+        "exact_train_val": exact_train_val,
+        "exact_train_test": exact_train_test,
+        "exact_val_test": exact_val_test,
+        "normalized_train_val": normalized_train_val,
+        "normalized_train_test": normalized_train_test,
+        "normalized_val_test": normalized_val_test,
+    }

@@ -13,9 +13,9 @@ independent samples, ignores the pairing, and therefore throws away the informat
 matters: how often the two models disagree. McNemar's exact test uses only the discordant
 pairs, which is the whole question — "when they differ, who is right more often?"
 
-With n = 1,000 and accuracy near 0.93 the Wilson interval is roughly ±1.6 percentage points,
-so a two-point gap is not resolvable. Reporting a bare point estimate at that sample size is
-misleading, which is why nothing in this repo publishes one.
+Marginal Wilson intervals describe each accuracy separately; their overlap does not determine
+whether a paired difference is resolvable. This module therefore also provides a conditional
+exact interval and power calculation for the paired discordant counts.
 """
 
 from __future__ import annotations
@@ -43,7 +43,7 @@ class Interval:
         return asdict(self)
 
     def pp_halfwidth(self) -> float:
-        """Half-width in percentage points — the number the README quotes as ``±x.x pp``."""
+        """Half the interval span in pp; not a symmetric margin around ``point``."""
         return 100.0 * (self.high - self.low) / 2.0
 
     def format(self, digits: int = 4) -> str:
@@ -158,6 +158,150 @@ def mcnemar_test(
         p_value=float(result.pvalue),
         exact=exact,
         n_discordant=b + c,
+    )
+
+
+@dataclass(frozen=True)
+class PairedDifferenceInterval:
+    """Conditional exact interval for a paired accuracy difference, in percentage points."""
+
+    point_pp: float
+    low_pp: float
+    high_pp: float
+    level: float
+    method: str
+    n_total: int
+    only_a_correct: int
+    only_b_correct: int
+
+
+def paired_accuracy_difference_interval(
+    *,
+    n_total: int,
+    only_a_correct: int,
+    only_b_correct: int,
+    level: float = 0.95,
+) -> PairedDifferenceInterval:
+    """Clopper-Pearson interval for ``accuracy(A) - accuracy(B)``, conditional on discordance.
+
+    Among discordant pairs, ``only_a_correct`` is binomial with success probability ``q``.
+    The paired accuracy difference is ``m * (2q - 1) / n_total``, where ``m`` is the
+    number of discordant pairs. Transforming the exact binomial interval for ``q`` keeps
+    the pairing that two marginal accuracy intervals discard.
+    """
+    if n_total <= 0:
+        raise ValueError("n_total must be positive")
+    if only_a_correct < 0 or only_b_correct < 0:
+        raise ValueError("discordant counts must be non-negative")
+    n_discordant = only_a_correct + only_b_correct
+    if n_discordant > n_total:
+        raise ValueError("discordant counts cannot exceed n_total")
+    point_pp = 100.0 * (only_a_correct - only_b_correct) / n_total
+    if n_discordant == 0:
+        return PairedDifferenceInterval(
+            point_pp=0.0,
+            low_pp=0.0,
+            high_pp=0.0,
+            level=level,
+            method="conditional exact (Clopper-Pearson)",
+            n_total=n_total,
+            only_a_correct=only_a_correct,
+            only_b_correct=only_b_correct,
+        )
+
+    from scipy.stats import beta
+
+    alpha = 1.0 - level
+    q_low = (
+        0.0
+        if only_a_correct == 0
+        else float(beta.ppf(alpha / 2.0, only_a_correct, only_b_correct + 1))
+    )
+    q_high = (
+        1.0
+        if only_b_correct == 0
+        else float(beta.ppf(1.0 - alpha / 2.0, only_a_correct + 1, only_b_correct))
+    )
+    scale = 100.0 * n_discordant / n_total
+    return PairedDifferenceInterval(
+        point_pp=point_pp,
+        low_pp=scale * (2.0 * q_low - 1.0),
+        high_pp=scale * (2.0 * q_high - 1.0),
+        level=level,
+        method="conditional exact (Clopper-Pearson)",
+        n_total=n_total,
+        only_a_correct=only_a_correct,
+        only_b_correct=only_b_correct,
+    )
+
+
+@dataclass(frozen=True)
+class ConditionalPower:
+    """Power of the two-sided exact McNemar test conditional on observed discordance."""
+
+    power: float
+    observed_gap_pp: float
+    gap_for_80_percent_power_pp: float
+    n_total: int
+    n_discordant: int
+    alpha: float
+
+
+def conditional_mcnemar_power(
+    *,
+    n_total: int,
+    only_a_correct: int,
+    only_b_correct: int,
+    alpha: float = 0.05,
+) -> ConditionalPower:
+    """Compute exact conditional power at the observed discordant-pair effect.
+
+    The rejection region is the set of binomial outcomes whose two-sided exact McNemar
+    p-value is below ``alpha``. Power is then the probability of that region under the
+    observed directional effect. A bisection finds the effect required for 80% power while
+    holding the observed number of discordant pairs fixed.
+    """
+    if n_total <= 0:
+        raise ValueError("n_total must be positive")
+    if only_a_correct < 0 or only_b_correct < 0:
+        raise ValueError("discordant counts must be non-negative")
+    n_discordant = only_a_correct + only_b_correct
+    if not 0 < n_discordant <= n_total:
+        raise ValueError("conditional power needs 1..n_total discordant pairs")
+
+    import numpy as np
+    from scipy.stats import binom, binomtest
+
+    outcomes = np.arange(n_discordant + 1)
+    rejection = np.asarray(
+        [
+            binomtest(int(k), n_discordant, p=0.5, alternative="two-sided").pvalue < alpha
+            for k in outcomes
+        ]
+    )
+
+    observed_q = max(only_a_correct, only_b_correct) / n_discordant
+
+    def power_at(q: float) -> float:
+        return float(binom.pmf(outcomes, n_discordant, q)[rejection].sum())
+
+    observed_power = power_at(observed_q)
+    low_q, high_q = 0.5, 1.0
+    for _ in range(100):
+        mid_q = (low_q + high_q) / 2.0
+        if power_at(mid_q) < 0.8:
+            low_q = mid_q
+        else:
+            high_q = mid_q
+
+    scale = 100.0 * n_discordant / n_total
+    return ConditionalPower(
+        power=observed_power,
+        observed_gap_pp=100.0 * abs(only_a_correct - only_b_correct) / n_total,
+        gap_for_80_percent_power_pp=scale * (2.0 * high_q - 1.0),
+        n_total=n_total,
+        n_discordant=n_discordant,
+        alpha=alpha,
     )
 
 

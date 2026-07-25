@@ -33,8 +33,9 @@ flowchart LR
 *same* `runs/run_N/` directory in one process. That is what makes the leaderboard a like-for-like
 comparison rather than two numbers that happen to sit in one table — and it is what makes McNemar
 possible at all, because the paired predictions for both models exist for the same 1,000 test rows in
-one `predictions.parquet`. Note also that the test split comes from a physically different upstream
-file than train, so train/test overlap is structurally impossible rather than merely unlikely.
+one `predictions.parquet`. The upstream train and test rows come from different physical files, but
+that alone does not prove content disjointness. `train.py` now records and enforces an exact and
+normalized content-overlap audit; the published split audit found zero overlap by either rule.
 
 ---
 

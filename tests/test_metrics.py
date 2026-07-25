@@ -14,7 +14,9 @@ from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_sc
 from metrics.classification import classification_metrics, report_text
 from metrics.significance import (
     accuracy_interval,
+    conditional_mcnemar_power,
     mcnemar_test,
+    paired_accuracy_difference_interval,
     significance_sentence,
     wilson_interval,
 )
@@ -92,8 +94,8 @@ def test_wilson_stays_inside_the_unit_interval_at_the_boundary():
     assert ci.low < 1.0
 
 
-def test_wilson_halfwidth_at_n_1000_is_about_1_6_pp():
-    """Sanity-checks the number the README quotes for the published test-set size."""
+def test_wilson_half_span_at_n_1000_stays_in_expected_range():
+    """The helper reports half the asymmetric interval's span, not a symmetric margin."""
     ci = wilson_interval(930, 1000)
     assert 1.4 <= ci.pp_halfwidth() <= 2.2
 
@@ -171,6 +173,28 @@ def test_mcnemar_uses_only_the_discordant_pairs():
     )
     assert base.p_value == pytest.approx(padded.p_value)
     assert base.n_discordant == padded.n_discordant
+
+
+def test_paired_accuracy_difference_interval_uses_discordant_counts():
+    interval = paired_accuracy_difference_interval(
+        n_total=1000,
+        only_a_correct=81,
+        only_b_correct=59,
+    )
+    assert interval.point_pp == pytest.approx(2.2)
+    assert interval.low_pp < 0 < interval.high_pp
+    assert interval.method == "conditional exact (Clopper-Pearson)"
+
+
+def test_conditional_mcnemar_power_reports_observed_and_80_percent_effects():
+    result = conditional_mcnemar_power(
+        n_total=1000,
+        only_a_correct=81,
+        only_b_correct=59,
+    )
+    assert 0.39 < result.power < 0.41
+    assert 3.4 < result.gap_for_80_percent_power_pp < 3.6
+    assert result.gap_for_80_percent_power_pp > result.observed_gap_pp
 
 
 def test_significance_sentence_names_the_leader_and_reports_the_verdict():

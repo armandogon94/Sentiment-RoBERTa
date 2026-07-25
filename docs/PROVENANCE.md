@@ -80,16 +80,28 @@ df_test_sample = df_original_test.sample(1000, random_state=42)  # rows TESTED o
 | **Training set** | **9,000** |
 | **Test set** | **1,000** |
 | Label mapping | `{1: 0, 2: 1}` → 0 = negative, 1 = positive |
-| Input field | `title + " " + text` |
-| Baseline | TF-IDF (defaults, unigram) + `LogisticRegression(max_iter=1000)` on lowercased, punctuation-stripped, stopword-removed, Porter-stemmed text |
+| Input field in the source notebook | `title + " " + text` |
+| Input field in the published repo runs | `title + ". " + text` |
+| Baseline recipe | Unigram TF-IDF + `LogisticRegression(C=1, max_iter=1000)` on lowercased, punctuation-stripped, stopword-removed, Porter-stemmed text |
 | Model | `roberta-base` → `RobertaForSequenceClassification`, `num_labels=2` |
 | Optimiser | `AdamW`, `lr=2e-5`, 5 epochs, batch 32, `max_len=256` |
 | Validation split | none |
 | Interpretability | last-layer attention heatmap · per-token attention bar chart · gradient-based token attribution over 6 reviews |
 
-A 1,000-example test set gives an accuracy confidence interval of roughly ±1.5 percentage points at
-95%, which is why every reported accuracy in this repo carries an interval and the two models are
-compared with a paired exact McNemar test rather than treated as independent samples.
+The period separator is a measured-input difference, not a documentation preference: it becomes a
+RoBERTa token and the widened TF-IDF token pattern retains punctuation. The control also differs
+from the source notebook's bare `TfidfVectorizer()` in one respect: all repo cells use
+`token_pattern=r"(?u)\b\w[\w']*\b|[^\w\s]"` so negation-preserving cells retain `n't` and
+single-character tokens. On the published split, `uv run python scripts/audit_methodology.py`
+measures sklearn's default pattern at 20,907 features and `0.8490` accuracy versus 20,938 and
+`0.8480` for the widened pattern; seven predictions differ. Against the saved RoBERTa predictions,
+the default pattern has discordance 129 vs 18 and exact McNemar probability
+`7.045683399024081e-22`; the widened published pattern has 132 vs 20 and
+`1.983984578134213e-21`. The published implementation is kept unchanged and the deviation is
+explicit.
+
+Every reported accuracy therefore carries its actual Wilson interval. Model differences are paired
+and are evaluated with exact McNemar tests; marginal interval overlap is not used to decide them.
 
 ## Dataset provenance
 

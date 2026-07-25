@@ -14,7 +14,13 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from datasets.splits import combined_text, make_splits, stratified_sample
+from datasets.splits import (
+    audit_split_overlap,
+    combined_text,
+    make_splits,
+    normalize_for_overlap,
+    stratified_sample,
+)
 from models.baselines import TfidfLogisticRegression
 
 
@@ -88,3 +94,30 @@ def test_zero_val_fraction_yields_an_empty_validation_split(tiny_frame):
     s = make_splits(tiny_frame, tiny_frame, n_train=40, n_test=10, val_fraction=0.0, seed=3)
     assert s.sizes()["n_val"] == 0
     assert s.sizes()["n_train"] == 40
+
+
+def test_combined_text_uses_the_period_separator_measured_by_published_runs(tiny_frame):
+    assert combined_text(tiny_frame).iloc[0].startswith("Title 0. This is")
+
+
+def test_normalized_overlap_ignores_case_punctuation_and_spacing():
+    left = "Same TITLE. Review text!"
+    right = "same title -- review   text"
+    assert normalize_for_overlap(left) == normalize_for_overlap(right)
+
+
+def test_overlap_audit_reports_exact_and_normalized_pairs(tiny_frame):
+    test_frame = tiny_frame.iloc[:10].copy()
+    test_frame["title"] = test_frame["title"].str.swapcase()
+    test_frame["text"] = test_frame["text"].str.replace(".", " ! ", regex=False)
+    split = make_splits(
+        tiny_frame,
+        test_frame,
+        n_train=40,
+        n_test=10,
+        val_fraction=0.25,
+        seed=7,
+    )
+    audit = audit_split_overlap(split)
+    assert audit["exact_train_test"] == 0
+    assert audit["normalized_train_test"] > 0

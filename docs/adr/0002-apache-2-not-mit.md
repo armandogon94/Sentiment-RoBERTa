@@ -4,9 +4,9 @@
 
 ## Context
 
-Every other repository in this portfolio is MIT, per `REFERENCE-STYLE-GUIDE.md` §1.6 ("Add MIT" —
-noting that 0 of 7 reference repos have any licence at all and are therefore legally
-all-rights-reserved).
+The portfolio defaults to MIT, while this repository's prior public notebook release is
+Apache-2.0. No reference-repository count is repeated because the style guide that contained it is
+outside this repository.
 
 This repository is different in one material way: the work it is built from **is already publicly
 released under Apache-2.0** as a Kaggle notebook
@@ -40,9 +40,8 @@ sentence. Apache-2.0's explicit patent grant and `NOTICE` mechanism are a better
 depends on third-party model weights and a third-party dataset than MIT's four-line permissiveness.
 The `NOTICE` file also forces the upstream licences to be enumerated rather than assumed.
 
-**Negative.** One repository in the portfolio differs from the rest, so "all my repos are MIT" is no
-longer true and the exception has to be remembered. Apache-2.0 is ~200 lines against MIT's ~20, which
-marginally clutters the root. Both costs are small and bounded.
+**Negative.** One repository in the portfolio differs from the rest, so the exception has to be
+remembered. The additional licence text is accepted without an unsupported line-count comparison.
 
 **Rejected alternative.** Relicense to MIT for portfolio uniformity. Uniformity is not worth an
 unexplained inconsistency with a public prior release, and the inconsistency is exactly the kind of

@@ -29,6 +29,8 @@ PREPROCESSING:
 MODEL:
   NAME: roberta
   PRETRAINED: roberta-base
+  # Deliberately unset until an online run records the resolved immutable revision.
+  REVISION: null
   MAX_LEN: 128
   BATCH_SIZE: 32
   EPOCHS: 1

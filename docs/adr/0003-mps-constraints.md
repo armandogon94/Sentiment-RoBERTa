@@ -15,10 +15,8 @@ as a hang rather than an exception — so they cost hours before they cost a sta
    attention and does not use it, so this repo is not currently exposed — but any hand-rolled
    attention module would be.
 
-A third, milder constraint shapes what can be claimed: MPS gives roughly a **1.9×** speedup over CPU
-on dense fp32 matmul on this machine (8.27 ms/op vs 16.02 ms/op at 2048³), not the 5–10× that CUDA
-comparisons in papers might lead a reader to expect. There is no mixed precision and no
-`torch.compile` on this path.
+No committed script or raw log benchmarks MPS against CPU in this repository, so this ADR makes no
+quantitative acceleration claim. There is no mixed precision and no `torch.compile` on this path.
 
 ## Decision
 
@@ -49,7 +47,8 @@ comparisons in papers might lead a reader to expect. There is no mixed precision
 
 ## Alternatives considered
 
-- **Force CPU everywhere for determinism.** Rejected: it roughly doubles every training run for no
-  gain in the numbers, and the 45-minute cap is the binding constraint on what can be published.
+- **Force CPU everywhere for determinism.** Rejected: the published runs used MPS, and changing the
+  device would create a different experiment without a repository-backed benchmark establishing the
+  runtime trade.
 - **Detect and warn instead of forbidding.** Rejected: the failure is a silent hang, so a warning
   would be read after the hang rather than before it. Structure is a better guard than a log line.

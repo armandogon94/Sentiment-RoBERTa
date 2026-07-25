@@ -11,7 +11,7 @@
   "cells": [
     {
       "label": "notebook chain, unigram",
-      "note": "the source notebook's exact configuration",
+      "note": "source notebook preprocessing/unigram control; widened token-pattern departure documented",
       "PREPROCESSING": {
         "ALPHANUMERIC_ONLY": true,
         "REMOVE_STOPWORDS": true,

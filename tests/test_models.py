@@ -6,12 +6,15 @@ transformer, so it is worth asserting rather than assuming.
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 import numpy as np
 import pytest
 import torch
 
 from models.protocols import SentimentModel
 from models.registry import create_model, register, registered_names
+from models.roberta import RobertaSentiment
 from utils.device import capability_report, resolve_device
 
 TEXTS = [
@@ -94,6 +97,69 @@ def test_transformer_uses_eager_attention_D8():
     assert out.attentions[0].shape[-1] == 12
 
 
+class _BatchLossModel:
+    """Tiny stand-in whose mean loss differs across deliberately unequal batches."""
+
+    def __init__(self) -> None:
+        self.parameter = torch.nn.Parameter(torch.tensor(0.0))
+
+    def train(self) -> None:
+        pass
+
+    def eval(self) -> None:
+        pass
+
+    def parameters(self):
+        return [self.parameter]
+
+    def __call__(self, *, input_ids, attention_mask, labels):
+        del input_ids, attention_mask
+        mean_loss = 1.0 if len(labels) == 2 else 9.0
+        loss = self.parameter * 0.0 + mean_loss
+        logits = torch.zeros((len(labels), 2), dtype=torch.float32)
+        logits[:, 0] = 1.0
+        return SimpleNamespace(loss=loss, logits=logits)
+
+
+def _unequal_batches() -> list[dict[str, torch.Tensor]]:
+    return [
+        {
+            "input_ids": torch.ones((2, 3), dtype=torch.long),
+            "attention_mask": torch.ones((2, 3), dtype=torch.long),
+            "labels": torch.zeros(2, dtype=torch.long),
+        },
+        {
+            "input_ids": torch.ones((1, 3), dtype=torch.long),
+            "attention_mask": torch.ones((1, 3), dtype=torch.long),
+            "labels": torch.zeros(1, dtype=torch.long),
+        },
+    ]
+
+
+def _loss_harness() -> RobertaSentiment:
+    model = RobertaSentiment.__new__(RobertaSentiment)
+    model.model = _BatchLossModel()
+    model.device = torch.device("cpu")
+    model.log_every_steps = 100
+    return model
+
+
+def test_validation_loss_is_weighted_by_examples_not_batches():
+    """Two rows at loss 1 and one at loss 9 have a per-example mean of 11/3, not 5."""
+    model = _loss_harness()
+    loss, accuracy = model._evaluate_loss(_unequal_batches())
+    assert loss == pytest.approx(11 / 3)
+    assert accuracy == 1.0
+
+
+def test_training_loss_is_weighted_by_examples_not_batches():
+    """The training history must use the same per-example weighting as validation."""
+    model = _loss_harness()
+    optimizer = torch.optim.SGD(model.model.parameters(), lr=0.1)
+    loss = model._train_one_epoch(_unequal_batches(), optimizer, epoch=1)
+    assert loss == pytest.approx(11 / 3)
+
+
 def test_transformer_trains_and_records_a_bounded_report():
     model = create_model(
         "roberta",
@@ -115,7 +181,7 @@ def test_transformer_trains_and_records_a_bounded_report():
 
 
 def test_wall_clock_cap_actually_stops_a_run():
-    """A cap of ~0 must truncate after epoch 1 rather than being advisory."""
+    """A cap of ~0 must interrupt epoch 1 and retain an explicit partial-epoch record."""
     model = create_model(
         "roberta",
         random_weight_layers=2,
@@ -127,8 +193,50 @@ def test_wall_clock_cap_actually_stops_a_run():
     )
     model.fit_with_validation(TEXTS[:24], LABELS[:24], TEXTS[24:32], LABELS[24:32])
     assert model.train_report["wall_clock_capped"] is True
-    assert model.train_report["epochs_run"] == 1
+    assert model.train_report["epochs_run"] == 0
     assert model.train_report["epochs_configured"] == 5
+    assert model.train_report["partial_epoch"]["epoch"] == 1
+    assert model.train_report["partial_epoch"]["steps_run"] == 0
+
+
+def test_pretrained_revision_is_threaded_to_tokenizer_and_model(monkeypatch):
+    """A requested immutable revision must reach both Hugging Face loads."""
+    from transformers import AutoTokenizer, RobertaForSequenceClassification
+
+    calls: list[tuple[str, str, str | None]] = []
+
+    class _LoadedModel:
+        config = SimpleNamespace(_attn_implementation="eager")
+
+        def to(self, device):
+            return self
+
+    def fake_tokenizer(name, *, revision):
+        calls.append(("tokenizer", name, revision))
+        return object()
+
+    def fake_model(name, *, revision, num_labels, attn_implementation):
+        assert num_labels == 2
+        assert attn_implementation == "eager"
+        calls.append(("model", name, revision))
+        return _LoadedModel()
+
+    monkeypatch.setattr(AutoTokenizer, "from_pretrained", fake_tokenizer)
+    monkeypatch.setattr(RobertaForSequenceClassification, "from_pretrained", fake_model)
+
+    model = RobertaSentiment.__new__(RobertaSentiment)
+    model.pretrained = "roberta-base"
+    model.revision = "immutable-revision"
+    model.random_weight_layers = None
+    model.num_labels = 2
+    model.device = torch.device("cpu")
+
+    model._build_tokenizer()
+    model._build_model()
+    assert calls == [
+        ("tokenizer", "roberta-base", "immutable-revision"),
+        ("model", "roberta-base", "immutable-revision"),
+    ]
 
 
 def test_truncation_rate_is_measured():

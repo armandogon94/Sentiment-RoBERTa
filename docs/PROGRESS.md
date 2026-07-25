@@ -4,14 +4,60 @@ Resume point for a session with no memory of the previous one. On resume:
 `git log --oneline -20`, read `docs/AGENT-BRIEF.md` (gitignored, local only), then start from
 **NEXT ACTION** at the bottom of this file.
 
-**Status: the original ten slices are committed. Hard blocker #2 is resolved and verified in the
-worktree: compact primary evidence, prediction-vector recomputation, and publication-figure drift
-guards are present, but the owner explicitly prohibited a commit in this task. A fresh-clone run
-therefore remains pending until the owner reviews and commits the worktree. `cfg/default.yaml` and
-`cfg/full.yaml` have NOT been run. Nothing has been pushed.**
+## Batch 3 authoritative tracker — methodology honesty and reproducibility
 
-**Headline:** fine-tuned `roberta-base` **0.9600** [0.9460, 0.9705] vs TF-IDF + LogReg **0.8480**
-[0.8244, 0.8689] on 1,000 held-out reviews, exact McNemar **p = 1.984e-21**. `cfg/small.yaml`.
+**Status:** `IMPLEMENTED` and `VERIFIED` on an uncommitted worktree based on `70d96b3`.
+The owner prohibited commits, pushes, and RoBERTa retraining; none occurred.
+
+**Objective (`APPROVED`):** fix example-weighted train/validation loss; constrain future runs inside
+the wall-clock cap; record the requested pretrained revision and audited split overlap; and make
+every surrounding claim match the experiment and committed evidence without changing the three
+published headline measurements.
+
+**Invariants (`APPROVED`):**
+
+- preserve the recorded loss history as the output of the published run, label its averaging defect,
+  and do not present corrected losses without retraining;
+- preserve the epoch-1 validation finding and the measured `0.9460`/`0.9560` seed-order spread;
+- preserve the original-notebook control comparison while labelling its deliberate configuration,
+  and add the post-hoc best-cell comparison beside it;
+- never invent a model revision, runtime projection, hardware benchmark, or clone URL.
+
+**RED evidence (`IMPLEMENTED`):**
+
+- `uv run pytest -q tests/test_models.py::test_validation_loss_is_weighted_by_examples_not_batches`
+  returned `5.0` where the per-example mean is `3.6666666666666665`;
+- `uv run pytest -q tests/test_models.py::test_training_loss_is_weighted_by_examples_not_batches`
+  returned the same wrong `5.0`;
+- the focused cap test completed one full epoch under a near-zero cap;
+- focused collection failed because the requested paired-power, paired-interval, and split-overlap
+  audit interfaces did not exist.
+
+**Acceptance gates (`APPROVED`):** focused GREEN tests; `uv run pytest`;
+`scripts/check_published_numbers.py`; `scripts/check_committed_data.py`;
+`scripts/check_notebooks.py`; ruff check; ruff format check; and mypy. The final user-facing handoff
+also requires a self-contained HTML presentation opened in Chrome.
+
+**Verification (`IMPLEMENTED`, 2026-07-25):**
+
+- `uv run pytest` — `174 passed, 1 xfailed in 17.60s` (`175` collected);
+- coverage run — `174 passed, 1 xfailed`; `919` statements, `47` missed, `95%` total;
+- published-number guard — `PASS: 353 published/evidence values recomputed from prediction vectors`;
+- committed-data guard — exit `0`, no stdout;
+- notebook guard — original digest passed, original unchanged, `0/28` original code cells and
+  `12/12` narrative code cells have the expected output state;
+- ruff check — `All checks passed!`; ruff format — `71 files already formatted`; mypy —
+  `Success: no issues found in 55 source files`;
+- regenerated `reports/RESULTS.md` is byte-identical to the tracked report.
+
+**Status: batch 3 is uncommitted and verified. `cfg/default.yaml` and `cfg/full.yaml`
+have NOT been run; RoBERTa has not been retrained; nothing has been pushed. Published
+model-comparison evidence comes from `runs/run_2`/`runs/run_3`. The two deliberately published
+seed-order values come from `runs/run_1` and saved notebook cell 12, as documented in §5.3.**
+
+**Headline:** fine-tuned `roberta-base` **0.9600** [0.9460, 0.9705] vs the original-notebook
+TF-IDF control **0.8480** [0.8244, 0.8689], exact McNemar **p = 1.984e-21**; vs the post-hoc
+test-selected best TF-IDF cell **0.8700**, exact McNemar **p = 2.9914e-16**. `cfg/small.yaml`.
 
 ---
 
@@ -34,9 +80,10 @@ therefore remains pending until the owner reviews and commits the worktree. `cfg
 - [x] **Slice 6 — Figures.** 8 PNGs from the committed `scripts/export_figures.py`. → §7
 - [x] **Slice 7 — Notebook re-run.** `notebooks/sentiment_analysis_roberta.ipynb`, a 20-cell
       narrative walkthrough that *imports the packages*, executed with outputs saved.
-      `_ORIGINAL.ipynb` untouched — `nbstripout` was REPLACED by `scripts/check_notebooks.py`
-      (see §3.11). → `0ea44f8`, `b475c85`
-- [x] **Slice 8 — Tests + CI.** 130 tests, 95% coverage on the core, ruff + mypy clean, 3 CI jobs
+      `_ORIGINAL.ipynb` is correct and digest-pinned at HEAD; it was temporarily reformatted in
+      history, then restored (see §5.0b). A custom guard replaces `nbstripout`. → `0ea44f8`, `b475c85`
+- [x] **Slice 8 — Tests + CI.** Current collection count is recorded in the batch-3 verification
+      summary below; 95% historical core coverage, ruff + mypy clean, 3 CI jobs
       including `docs-drift` and a fresh-clone verify. → `53e75c7`, `bdcff54`, `b475c85`
 - [x] **Slice 9 — README + RESULTS.** This slice originally used a 34-decimal prose-duplication
       audit. That was historically green but did not prove measurement provenance; slice 11
@@ -45,8 +92,11 @@ therefore remains pending until the owner reviews and commits the worktree. `cfg
       through three real defects until passing (§5.0). Seven ADRs. → `cc3989f`, `2f95d8c`, `70d8098`
 - [x] **Slice 11 — Auditable evidence and publication drift guards.** Deterministic, text-free
       evidence for the published and ablation runs; numerical recomputation from raw vectors;
-      exact figure-set/provenance checks; stale report figures regenerated. **No commit SHA:
-      the task explicitly prohibited commits.**
+      exact figure-set/provenance checks; stale report figures regenerated. → `70d96b3`
+- [x] **Slice 12 — Batch-3 methodology honesty and reproducibility.** Weighted losses; paired
+      interval and conditional power; honest control, schedule, and input framing; in-epoch cap;
+      requested model revision; content-overlap audit; stale/unsupported prose removed; all
+      required gates green. Uncommitted by owner instruction.
 
 **Not done, deliberately:** `cfg/default.yaml` and `cfg/full.yaml` have not been run. See §3.
 
@@ -78,6 +128,7 @@ stated in NEXT ACTION.
 | 9 | `bf73c0f` | `README.md` — full rewrite with measured numbers |
 | 7 | `b475c85` | `notebooks/sentiment_analysis_roberta.ipynb` (executed), `scripts/check_notebooks.py`, `.pre-commit-config.yaml`, 4 new tests |
 | 10 | `cc3989f`, `2f95d8c`, `70d8098` | `scripts/verify_fresh_clone.sh`, `scripts/check_no_blocking_show.py`, `.github/workflows/ci.yml` |
+| 12 | uncommitted | Batch-3 code, tests, reports, README, provenance, ADR, config, and CI/Makefile corrections documented in the tracker above |
 
 ---
 
@@ -85,8 +136,8 @@ stated in NEXT ACTION.
 
 1. **The published config is `cfg/small.yaml` (9,000 / 1,000, seq 256, 3 epochs), not the notebook's
    5-epoch config.** The 45-minute cap is binding: 5 epochs projects to 51–55 min from the measured
-   rate. `cfg/default.yaml` is committed as the notebook's exact configuration and labelled NOT RUN
-   everywhere it appears. → **ADR 0004**
+   rate. `cfg/default.yaml` preserves the notebook-scale schedule with documented validation,
+   separator, and token-pattern departures, and is labelled NOT RUN. → **ADR 0004**
 2. **`cfg/small.yaml` adds a 10% stratified validation split**, which the notebook lacked. A
    correctness fix, not a budget one: with no validation set, "5 epochs" is unjustifiable and any
    epoch selection would leak the test set. → ADR 0004
@@ -99,9 +150,10 @@ stated in NEXT ACTION.
 4. **`[tool.uv] package = false`.** The house style puts packages at the repo root, and one of ours is
    named `datasets/` — installing it into `site-packages` would shadow HuggingFace `datasets`. →
    **ADR 0006**
-5. **CI never touches the network.** `cfg/smoke.yaml` builds a 2-layer random-weight model with an
-   offline hashing tokenizer, and CI sets `HF_HUB_OFFLINE=1`. The smoke accuracy is real and
-   meaningless and is published nowhere. → **ADR 0007**
+5. **CI avoids dataset and Hugging Face fetches, not every network dependency.**
+   `cfg/smoke.yaml` builds a 2-layer random-weight model with a local hashing tokenizer, and CI sets
+   `HF_HUB_OFFLINE=1`. The TF-IDF path still needs NLTK assets; a cold machine may download
+   `punkt`, `punkt_tab`, and `stopwords` by mutable name. → **ADR 0007**
 6. **Two committed sample files, not one** — `reviews_sample.csv` from the upstream *train* split and
    `reviews_sample_test.csv` from the upstream *test* split. One file for both would give the smoke
    config a train/test overlap. Harmless for a plumbing check, but this repo exists to correct a
@@ -109,7 +161,11 @@ stated in NEXT ACTION.
 7. **`TfidfVectorizer(token_pattern=r"(?u)\b\w[\w']*\b|[^\w\s]")`.** sklearn's default `\b\w\w+\b`
    would delete `n't` a *second* time, after `text_preprocess` carefully preserved it — which would
    have made the "negation preserved" ablation cells silently identical to the "notebook chain" ones
-   and produced a fake null result. This is the subtlest thing in the repo.
+   and produced a fake null result. The published control therefore differs from the notebook's
+   bare vectorizer in this one respect. Measured on the published split, the default pattern gives
+   20,907 features / `0.8490`, versus 20,938 / `0.8480`; seven predictions differ. Against
+   RoBERTa, their discordances are 129 vs 18 (`p = 7.045683399024081e-22`) and 132 vs 20
+   (`p = 1.983984578134213e-21`), respectively.
 8. **`train.py` refuses to start above a 1-minute load average of 12** unless `--force`. Other agent
    sessions were running on this machine tonight; both real runs were launched with `--force` and the
    observed load is recorded in each `run_meta.json` under `hardware.loadavg_1m`.
@@ -125,6 +181,16 @@ stated in NEXT ACTION.
     has zero diff against HEAD and zero outputs, and the re-run notebook has outputs on every code
     cell. Wired into pre-commit, CI and four tests. This honours the brief's *intent* (protect the
     provenance artifact, protect the re-run's outputs) rather than its mechanism.
+12. **The 45-minute cap is enforced inside epochs.** The deadline is checked before every optimizer
+    step, so epoch 1 can stop. A partial epoch is recorded; the best completed validation checkpoint
+    is restored, or the partial model remains if no completed epoch exists.
+13. **Model revision is explicit but unset.** `MODEL.REVISION` reaches both Hugging Face loads and
+    `run_meta.json`. It remains `null` because the published run did not record a resolved revision
+    and this offline task cannot invent one.
+14. **Separate upstream files are not treated as proof of disjoint content.** The methodology audit
+    found zero exact and six normalized overlaps between the 200,000-row train and 20,000-row test
+    source prefixes. The selected 8,100/900/1,000 split has zero exact and zero normalized overlap
+    for every pair; `train.py` records this audit and refuses nonzero overlap.
 
 ---
 
@@ -137,16 +203,17 @@ no credentials:
 
 | Item | Exact command | Cost |
 |---|---|---|
-| Run the notebook's exact 5-epoch config | raise `RUNTIME.WALL_CLOCK_CAP_MIN` in `cfg/default.yaml` to ≥ 60, then `uv run python train.py -c cfg/default.yaml` | ~55 min, MPS |
-| Run the full-scale config | raise the cap in `cfg/full.yaml`, then `uv run python train.py -c cfg/full.yaml` | **36–69 h on this laptop — do not.** Belongs on a rented GPU. |
+| Run the notebook-scale 5-epoch schedule | raise `RUNTIME.WALL_CLOCK_CAP_MIN` in `cfg/default.yaml`, then `PYTHONHASHSEED=1337 uv run python train.py -c cfg/default.yaml` | 51–55 min projected from the measured small-run rate |
+| Run the full-scale config | raise the cap in `cfg/full.yaml`, then `PYTHONHASHSEED=1337 uv run python train.py -c cfg/full.yaml` | Unknown; no full run or matched benchmark supports a runtime |
 
 If `cfg/default.yaml` is run, regenerate everything downstream so nothing goes stale:
 
 ```bash
-# Replace run_N with the deliberately selected new publication run. Never use runs/latest here.
-make evidence PUBLISHED_RUN=runs/run_N ABLATION_RUN=runs/run_3
-make report PUBLISHED_RUN=runs/run_N ABLATION_RUN=runs/run_3
-make figures PUBLISHED_RUN=runs/run_N ABLATION_RUN=runs/run_3
+PUBLISHED_RUN="$(python3 -c 'from pathlib import Path; print(Path("runs/latest").resolve())')"
+# Run the ablation, then capture ABLATION_RUN the same way before runs/latest changes again.
+make evidence PUBLISHED_RUN="$PUBLISHED_RUN" ABLATION_RUN="$ABLATION_RUN"
+make report PUBLISHED_RUN="$PUBLISHED_RUN" ABLATION_RUN="$ABLATION_RUN"
+make figures PUBLISHED_RUN="$PUBLISHED_RUN" ABLATION_RUN="$ABLATION_RUN"
 ```
 
 ---
@@ -218,7 +285,8 @@ make figures PUBLISHED_RUN=runs/run_N ABLATION_RUN=runs/run_3
 5. **`verify_fresh_clone.sh` runs `uv sync` inside the clone**, which resolves from the committed
    `uv.lock` but still fetches wheels not already in uv's cache. On a machine with a cold uv cache and
    no network it fails at that step. That is the intended behaviour of a *quickstart* check, but it
-   means the script is not an *offline* guarantee.
+   means the script is not an *offline* guarantee. Even with dependencies installed, a cold NLTK
+   data directory can require downloads for the smoke control.
 6. **Attention-figure legibility is capped at 32 tokens.** Longer reviews are truncated in the plot
    (not in the model); the caption states it.
 7. **No mixed precision, no `torch.compile`.** MPS fp32 only. Timings are not comparable to CUDA
@@ -238,7 +306,7 @@ make figures PUBLISHED_RUN=runs/run_N ABLATION_RUN=runs/run_3
 | D2 | "Grad-CAM" is actually gradient-norm saliency | ✅ | renamed `gradient_saliency`; `docs/interpretability.md`; ADR 0005 |
 | D3 | Preprocessing deletes negation | ✅ | config flags in `datasets/text_preprocess.py`; 4-cell ablation; `tests/test_text_preprocess.py` |
 | D4 | No validation split | ✅ | `datasets/splits.py`; epoch selected on val loss; test scored once |
-| D5 | `torch.manual_seed` never called | ✅ | `utils/seeding.py::set_seed` — random / numpy / torch / mps / PYTHONHASHSEED |
+| D5 | `torch.manual_seed` never called | ✅ | `utils/seeding.py::set_seed` covers random / numpy / torch / mps; Makefile and CI set `PYTHONHASHSEED` before startup |
 | D6 | `nltk.download()` with no args opens a GUI | ✅ | `utils/nltk_data.py::ensure_nltk_data` — idempotent, quiet, includes `punkt_tab` |
 | D7 | Five blocking `plt.show()` calls | ✅ | `utils/plots.py` forces Agg; `tests/test_utils.py` parses every file with `ast` to prove none remain |
 | D8 | `attn_implementation` set on the config, a silent no-op | ✅ | passed to the **model**, asserted post-construction; `tests/test_attention.py` |
@@ -291,9 +359,14 @@ Per-epoch history — and **this is the most useful thing the run produced**:
 | 2 | 0.1001 | 0.1793 | 0.9389 | 11m 09s |
 | 3 | 0.0620 | 0.1563 | 0.9456 | 10m 33s |
 
-Validation loss bottoms at epoch 1 and rises. **The notebook's 5-epoch schedule would have
-overfit**, and its lack of a validation split is exactly why that was invisible to it. Truncation at
-`max_len` 256: **0.1%** of test reviews (1 of 1,000; median 92 tokens, p95 204, max 304).
+The published train and validation losses were computed as an unweighted mean of batch means, so
+their recorded values are not per-example means. The bug is fixed for future runs; re-deriving the
+history would require retraining, so the values remain unchanged. Validation accuracy was correctly
+weighted and is unaffected: epoch 1 `0.9456`, epoch 2 `0.9389`, epoch 3 `0.9456`. Validation loss
+rose after epoch 1 and validation accuracy did not improve through epoch 3, so the notebook's fixed
+5-epoch schedule with no checkpoint selection had no support in this run's evidence. Epochs 4 and 5
+were never run. The epoch-1 test accuracy `0.9600` is untouched. Truncation at `max_len` 256:
+**0.1%** of test reviews (1 of 1,000; median 92 tokens, p95 204, max 304).
 
 ### `cfg/small.yaml --baselines-only -p cfg/baseline_ablation.json` — `runs/run_3`
 
@@ -306,8 +379,11 @@ Same splits, same seed. All four cells published:
 | negation preserved | (1, 1) | 0.8510 [0.8276, 0.8717] | 0.8510 | 30,449 | 2s |
 | negation preserved | (1, 2) | **0.8700** [0.8477, 0.8894] | 0.8700 | 275,634 | 3s |
 
-Best cell vs the notebook's chain: 2.2 pp over 140 disagreements, exact McNemar **p = 0.07555** —
-**not** significant at n=1,000. Negation markers among each cell's 20 most negative coefficients:
+Best cell vs the notebook's chain: 2.2 pp over 140 disagreements, exact McNemar
+**p = 0.075551**, conditional exact paired 95% CI `[-0.22, 4.52]` pp, and 40.0% conditional
+power. Approximately 3.5 pp is needed for 80% power at the same discordance. This is underpowered,
+not evidence of no effect, and is post hoc because the cell was selected by test accuracy.
+Negation markers among each cell's 20 most negative coefficients:
 absent from both notebook-chain cells, present (`not`, `n't`, `no`, `not worth`) in both
 negation-preserving cells. Adding bigrams to the notebook's chain makes it **worse** (0.8480 →
 0.8380): once the tokens are deleted, bigrams add 226,000 features and no signal.
@@ -333,15 +409,14 @@ finite and in (0, 1) and is deliberately never reported as a result.
 | full pipeline | `cfg/smoke.yaml` | 6.3 s | CPU, random weights |
 | TF-IDF + LogReg fit | `cfg/dev.yaml` | 0.71 s, 9,538 features | CPU |
 
-The brief's §2.6 estimates (3–7 min for `dev`, 1.6–3.1 h for `default`) were **derived arithmetic,
-not measurements**, and were taken with Low Power Mode ON. The measured `dev` run came in at 65 s —
-well under the derived floor — so that table should not be used for planning without re-measuring.
+Earlier brief estimates were derived arithmetic, not repository-backed measurements, and are not
+used for planning. The measured run timings in the table above are the supported values.
 
 ---
 
 ## 8. NEXT ACTION
 
-**Review and commit the hard-blocker worktree, then run `make verify` against that commit.**
+**Review and commit the batch-3 worktree, then run `make verify` against that commit.**
 
 The verifier clones committed `HEAD`, so it cannot exercise the new uncommitted scripts by design.
 After the owner reviews and commits this worktree, `make verify` is the required cold-clone proof.
@@ -375,8 +450,8 @@ git checkout cfg/small.yaml                       # restore SEED: 1337
   not an exception.
 - Never publish a headline number that cannot be recomputed from `reports/evidence/`.
   `scripts/check_published_numbers.py` recomputes rather than accepting duplicated prose.
-- Never let `nbstripout` touch `notebooks/sentiment_analysis_roberta.ipynb` — the hook is scoped to
-  `_ORIGINAL` alone, and the saved outputs are the deliverable of Slice 7.
+- There is deliberately no `nbstripout` hook. `scripts/check_notebooks.py` guards the original
+  digest and the re-run outputs; do not replace it with a generic notebook stripper.
 - Never edit `notebooks/sentiment_analysis_roberta_ORIGINAL.ipynb`. It is provenance for a published
   Kaggle kernel. `scripts/run_notebook.py` refuses to execute it.
 - `docs/AGENT-BRIEF.md` stays gitignored and out of the tracked tree.
