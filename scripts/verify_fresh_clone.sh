@@ -81,7 +81,9 @@ uv run python evaluate.py -i runs/latest -o "$WORK/RESULTS.md" >/dev/null
 grep -q "McNemar" "$WORK/RESULTS.md" || { echo "FAIL: generated report has no significance test"; exit 1; }
 
 echo "==> Asserting no blocking plt.show() outside an explicit --show gate"
-if grep -rn 'plt\.show()' --include='*.py' . | grep -v 'args.show\|if show'; then
+# `git ls-files` rather than `grep -r`: the clone has a .venv by this point (uv sync ran above)
+# and scipy/pandas docstrings are full of `>>> plt.show()`. Only OUR tracked sources are in scope.
+if git ls-files '*.py' | xargs grep -n 'plt\.show()' | grep -v 'args.show\|if show'; then
   echo "FAIL: unguarded plt.show()"; exit 1
 fi
 

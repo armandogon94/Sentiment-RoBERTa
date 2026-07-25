@@ -99,7 +99,8 @@ jobs:
 
       - name: No unguarded plt.show()
         run: |
-          if grep -rn 'plt\.show()' --include='*.py' . | grep -v 'args.show\|if show'; then
+          # Only tracked sources: third-party docstrings are full of `>>> plt.show()`.
+          if git ls-files '*.py' | xargs grep -n 'plt\.show()' | grep -v 'args.show\|if show'; then
             echo "unguarded plt.show()"; exit 1
           fi
 
