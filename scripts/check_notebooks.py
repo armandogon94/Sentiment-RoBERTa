@@ -23,6 +23,7 @@ Usage
 
 from __future__ import annotations
 
+import hashlib
 import json
 import subprocess
 import sys
@@ -31,6 +32,13 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 ORIGINAL = Path("notebooks/sentiment_analysis_roberta_ORIGINAL.ipynb")
 RERUN = Path("notebooks/sentiment_analysis_roberta.ipynb")
+
+#: SHA-256 of the ORIGINAL notebook exactly as exported from Kaggle — minified single-line JSON.
+#: Pinned because a diff-against-HEAD check is not enough: it only catches a change that has not
+#: been committed yet. `ruff format` silently reflowed this file into pretty-printed JSON before
+#: `notebooks/` was excluded from ruff, and the change rode along in an unrelated commit. Cells,
+#: ids and content were all preserved, but "byte-identical to the published artifact" was not.
+ORIGINAL_SHA256 = "dfb3707417a9c2caa70800d832a27cf1a3e65af6052f8bcfcb2e80f77540c153"
 
 
 def code_cells_with_outputs(path: Path) -> tuple[int, int]:
@@ -61,8 +69,23 @@ def original_is_unmodified() -> tuple[bool, str]:
     return True, "unchanged"
 
 
+def sha256_of(path: Path) -> str:
+    return hashlib.sha256((REPO_ROOT / path).read_bytes()).hexdigest()
+
+
 def main() -> int:
     failures: list[str] = []
+
+    actual = sha256_of(ORIGINAL)
+    ok = actual == ORIGINAL_SHA256
+    print(f"{'ok  ' if ok else 'FAIL'} {ORIGINAL} — sha256 {actual[:16]}…")
+    if not ok:
+        failures.append(
+            f"{ORIGINAL} no longer matches the published Kaggle export byte for byte.\n"
+            f"    expected sha256 {ORIGINAL_SHA256}\n"
+            f"    actual   sha256 {actual}\n"
+            "    Restore it with:  git checkout 8331b10 -- " + str(ORIGINAL)
+        )
 
     ok, detail = original_is_unmodified()
     print(f"{'ok  ' if ok else 'FAIL'} {ORIGINAL} — {detail}")

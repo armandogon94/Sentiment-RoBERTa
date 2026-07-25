@@ -151,6 +151,22 @@ def test_original_notebook_was_published_unexecuted(repo_root: Path):
     assert {c.get("execution_count") for c in code} == {None}
 
 
+def test_original_notebook_is_byte_identical_to_the_kaggle_export(repo_root: Path):
+    """The provenance claim is about BYTES, not just about semantics.
+
+    `ruff format` reflowed this file from Kaggle's minified single-line JSON into
+    pretty-printed JSON before `notebooks/` was excluded from ruff. Every cell, id and source
+    string survived — but "unmodified copy of the published artifact" did not. Pinning the digest
+    is the only check that catches a reformat that preserves meaning.
+    """
+    import hashlib
+
+    import scripts.check_notebooks as check
+
+    path = repo_root / "notebooks" / "sentiment_analysis_roberta_ORIGINAL.ipynb"
+    assert hashlib.sha256(path.read_bytes()).hexdigest() == check.ORIGINAL_SHA256
+
+
 def test_rerun_notebook_keeps_its_outputs(repo_root: Path):
     """The deliverable of the notebook re-run. A stripped notebook is a failed slice."""
     import json
