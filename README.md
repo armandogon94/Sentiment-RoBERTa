@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/armandogon94/33-sentiment-roberta/actions/workflows/ci.yml/badge.svg)](.github/workflows/ci.yml)
 [![Coverage](https://img.shields.io/badge/coverage-95%25-brightgreen)](#testing)
-[![Tests](https://img.shields.io/badge/tests-126-brightgreen)](#testing)
+[![Tests](https://img.shields.io/badge/tests-130-brightgreen)](#testing)
 [![Python](https://img.shields.io/badge/python-3.12-blue)](pyproject.toml)
 [![License: Apache 2.0](https://img.shields.io/badge/license-Apache--2.0-green)](LICENSE)
 
@@ -175,8 +175,8 @@ guarantees. Renaming it and explaining why is a stronger signal than shipping a 
 distorted input.** It did:
 
 ```python
-embeddings = model.roberta.embeddings(input_ids=input_ids)   # the FULL embedding module
-outputs    = model(inputs_embeds=embeddings, attention_mask=mask)
+embeddings = model.roberta.embeddings(input_ids=input_ids)  # the FULL embedding module
+outputs = model(inputs_embeds=embeddings, attention_mask=mask)
 ```
 
 `RobertaEmbeddings.forward` does word lookup **plus** position embeddings, token-type embeddings,
@@ -270,7 +270,7 @@ to [`docs/diagrams/`](docs/diagrams) as SVG by `scripts/export_diagrams.sh`.
 ├── utils/                    # seeding, device, run dirs, run metadata, logging, plots, NLTK
 ├── notebooks/                # the ORIGINAL Kaggle notebook + a re-run narrative walkthrough
 ├── scripts/                  # download_data | make_sample | export_figures | export_diagrams
-├── tests/                    # 126 tests — leakage, config, metric parity, D1, D3, D8, smoke
+├── tests/                    # 130 tests — leakage, config, metric parity, D1, D3, D8, smoke
 ├── reports/                  # RESULTS.md (generated) + figures/
 ├── docs/                     # PROGRESS · PROVENANCE · architecture · interpretability · adr/
 ├── train.py                  # THE entrypoint: train.py -c cfg/small.yaml
@@ -289,7 +289,7 @@ whole pipeline run in seconds:
 git clone <this repo> && cd 33-sentiment-roberta
 make setup          # uv sync + pre-commit hooks
 make smoke          # full pipeline on data/sample/, CPU, ~6 s
-make test           # 126 tests, no network
+make test           # 130 tests, no network
 ```
 
 `make smoke` uses random weights on purpose — it verifies the *plumbing*, and its accuracy is
@@ -375,12 +375,12 @@ RUNTIME:
 ## Testing
 
 ```bash
-make test           # 126 tests, coverage on the pure-logic core
+make test           # 130 tests, coverage on the pure-logic core
 make lint           # ruff check + ruff format --check + mypy
 make verify         # clone committed HEAD to a temp dir and run the documented quickstart
 ```
 
-**126 tests, 95% coverage** on `datasets/ models/ metrics/ interpretability/ utils/`. Nothing in the
+**130 tests, 95% coverage** on `datasets/ models/ metrics/ interpretability/ utils/`. Nothing in the
 suite touches the network. The ones that carry the most weight:
 
 | File | Asserts |

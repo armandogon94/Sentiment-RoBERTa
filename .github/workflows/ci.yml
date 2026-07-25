@@ -84,6 +84,19 @@ jobs:
             echo "agent scaffolding is tracked"; exit 1
           fi
 
+      - name: Notebook provenance guard
+        run: |
+          python - <<'PY'
+          import json, pathlib
+          orig = json.loads(pathlib.Path("notebooks/sentiment_analysis_roberta_ORIGINAL.ipynb").read_text())
+          code = [c for c in orig["cells"] if c["cell_type"] == "code"]
+          assert all(not c.get("outputs") for c in code), "the ORIGINAL notebook was executed"
+          rerun = json.loads(pathlib.Path("notebooks/sentiment_analysis_roberta.ipynb").read_text())
+          rcode = [c for c in rerun["cells"] if c["cell_type"] == "code"]
+          assert any(c.get("outputs") for c in rcode), "the re-run notebook lost its outputs"
+          print(f"ok: ORIGINAL {len(code)} cells unexecuted; re-run has outputs")
+          PY
+
       - name: No unguarded plt.show()
         run: |
           if grep -rn 'plt\.show()' --include='*.py' . | grep -v 'args.show\|if show'; then

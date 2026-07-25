@@ -147,3 +147,64 @@ def test_palette_is_colourblind_safe_okabe_ito():
 
     assert OKABE_ITO[0] == "#0072B2"
     assert len(set(OKABE_ITO)) == len(OKABE_ITO)
+
+
+# ── notebook provenance ──────────────────────────────────────────────────────────────
+
+
+def test_original_notebook_was_published_unexecuted(repo_root: Path):
+    """The provenance claim in docs/PROVENANCE.md, asserted rather than described.
+
+    Every code cell at ``outputs: []`` and ``execution_count: null`` is *why* none of this
+    repo's metrics existed before it re-ran both models. If this ever starts failing, someone
+    executed the provenance artifact and the claim in the README is no longer true.
+    """
+    import json
+
+    notebook = json.loads(
+        (repo_root / "notebooks" / "sentiment_analysis_roberta_ORIGINAL.ipynb").read_text()
+    )
+    code = [c for c in notebook["cells"] if c["cell_type"] == "code"]
+    assert len(code) == 28
+    assert all(not c.get("outputs") for c in code)
+    assert {c.get("execution_count") for c in code} == {None}
+
+
+def test_rerun_notebook_keeps_its_outputs(repo_root: Path):
+    """The deliverable of the notebook re-run. A stripped notebook is a failed slice."""
+    import json
+
+    path = repo_root / "notebooks" / "sentiment_analysis_roberta.ipynb"
+    notebook = json.loads(path.read_text())
+    code = [c for c in notebook["cells"] if c["cell_type"] == "code"]
+    with_outputs = [c for c in code if c.get("outputs")]
+    assert with_outputs, "the re-run notebook has no saved outputs — run `make notebook`"
+    assert len(with_outputs) == len(code)
+
+
+def test_rerun_notebook_imports_the_packages_rather_than_redefining_them(repo_root: Path):
+    """It is a narrative walkthrough, not a second implementation that can silently drift."""
+    import json
+
+    notebook = json.loads(
+        (repo_root / "notebooks" / "sentiment_analysis_roberta.ipynb").read_text()
+    )
+    source = "\n".join("".join(c["source"]) for c in notebook["cells"] if c["cell_type"] == "code")
+    for expected in (
+        "from cfg.schema import load_config",
+        "from datasets.loading import",
+        "from models.registry import create_model",
+        "from metrics.significance import",
+        "from interpretability.saliency import",
+    ):
+        assert expected in source, f"notebook no longer imports the library: {expected!r}"
+    # A redefinition of the training loop or the preprocessing chain would be drift.
+    assert "class ReviewsDataset" not in source
+    assert "def preprocess_text" not in source
+
+
+def test_notebook_provenance_guard_passes(repo_root: Path):
+    """The pre-commit hook, exercised by the suite so CI catches it too."""
+    import scripts.check_notebooks as check
+
+    assert check.main() == 0

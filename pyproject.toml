@@ -38,8 +38,8 @@ dev = [
     "ruff>=0.6",
     "mypy>=1.11",
     "pre-commit>=3.8",
-    "nbstripout>=0.7",
     "nbclient>=0.10",         # execute the narrative notebook headlessly
+    "nbformat>=5.10",
     "jupyter-core>=5.7",
     "ipykernel>=6.29",
     "types-pyyaml",

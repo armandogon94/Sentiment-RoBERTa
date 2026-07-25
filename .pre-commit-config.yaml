@@ -1,6 +1,13 @@
-# nbstripout is scoped to the ORIGINAL notebook ONLY.
-# notebooks/sentiment_analysis_roberta.ipynb is the re-run narrative walkthrough and its
-# saved outputs are a deliverable — stripping them would erase the point of Slice 7.
+# There is deliberately NO nbstripout hook here. See scripts/check_notebooks.py.
+#
+# nbstripout was tried first, scoped to the ORIGINAL notebook alone. It has nothing to strip
+# there (the file was published with zero outputs) but it DOES rewrite every cell id and reflow
+# every `source` string into a list — a 93-line diff on the one file whose entire value is being
+# unchanged. And the re-run notebook's saved outputs are a deliverable, so it must not be
+# stripped either.
+#
+# The provenance guard enforces the two real invariants instead: the ORIGINAL never changes, and
+# the re-run keeps its outputs.
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.14.5
@@ -17,11 +24,14 @@ repos:
         pass_filenames: false
         args: ["."]
 
-  - repo: https://github.com/kynan/nbstripout
-    rev: 0.8.1
+  - repo: local
     hooks:
-      - id: nbstripout
-        files: ^notebooks/sentiment_analysis_roberta_ORIGINAL\.ipynb$
+      - id: notebook-provenance
+        name: notebook provenance guard
+        entry: uv run python scripts/check_notebooks.py
+        language: system
+        files: ^notebooks/.*\.ipynb$
+        pass_filenames: false
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
