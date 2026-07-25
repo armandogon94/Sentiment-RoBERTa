@@ -4,9 +4,13 @@ Resume point for a session with no memory of the previous one. On resume:
 `git log --oneline -20`, read `docs/AGENT-BRIEF.md` (gitignored, local only), then start from
 **NEXT ACTION** at the bottom of this file.
 
-**Status: the pipeline is complete and both models have been run. Published numbers come from
-`cfg/small.yaml`. `cfg/default.yaml` (the notebook's 5-epoch config) and `cfg/full.yaml` have NOT
-been run — see §3.**
+**Status: complete. All ten slices done and committed. Both models ran; every published number
+came out of `runs/run_2` or `runs/run_3` on this machine. `cfg/default.yaml` (the notebook's 5-epoch
+config) and `cfg/full.yaml` have NOT been run — see §3. `scripts/verify_fresh_clone.sh` passes.
+Nothing has been pushed.**
+
+**Headline:** fine-tuned `roberta-base` **0.9600** [0.9460, 0.9705] vs TF-IDF + LogReg **0.8480**
+[0.8244, 0.8689] on 1,000 held-out reviews, exact McNemar **p = 1.984e-21**. `cfg/small.yaml`.
 
 ---
 
@@ -29,12 +33,14 @@ been run — see §3.**
 - [x] **Slice 6 — Figures.** 8 PNGs from the committed `scripts/export_figures.py`. → §7
 - [x] **Slice 7 — Notebook re-run.** `notebooks/sentiment_analysis_roberta.ipynb`, a 20-cell
       narrative walkthrough that *imports the packages*, executed with outputs saved.
-      `_ORIGINAL.ipynb` untouched; `nbstripout` scoped to it alone. → `0ea44f8` + §7
-- [x] **Slice 8 — Tests + CI.** 126 tests, 95% coverage on the core, ruff + mypy clean, 3 CI jobs
-      including `docs-drift` and a fresh-clone verify. → `53e75c7`, `bdcff54`
-- [x] **Slice 9 — README + RESULTS.** Every number traces to a `runs/*/metrics.json`. → §7
-- [x] **Slice 10 — Self-verify + ADRs.** `scripts/verify_fresh_clone.sh` built, run, and fixed until
-      passing. Seven ADRs. → §7
+      `_ORIGINAL.ipynb` untouched — `nbstripout` was REPLACED by `scripts/check_notebooks.py`
+      (see §3.11). → `0ea44f8`, `b475c85`
+- [x] **Slice 8 — Tests + CI.** 130 tests, 95% coverage on the core, ruff + mypy clean, 3 CI jobs
+      including `docs-drift` and a fresh-clone verify. → `53e75c7`, `bdcff54`, `b475c85`
+- [x] **Slice 9 — README + RESULTS.** Every number traces to a `runs/*/metrics.json`; the orphan
+      audit is clean across all 34 decimals in the README. → `2075d3d`, `93bc7f8`, `bf73c0f`
+- [x] **Slice 10 — Self-verify + ADRs.** `scripts/verify_fresh_clone.sh` built, run, and fixed
+      through three real defects until passing (§5.0). Seven ADRs. → `cc3989f`, `2f95d8c`, `70d8098`
 
 **Not done, deliberately:** `cfg/default.yaml` and `cfg/full.yaml` have not been run. See §3.
 
@@ -50,11 +56,15 @@ been run — see §3.**
 | 3b | `412ac5f` | `interpretability/{saliency,attention}.py` — the D1 fix and the D2 rename |
 | 3c | `69bdffb` | `cfg/*.yaml` (5), `cfg/schema.py`, `cfg/baseline_ablation.json`, `models/roberta.py`, `models/hash_tokenizer.py`, `train.py` |
 | 3d / 4 | `dcf8b09` | `evaluate.py`, `scripts/export_figures.py`, `cfg/small.yaml` epoch count |
-| 8a | `53e75c7` | `tests/` — 9 files, 126 tests |
+| 8a | `53e75c7` | `tests/` — 9 files, 126 tests (130 after slice 7's provenance tests) |
 | 8b | `bdcff54` | `.github/workflows/ci.yml`, `scripts/verify_fresh_clone.sh`, `scripts/export_diagrams.sh`, `docs/architecture.md`, `docs/diagrams/*.svg`, ADRs 0003 / 0004 / 0006 / 0007 |
 | 2 / 7 | `0ea44f8` | `data/README.md` (measured), `docs/interpretability.md`, `notebooks/sentiment_analysis_roberta.ipynb`, `scripts/run_notebook.py` |
 
-Later commits (ablation, figures, README, verification) are listed by `git log --oneline`.
+| 5 | `2075d3d` | `evaluate.py` (+ `ablation_significance`), `reports/RESULTS.md` |
+| 6 | `93bc7f8` | `scripts/export_figures.py`, `docs/images/*.png` (8), `reports/figures/*.png` (8) |
+| 9 | `bf73c0f` | `README.md` — full rewrite with measured numbers |
+| 7 | `b475c85` | `notebooks/sentiment_analysis_roberta.ipynb` (executed), `scripts/check_notebooks.py`, `.pre-commit-config.yaml`, 4 new tests |
+| 10 | `cc3989f`, `2f95d8c`, `70d8098` | `scripts/verify_fresh_clone.sh`, `scripts/check_no_blocking_show.py`, `.github/workflows/ci.yml` |
 
 ---
 
@@ -94,6 +104,14 @@ Later commits (ablation, figures, README, verification) are listed by `git log -
    linting it would tempt a fix, and its defects are this repo's subject, not its backlog.
 10. **`ruff`'s `RUF001/2/3` (ambiguous Unicode) ignored repo-wide.** `×`, `–` and `‖` are deliberate
     typography in prose, docstrings and figure captions.
+11. **`nbstripout` was removed from pre-commit, against the brief's literal instruction.** The brief
+    says to scope it to the `_ORIGINAL` notebook. Doing that revealed it has nothing to strip there
+    (the file was published with zero outputs) but *does* rewrite every cell id and reflow every
+    `source` string — a 93-line diff on the one file whose entire value is being unchanged. It was
+    replaced by `scripts/check_notebooks.py`, which enforces the two actual invariants: the ORIGINAL
+    has zero diff against HEAD and zero outputs, and the re-run notebook has outputs on every code
+    cell. Wired into pre-commit, CI and four tests. This honours the brief's *intent* (protect the
+    provenance artifact, protect the re-run's outputs) rather than its mechanism.
 
 ---
 
@@ -122,7 +140,23 @@ uv run python scripts/export_figures.py -i runs/latest -o docs/images
 
 **This section is more useful than the completed list. Read it first.**
 
-1. **CI has never actually executed.** `.github/workflows/ci.yml` is committed but nothing has been
+0. **Three defects the fresh-clone verifier found in itself, all now fixed.** Recorded because the
+   *pattern* will recur for anyone extending the script:
+   a. Backticks inside a double-quoted `echo` are command substitution. `echo "==> Asserting
+      \`make figures\` ..."` silently *ran* both targets inside the clone, overwriting the
+      committed `reports/RESULTS.md` and making all 29 real README numbers look orphaned.
+      Fixed, plus the README checks moved to before any generation step.
+   b. `grep -rn --include='*.py' .` ran after `uv sync` had created `.venv`, matching ~60
+      `>>> plt.show()` lines in scipy/pandas docstrings.
+   c. Narrowing that to `git ls-files '*.py'` then matched **this repo's own** docstrings, which
+      discuss `plt.show()` at length precisely because it is banned. Replaced with
+      `scripts/check_no_blocking_show.py` — stdlib `ast`, one implementation shared by the test
+      suite, CI and the verifier.
+   The verifier also caught a genuine orphan: the README quoted the ablation p-value as `0.076`
+   where the generator prints `0.07555`. A rounding, not a fabrication, and a two-character diff —
+   which is the argument for automating the check rather than trusting care.
+1. **CI has never actually executed.** The CI badge in the README therefore renders as a 404 until
+   the first push; that is expected, and the workflow file it points at exists and is committed. `.github/workflows/ci.yml` is committed but nothing has been
    pushed (by instruction), so GitHub Actions has not run it. Every *step* was run locally — `ruff
    check`, `ruff format --check`, `mypy`, `pytest --cov`, the smoke train, figure and report
    regeneration, and the `docs-drift` shell checks — but the `astral-sh/setup-uv@v5` action itself and
@@ -134,8 +168,20 @@ uv run python scripts/export_figures.py -i runs/latest -o docs/images
    the README says so. Low Power Mode was **OFF** for both runs — note this differs from the brief's
    §2.6 reference measurements, which were taken with it ON, so those derived estimates are not
    directly comparable to what was measured here.
-3. **Single seed, single split.** The style guide (§1.5) wants mean ± stdev across folds. There is one
-   run per config. The variance of the observed gap is **unmeasured, not small.** This is §8.
+3. **Single seed, single split — and run-to-run variance is now known to be non-zero.**
+   `cfg/dev.yaml` was executed twice: once by `train.py` (`runs/run_1`) and once by the narrative
+   notebook. The only difference is *where* `set_seed` sits relative to model construction, and
+   therefore how much RNG state is consumed before the classifier head is initialised. Results:
+
+   | Execution | RoBERTa accuracy | Wilson 95% | McNemar p vs control |
+   |---|---|---|---|
+   | `train.py -c cfg/dev.yaml` (`runs/run_1`) | **0.9460** | [0.9226, 0.9626] | 8.40e-09 |
+   | `notebooks/sentiment_analysis_roberta.ipynb` | **0.9560** | [0.9343, 0.9708] | 1.812e-10 |
+
+   A **1.0 percentage-point spread from RNG-consumption order alone**, on identical data with an
+   identical seed. This is not a bug — both are correct runs of the same config — but it means every
+   point estimate in this repo carries at least that much slop, and it is the concrete reason §8 is
+   the next action. The style guide (§1.5) wants mean ± stdev; this is why.
 4. **The interpretability figures come from hand-picked reviews.** `scripts/export_figures.py` uses the
    notebook's positions (`iloc[5, 7, 9, 11, 13, 16]`) so the notebook and README discuss the same
    examples. They *illustrate*; they do not *measure*. No claim about token importance in general
@@ -192,10 +238,49 @@ right on 13. Truncation at `max_len` 128: **29.2%** of test reviews (median 88 t
 max 244). Both accuracies sit inside the brief's 0.75–0.99 bug-detection band, so the `{1,2}→{0,1}`
 remap and the prediction alignment are not inverted.
 
-### `cfg/small.yaml` — the published run
+### `cfg/small.yaml` — THE PUBLISHED RUN — `runs/run_2`, commit `dcf8b09`, MPS, Low Power Mode OFF
 
-See **[`reports/RESULTS.md`](../reports/RESULTS.md)**, generated from `runs/run_2/metrics.json`, and
-the README results table. Both name this config in every row.
+8,100 train / 900 val / 1,000 test · 3 epochs · seq 256 · batch 32 · lr 2e-5 · seed 1337 ·
+124,647,170 parameters · epoch 1 selected on validation loss · test set scored exactly once
+
+| Model | Accuracy (Wilson 95%) | P (macro) | R (macro) | F1 (macro) | Time |
+|---|---|---|---|---|---|
+| RoBERTa (fine-tuned) | **0.9600** [0.9460, 0.9705] | 0.9605 | 0.9597 | 0.9600 | 32m 08s (MPS) |
+| TF-IDF + LogReg | **0.8480** [0.8244, 0.8689] | 0.8481 | 0.8478 | 0.8479 | 4s (CPU) |
+
+Exact McNemar **p = 1.984e-21** over 152 discordant pairs. Discordance table: both right 828, both
+wrong 20, RoBERTa alone right 132, control alone right 20.
+
+Per-epoch history — and **this is the most useful thing the run produced**:
+
+| Epoch | Train loss | Val loss | Val accuracy | Wall clock |
+|---|---|---|---|---|
+| 1 (selected) | 0.2240 | **0.1238** | 0.9456 | 10m 26s |
+| 2 | 0.1001 | 0.1793 | 0.9389 | 11m 09s |
+| 3 | 0.0620 | 0.1563 | 0.9456 | 10m 33s |
+
+Validation loss bottoms at epoch 1 and rises. **The notebook's 5-epoch schedule would have
+overfit**, and its lack of a validation split is exactly why that was invisible to it. Truncation at
+`max_len` 256: **0.1%** of test reviews (1 of 1,000; median 92 tokens, p95 204, max 304).
+
+### `cfg/small.yaml --baselines-only -p cfg/baseline_ablation.json` — `runs/run_3`
+
+Same splits, same seed. All four cells published:
+
+| Preprocessing | n-grams | Accuracy (Wilson 95%) | F1 | Vocabulary | Fit |
+|---|---|---|---|---|---|
+| notebook chain | (1, 1) | 0.8480 [0.8244, 0.8689] | 0.8479 | 20,938 | 4s |
+| notebook chain | (1, 2) | 0.8380 [0.8139, 0.8595] | 0.8378 | 247,041 | 4s |
+| negation preserved | (1, 1) | 0.8510 [0.8276, 0.8717] | 0.8510 | 30,449 | 2s |
+| negation preserved | (1, 2) | **0.8700** [0.8477, 0.8894] | 0.8700 | 275,634 | 3s |
+
+Best cell vs the notebook's chain: 2.2 pp over 140 disagreements, exact McNemar **p = 0.07555** —
+**not** significant at n=1,000. Negation markers among each cell's 20 most negative coefficients:
+absent from both notebook-chain cells, present (`not`, `n't`, `no`, `not worth`) in both
+negation-preserving cells. Adding bigrams to the notebook's chain makes it **worse** (0.8480 →
+0.8380): once the tokens are deleted, bigrams add 226,000 features and no signal.
+
+Full generated report: **[`reports/RESULTS.md`](../reports/RESULTS.md)**.
 
 ### `cfg/smoke.yaml` — CI only, publishes nothing
 
@@ -209,7 +294,10 @@ finite and in (0, 1) and is deliberately never reported as a result.
 | epoch 1 wall clock | `cfg/dev.yaml` | 65.4 s — 57 steps, 1.15 s/step | MPS, Low Power Mode OFF |
 | epoch 1 wall clock | `cfg/small.yaml` | 625.5 s — 254 steps, 2.46 s/step | MPS, Low Power Mode OFF |
 | epoch 2 wall clock | `cfg/small.yaml` | 669.0 s | MPS, Low Power Mode OFF |
-| projected total, logged after epoch 1 | `cfg/small.yaml` | 31.3 min (cap 45) | MPS |
+| epoch 3 wall clock | `cfg/small.yaml` | 632.6 s | MPS, Low Power Mode OFF |
+| **total train** | `cfg/small.yaml` | **32m 08s** (3/3 epochs, not capped) | MPS, Low Power Mode OFF |
+| projected total, logged after epoch 1 | `cfg/small.yaml` | 31.3 min (cap 45) — actual 32.1 | MPS |
+| 4-cell ablation, end to end | `cfg/small.yaml` | 19 s | CPU |
 | full pipeline | `cfg/smoke.yaml` | 6.3 s | CPU, random weights |
 | TF-IDF + LogReg fit | `cfg/dev.yaml` | 0.71 s, 9,538 features | CPU |
 

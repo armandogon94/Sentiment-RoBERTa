@@ -406,8 +406,13 @@ number in this README stops tracing to a committed report.
    model families.
 2. **A 1,000-example test set gives Wilson intervals up to ±2.2 pp.** The 11.2-point headline gap
    clears that easily; the 2.2-point ablation gap does not, and is reported as unresolved.
-3. **One seed, one split, one run per config.** No repeated-CV variance estimate — the run-to-run
-   standard deviation is *unknown*, not small. This is the top item in
+3. **One seed, one split, one run per config, and run-to-run variance is measurably non-zero.**
+   `cfg/dev.yaml` was executed twice — once by `train.py` and once by the narrative notebook,
+   which differ only in *where* `set_seed` sits relative to model construction, and therefore in
+   how much RNG state the classifier head's initialisation consumes. They produced **0.9460** and
+   **0.9560**: a 1.0-point spread from RNG-consumption order alone, on identical data with an
+   identical seed. Every point estimate in this repo should be read with that in mind. Running
+   `cfg/small.yaml` across several seeds and reporting mean ± stdev is the top item in
    [`docs/PROGRESS.md`](docs/PROGRESS.md)'s NEXT ACTION.
 4. **MPS fp32 only** — no mixed precision, no `torch.compile`. Timings are not comparable to CUDA
    figures in papers, and both runs shared the machine with other work.

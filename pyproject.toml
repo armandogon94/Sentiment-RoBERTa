@@ -119,7 +119,7 @@ exclude = ["^notebooks/", "^runs/", "^\\.venv/"]
 [[tool.mypy.overrides]]
 # Tests are checked for correctness by running them. Requiring `-> None` on 130 test
 # functions buys nothing and makes the signal-to-noise of `make lint` worse.
-module = ["tests.*", "conftest"]
+module = ["tests.*"]
 disallow_untyped_defs = false
 disallow_incomplete_defs = false
 
