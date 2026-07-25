@@ -54,11 +54,18 @@ def comparison_table(metrics: dict[str, Any]) -> str:
     order = [k for k in ("roberta", "tfidf_logreg") if k in metrics["models"]]
     for key in order:
         block = metrics["models"][key]
-        train_s = block["training"]["train_seconds"] if key == "roberta" else block["train_seconds"]
+        # The control is a scikit-learn pipeline and runs on CPU regardless of the run's torch
+        # device. Attributing its fit time to MPS would be a small lie in a timing column.
+        if key == "roberta":
+            train_s = block["training"]["train_seconds"]
+            where = f"{metrics['device'].upper()}, {metrics['power_mode']}"
+        else:
+            train_s = block["train_seconds"]
+            where = f"CPU, {metrics['power_mode']}"
         rows.append(
             f"| {PRETTY.get(key, key)} | {fmt_accuracy(block)} | "
             f"{block['precision_macro']:.4f} | {block['recall_macro']:.4f} | {block['f1_macro']:.4f} | "
-            f"{fmt_seconds(train_s)} ({metrics['device'].upper()}, {metrics['power_mode']}) | "
+            f"{fmt_seconds(train_s)} ({where}) | "
             f"`cfg/{metrics['config_name']}.yaml` |"
         )
     return "\n".join(rows)
@@ -82,10 +89,59 @@ def ablation_table(source: dict[str, Any]) -> str:
         lo, hi = pp["NGRAM_RANGE"]
         rows.append(
             f"| {chain} | ({lo}, {hi}) | {fmt_accuracy(cell)} | {cell['f1_macro']:.4f} | "
-            f"{cell['features']['n_features']:,} | {fmt_seconds(cell['train_seconds'])} | "
+            f"{cell['features']['n_features']:,} | {fmt_seconds(cell['train_seconds'])} (CPU) | "
             f"`cfg/{source['config_name']}.yaml` |"
         )
     return "\n".join(rows)
+
+
+def ablation_significance(source: dict[str, Any], run_dir: Path) -> str:
+    """Paired McNemar between the notebook's chain and the best ablation cell.
+
+    Wilson intervals for two cells measured on the *same* 1,000 examples will overlap long
+    before the paired difference stops being detectable — the intervals ignore the pairing.
+    The predictions for all four cells are in one ``predictions.parquet``, so the correct test
+    costs a file read. Reporting only the overlapping intervals would understate the evidence;
+    reporting only the point gap would overstate it.
+    """
+    cells = source.get("ablation") or []
+    if len(cells) < 2:
+        return ""
+    predictions_path = Path(run_dir) / "predictions.parquet"
+    if not predictions_path.exists():
+        return ""
+
+    import pandas as pd
+
+    from metrics.significance import mcnemar_test
+
+    frame = pd.read_parquet(predictions_path)
+    baseline_cell = next(
+        (c for c in cells if "notebook chain, unigram" in c["ablation_label"]), cells[0]
+    )
+    best_cell = max(cells, key=lambda c: c["accuracy"])
+    if best_cell["model"] == baseline_cell["model"]:
+        return ""
+    if best_cell["model"] not in frame.columns or baseline_cell["model"] not in frame.columns:
+        return ""
+
+    mc = mcnemar_test(
+        frame["label"].to_numpy(),
+        frame[best_cell["model"]].to_numpy(),
+        frame[baseline_cell["model"]].to_numpy(),
+    )
+    gap = 100.0 * (best_cell["accuracy"] - baseline_cell["accuracy"])
+    verdict = "is" if mc.p_value < 0.05 else "is not"
+    return (
+        f"**Paired test, best cell vs the notebook's chain.** *{best_cell['ablation_label']}* "
+        f"({best_cell['accuracy']:.4f}) against *{baseline_cell['ablation_label']}* "
+        f"({baseline_cell['accuracy']:.4f}) is a gap of {gap:.1f} percentage points. The two cells "
+        f"disagree on {mc.n_discordant} of the {mc.a_both_correct + mc.b_only_a_correct + mc.c_only_b_correct + mc.d_both_wrong} "
+        f"test examples; exact McNemar gives **p = {mc.p_value:.4g}**, so the difference {verdict} "
+        f"distinguishable from zero. Their Wilson intervals overlap, but the intervals ignore the "
+        f"pairing — both cells scored the same examples, so the paired test is the one that answers "
+        f"the question."
+    )
 
 
 def negation_evidence(source: dict[str, Any]) -> str:
@@ -115,7 +171,11 @@ def negation_evidence(source: dict[str, Any]) -> str:
     )
 
 
-def build_report(metrics: dict[str, Any], ablation_source: dict[str, Any] | None) -> str:
+def build_report(
+    metrics: dict[str, Any],
+    ablation_source: dict[str, Any] | None,
+    ablation_run_dir: Path | None = None,
+) -> str:
     cfg_name = metrics["config_name"]
     splits = metrics["splits"]
     sig = metrics.get("significance") or {}
@@ -216,6 +276,10 @@ def build_report(metrics: dict[str, Any], ablation_source: dict[str, Any] | None
                 f"{'overlap, so on this test set the difference is not resolvable' if overlap else 'do not overlap'}"
                 ".\n"
             )
+        if ablation_run_dir is not None:
+            sig_text = ablation_significance(abl, ablation_run_dir)
+            if sig_text:
+                parts.append(sig_text + "\n")
         ev = negation_evidence(abl)
         if ev:
             parts.append(ev + "\n")
@@ -263,11 +327,15 @@ def build_report(metrics: dict[str, Any], ablation_source: dict[str, Any] | None
         parts.append(f"- [`docs/images/{name}.png`](../docs/images/{name}.png) — {alt}")
     parts.append("")
 
+    widest = max(
+        (b["accuracy_ci"]["high"] - b["accuracy_ci"]["low"]) / 2.0
+        for b in metrics["models"].values()
+    )
     parts.append("## What these numbers do not support\n")
     parts.append(
-        f"- A {splits['n_test']:,}-example test set gives a Wilson interval of roughly "
-        f"±1.5 percentage points at these accuracies. Gaps smaller than that are not resolvable "
-        "here, whatever the point estimates look like.\n"
+        f"- A {splits['n_test']:,}-example test set gives Wilson intervals up to "
+        f"±{100 * widest:.1f} percentage points wide at these accuracies. Gaps smaller than that "
+        "are not resolvable here, whatever the point estimates look like.\n"
         f"- {splits['n_train']:,} training rows is a small fraction of the 3.6M available. These "
         "results are about this data scale and do not transfer to full-data training.\n"
         "- One seed, one split. There is no repeated-CV variance estimate, so the run-to-run "
@@ -300,7 +368,9 @@ def main(argv: list[str] | None = None) -> int:
         else None
     )
 
-    report = build_report(metrics, ablation)
+    report = build_report(
+        metrics, ablation, args.ablation_run_dir.resolve() if args.ablation_run_dir else None
+    )
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(report, encoding="utf-8")
     print(f"==> {args.out}  ({len(report.splitlines())} lines)")
