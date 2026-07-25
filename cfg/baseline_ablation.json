@@ -1,0 +1,53 @@
+{
+  "_comment": [
+    "The 4-cell preprocessing ablation for the TF-IDF + logistic-regression control.",
+    "Two axes: whether the conventional hygiene chain (alphanumeric-only filter, NLTK",
+    "stopword removal, Porter stemming) is applied, and whether the vectorizer can see",
+    "bigrams. The chain deletes negation -- 'not', 'no' and 'nor' are NLTK English",
+    "stopwords, and the ^\\w+$ filter destroys \"n't\" before the stopword filter runs --",
+    "so with unigrams only, 'not good' and 'good' collapse to the same feature vector.",
+    "Run with: uv run python train.py -c cfg/small.yaml -p cfg/baseline_ablation.json --baselines-only"
+  ],
+  "cells": [
+    {
+      "label": "notebook chain, unigram",
+      "note": "the source notebook's exact configuration",
+      "PREPROCESSING": {
+        "ALPHANUMERIC_ONLY": true,
+        "REMOVE_STOPWORDS": true,
+        "STEM": true,
+        "NGRAM_RANGE": [1, 1]
+      }
+    },
+    {
+      "label": "notebook chain, uni+bigram",
+      "note": "bigrams cannot recover tokens the chain already deleted",
+      "PREPROCESSING": {
+        "ALPHANUMERIC_ONLY": true,
+        "REMOVE_STOPWORDS": true,
+        "STEM": true,
+        "NGRAM_RANGE": [1, 2]
+      }
+    },
+    {
+      "label": "negation preserved, unigram",
+      "note": "no alphanumeric filter, no stopword removal, no stemming",
+      "PREPROCESSING": {
+        "ALPHANUMERIC_ONLY": false,
+        "REMOVE_STOPWORDS": false,
+        "STEM": false,
+        "NGRAM_RANGE": [1, 1]
+      }
+    },
+    {
+      "label": "negation preserved, uni+bigram",
+      "note": "the configuration that can actually represent \"not good\" as a feature",
+      "PREPROCESSING": {
+        "ALPHANUMERIC_ONLY": false,
+        "REMOVE_STOPWORDS": false,
+        "STEM": false,
+        "NGRAM_RANGE": [1, 2]
+      }
+    }
+  ]
+}

@@ -1,0 +1,55 @@
+# Smoke config — the CI and fresh-clone path. Runs on the COMMITTED 1,000-row sample
+# with a 2-layer randomly-initialised RoBERTa, so it touches neither the 377 MB parquet
+# download nor the Hugging Face hub. Target: under 60 seconds on CPU.
+#
+# The accuracy it produces is real but meaningless (random weights, 160 training rows).
+# It is asserted to be a finite number in (0, 1) — that the pipeline runs end to end and
+# writes artifacts — and it is never published as a result.
+NAME: smoke
+DESCRIPTION: >-
+  End-to-end plumbing check on the committed sample with random weights. Proves the
+  pipeline runs; proves nothing about the model.
+
+SEED: 1337
+
+DATA:
+  TRAIN_PATH: data/sample/reviews_sample.csv
+  TEST_PATH: data/sample/reviews_sample_test.csv
+  ROWS_READ_TRAIN: 1000
+  ROWS_READ_TEST: 400
+  N_TRAIN: 200
+  N_TEST: 100
+  VAL_FRACTION: 0.2
+
+PREPROCESSING:
+  LOWERCASE: true
+  ALPHANUMERIC_ONLY: true
+  REMOVE_STOPWORDS: true
+  STEM: true
+  NGRAM_RANGE: [1, 1]
+  MAX_FEATURES: 2000
+
+MODEL:
+  NAME: roberta
+  PRETRAINED: roberta-base       # tokenizer vocab size only; weights are NOT downloaded
+  MAX_LEN: 64
+  BATCH_SIZE: 8
+  EPOCHS: 1
+  LR: 5.0e-5
+  WEIGHT_DECAY: 0.01
+  NUM_LABELS: 2
+  RANDOM_WEIGHT_LAYERS: 2        # build locally, never fetch pretrained weights
+
+BASELINE:
+  C: 1.0
+  MAX_ITER: 1000
+
+RUNTIME:
+  DEVICE: cpu                    # CI has no MPS; one device per process (see ADR 0003)
+  WALL_CLOCK_CAP_MIN: 5.0
+  LOG_EVERY_STEPS: 10
+  NUM_WORKERS: 0
+
+RESULTS:
+  OUTPUT_DIR: runs
+  SAVE_FIGURES: true

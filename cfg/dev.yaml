@@ -1,0 +1,52 @@
+# Dev config — the quickstart run. Real pretrained roberta-base, small enough to finish
+# in minutes so the timing can be measured before committing to a longer run.
+# 2,000 train / 500 test, 1 epoch, seq 128.
+NAME: dev
+DESCRIPTION: >-
+  Quickstart / calibration run. Real pretrained weights at a quarter of the published
+  data scale and half the sequence length, so per-token throughput can be measured
+  before any longer run is launched.
+
+SEED: 1337
+
+DATA:
+  TRAIN_PATH: data/raw/train.parquet
+  TEST_PATH: data/raw/test.parquet
+  ROWS_READ_TRAIN: 200000
+  ROWS_READ_TEST: 20000
+  N_TRAIN: 2000
+  N_TEST: 500
+  VAL_FRACTION: 0.1
+
+PREPROCESSING:
+  LOWERCASE: true
+  ALPHANUMERIC_ONLY: true
+  REMOVE_STOPWORDS: true
+  STEM: true
+  NGRAM_RANGE: [1, 1]
+  MAX_FEATURES: null
+
+MODEL:
+  NAME: roberta
+  PRETRAINED: roberta-base
+  MAX_LEN: 128
+  BATCH_SIZE: 32
+  EPOCHS: 1
+  LR: 2.0e-5
+  WEIGHT_DECAY: 0.01
+  NUM_LABELS: 2
+  RANDOM_WEIGHT_LAYERS: null
+
+BASELINE:
+  C: 1.0
+  MAX_ITER: 1000
+
+RUNTIME:
+  DEVICE: auto
+  WALL_CLOCK_CAP_MIN: 45.0
+  LOG_EVERY_STEPS: 10
+  NUM_WORKERS: 0
+
+RESULTS:
+  OUTPUT_DIR: runs
+  SAVE_FIGURES: true

@@ -1,0 +1,62 @@
+# Default config — a faithful reproduction of the source Kaggle notebook:
+# 9,000 train / 1,000 test, seq 256, batch 32, lr 2e-5, 5 epochs.
+#
+# ⚠️  NOT RUN. Derived at 1.6–3.1 hours on this hardware (Apple Silicon, MPS fp32),
+# which exceeds this repo's 45-minute per-run wall-clock cap. No number anywhere in this
+# repo came from this file, and none is presented as if it had.
+#
+# It exists so the notebook's exact configuration is preserved as executable data rather
+# than prose, and so `make train` can be pointed at it on a machine with the budget.
+# The one deliberate departure from the notebook is VAL_FRACTION: the notebook had no
+# validation split at all, which made "5 epochs" an unjustifiable choice.
+#
+# To run it, raise the cap explicitly and accept the hours:
+#   uv run python train.py -c cfg/default.yaml   # then edit WALL_CLOCK_CAP_MIN
+NAME: default
+DESCRIPTION: >-
+  Faithful reproduction of the source Kaggle notebook (9,000 / 1,000, seq 256, 5 epochs).
+  NOT RUN in this repo — projected at 1.6-3.1 h, over the 45-minute cap.
+
+SEED: 1337
+
+DATA:
+  TRAIN_PATH: data/raw/train.parquet
+  TEST_PATH: data/raw/test.parquet
+  ROWS_READ_TRAIN: 200000
+  ROWS_READ_TEST: 20000
+  N_TRAIN: 9000
+  N_TEST: 1000
+  VAL_FRACTION: 0.1
+
+PREPROCESSING:
+  LOWERCASE: true
+  ALPHANUMERIC_ONLY: true
+  REMOVE_STOPWORDS: true
+  STEM: true
+  NGRAM_RANGE: [1, 1]
+  MAX_FEATURES: null
+
+MODEL:
+  NAME: roberta
+  PRETRAINED: roberta-base
+  MAX_LEN: 256
+  BATCH_SIZE: 32
+  EPOCHS: 5                      # the notebook's value, and the reason this config is over cap
+  LR: 2.0e-5
+  WEIGHT_DECAY: 0.01
+  NUM_LABELS: 2
+  RANDOM_WEIGHT_LAYERS: null
+
+BASELINE:
+  C: 1.0
+  MAX_ITER: 1000
+
+RUNTIME:
+  DEVICE: auto
+  WALL_CLOCK_CAP_MIN: 45.0       # will truncate this config. That is intentional and reported.
+  LOG_EVERY_STEPS: 25
+  NUM_WORKERS: 0
+
+RESULTS:
+  OUTPUT_DIR: runs
+  SAVE_FIGURES: true

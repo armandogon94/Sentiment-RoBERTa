@@ -1,0 +1,62 @@
+# Full config — 200,000 train / 20,000 test, 5 epochs, seq 256.
+#
+# ⚠️  DO NOT RUN THIS ON A LAPTOP. Derived at 36–69 hours on this hardware
+# (Apple Silicon, MPS fp32, no mixed precision, no torch.compile). It is committed as a
+# specification, not as an invitation: it records what "the full-scale version of this
+# study" would mean so the gap between what was measured and what was not is explicit
+# rather than implied.
+#
+# The 45-minute cap in RUNTIME is left in place deliberately. Launching this file as-is
+# trains for 45 minutes, writes a partial checkpoint, records `wall_clock_capped: true`
+# in metrics.json, and stops. It cannot silently consume the machine overnight.
+#
+# On a single A100 the same job is roughly a one-hour affair. That, not the laptop, is
+# where this config belongs.
+NAME: full
+DESCRIPTION: >-
+  Full-scale specification: 200,000 / 20,000, 5 epochs, seq 256. NOT RUN — derived at
+  36-69 h on Apple Silicon MPS. Committed as a record of scope, not as a runnable target.
+
+SEED: 1337
+
+DATA:
+  TRAIN_PATH: data/raw/train.parquet
+  TEST_PATH: data/raw/test.parquet
+  ROWS_READ_TRAIN: 200000
+  ROWS_READ_TEST: 20000
+  N_TRAIN: 200000
+  N_TEST: 20000
+  VAL_FRACTION: 0.1
+
+PREPROCESSING:
+  LOWERCASE: true
+  ALPHANUMERIC_ONLY: false       # at this scale there is no reason to destroy negation
+  REMOVE_STOPWORDS: false
+  STEM: false
+  NGRAM_RANGE: [1, 2]
+  MAX_FEATURES: 500000
+
+MODEL:
+  NAME: roberta
+  PRETRAINED: roberta-base
+  MAX_LEN: 256
+  BATCH_SIZE: 32
+  EPOCHS: 5
+  LR: 2.0e-5
+  WEIGHT_DECAY: 0.01
+  NUM_LABELS: 2
+  RANDOM_WEIGHT_LAYERS: null
+
+BASELINE:
+  C: 1.0
+  MAX_ITER: 2000
+
+RUNTIME:
+  DEVICE: auto
+  WALL_CLOCK_CAP_MIN: 45.0       # left low on purpose — this config must not run unbounded
+  LOG_EVERY_STEPS: 100
+  NUM_WORKERS: 0
+
+RESULTS:
+  OUTPUT_DIR: runs
+  SAVE_FIGURES: true
