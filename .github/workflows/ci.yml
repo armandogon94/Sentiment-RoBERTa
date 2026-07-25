@@ -102,11 +102,14 @@ jobs:
         # verifier and tests/test_utils.py use — one implementation of the rule, not three greps.
         run: python3 scripts/check_no_blocking_show.py
 
-      - name: Every README number must trace to a committed report
+      - name: Every README number must trace to a committed measured artifact
+        # runs/ is gitignored, so the committed evidence chain is reports/RESULTS.md (generated
+        # from runs/*/metrics.json), docs/PROGRESS.md, and the re-run notebook's saved outputs.
         run: |
           orphans=0
           while read -r n; do
-            grep -qr -- "$n" reports/ docs/PROGRESS.md 2>/dev/null || { echo "ORPHAN: $n"; orphans=1; }
+            grep -qr -- "$n" reports/ docs/PROGRESS.md notebooks/ 2>/dev/null \
+              || { echo "ORPHAN: $n"; orphans=1; }
           done < <(grep -oE '\b0\.[0-9]{3,4}\b' README.md | sort -u)
           exit $orphans
 

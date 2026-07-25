@@ -410,10 +410,12 @@ number in this README stops tracing to a committed report.
    `cfg/dev.yaml` was executed twice — once by `train.py` and once by the narrative notebook,
    which differ only in *where* `set_seed` sits relative to model construction, and therefore in
    how much RNG state the classifier head's initialisation consumes. They produced **0.9460** and
-   **0.9560**: a 1.0-point spread from RNG-consumption order alone, on identical data with an
-   identical seed. Every point estimate in this repo should be read with that in mind. Running
-   `cfg/small.yaml` across several seeds and reporting mean ± stdev is the top item in
-   [`docs/PROGRESS.md`](docs/PROGRESS.md)'s NEXT ACTION.
+   **0.9560** — a 1.0-point spread from RNG-consumption order alone, on identical data with an
+   identical seed. (`0.9460` is in `runs/run_1/metrics.json`; `0.9560` is in the saved output of
+   cell 12 of [`notebooks/sentiment_analysis_roberta.ipynb`](notebooks/sentiment_analysis_roberta.ipynb),
+   because the notebook does not create a run directory.) Every point estimate in this repo should
+   be read with that in mind. Running `cfg/small.yaml` across several seeds and reporting
+   mean ± stdev is the top item in [`docs/PROGRESS.md`](docs/PROGRESS.md)'s NEXT ACTION.
 4. **MPS fp32 only** — no mixed precision, no `torch.compile`. Timings are not comparable to CUDA
    figures in papers, and both runs shared the machine with other work.
 5. **Gradient-norm saliency is not axiomatically attributive.** It is a first-order local
