@@ -35,8 +35,11 @@ python3 scripts/check_committed_data.py
 # This check reads only committed state, before any generator can change the clone.
 echo "==> Asserting every README structure-tree path exists"
 structure_paths="$WORK/structure-paths.txt"
-grep -oE '^(│|├|└|  )*[├└]── [A-Za-z0-9_./-]+' README.md \
-  | sed -E 's/.*── //' > "$structure_paths" || true
+# NOT a bracket expression over the box-drawing characters. `[├└]` is matched byte-wise in the C
+# locale, so the previous pattern found 15 paths under zsh and zero under bash — and because the
+# result was only checked for existence, the zero case had been silently passing as "all paths
+# exist". Anchoring on the literal "── " is byte-safe in either locale.
+sed -n -E 's/^[^A-Za-z0-9]*── ([A-Za-z0-9_./-]+).*/\1/p' README.md > "$structure_paths" || true
 [ -s "$structure_paths" ] || {
   echo "FAIL: README structure-tree extraction found zero paths"; exit 1
 }
