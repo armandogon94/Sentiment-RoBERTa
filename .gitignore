@@ -72,3 +72,6 @@ data/processed/
 
 # Codex context — deliberately NOT committed (AI-agent tell)
 AGENTS.md
+# VPS topology + port inventory — local only, never published (discloses private project names)
+PORT-MAP.md
+PORTS.md
