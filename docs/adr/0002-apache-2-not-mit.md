@@ -35,10 +35,19 @@ no equivalent of. It records the licence of every upstream asset:
 
 ## Consequences
 
-**Positive.** The licence chain is consistent end to end and requires no explanation beyond one
-sentence. Apache-2.0's explicit patent grant and `NOTICE` mechanism are a better fit for a repo that
-depends on third-party model weights and a third-party dataset than MIT's four-line permissiveness.
-The `NOTICE` file also forces the upstream licences to be enumerated rather than assumed.
+**Positive.** The declared licences agree with each other, so the choice needs no explanation beyond
+one sentence. Apache-2.0's explicit patent grant and `NOTICE` mechanism are a better fit for a repo
+that depends on third-party model weights and a third-party dataset than MIT's four-line
+permissiveness. The `NOTICE` file also forces the upstream licences to be enumerated rather than
+assumed.
+
+**Correction (2026-07-26).** This section previously read "the licence chain is consistent end to
+end." That overstated the evidence and contradicted `docs/PROVENANCE.md`, which states that nothing
+in this repository establishes the rights chain for the underlying review text. Agreement between
+*declared* licences is not a verified chain of rights: the upstream dataset card is recorded as an
+assertion, no immutable revision of it is preserved, and Amazon's terms, reviewer rights, and the
+McAuley–Leskovec collection terms are unaddressed. The decision to use Apache-2.0 is unchanged; only
+the strength of the claim about it is corrected.
 
 **Negative.** One repository in the portfolio differs from the rest, so the exception has to be
 remembered. The additional licence text is accepted without an unsupported line-count comparison.

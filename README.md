@@ -511,8 +511,15 @@ provenance URLs and the shard checksums: [`data/README.md`](data/README.md).
 ## License
 
 **Apache-2.0** — see [LICENSE](LICENSE). This matches the licence of the original Kaggle notebook
-this repo was built from, so the provenance chain stays consistent. Third-party attributions
-(`roberta-base` weights, MIT; the dataset, Apache-2.0) are in [NOTICE](NOTICE).
+this repo was built from. Third-party attributions (`roberta-base` weights, MIT; the dataset,
+Apache-2.0 *as asserted by its upstream card*) are in [NOTICE](NOTICE).
+
+**Scope of that claim.** Those licences are recorded as upstream assertions, not as an independently
+verified rights chain. This repository commits 1,400 verbatim third-party review texts, and it does
+**not** establish the rights position for that underlying text — Amazon's terms, reviewer rights, and
+the original McAuley–Leskovec collection terms are all unaddressed here. See
+[`docs/PROVENANCE.md`](docs/PROVENANCE.md#scope-of-the-licence-evidence) for the full scoping. Treat
+the committed sample as illustrative of the pipeline, not as licence-cleared redistribution.
 
 ## Author
 
