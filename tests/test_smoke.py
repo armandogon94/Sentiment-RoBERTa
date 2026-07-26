@@ -22,6 +22,50 @@ import pytest
 import train
 
 
+def test_parse_args_accepts_seed_override_and_defaults_to_none(repo_root: Path):
+    config_path = repo_root / "cfg" / "smoke.yaml"
+    assert train.parse_args(["-c", str(config_path)]).seed is None
+    assert train.parse_args(["-c", str(config_path), "--seed", "7"]).seed == 7
+
+
+def test_seed_override_replaces_frozen_config_without_editing_yaml(repo_root: Path):
+    from cfg.schema import load_config
+
+    config_path = repo_root / "cfg" / "smoke.yaml"
+    before = config_path.read_bytes()
+    config = load_config(config_path)
+
+    effective = train.apply_seed_override(config, 7)
+
+    assert effective.SEED == 7
+    assert config.SEED == 1337
+    assert config_path.read_bytes() == before
+
+
+def test_seed_override_changes_committed_sample_test_rows(repo_root: Path):
+    from cfg.schema import load_config
+    from datasets.loading import load_any
+    from datasets.splits import combined_text, make_splits
+
+    config = load_config(repo_root / "cfg" / "smoke.yaml")
+    effective = train.apply_seed_override(config, 7)
+    train_frame = load_any(repo_root / config.DATA.TRAIN_PATH, config.DATA.ROWS_READ_TRAIN)
+    test_frame = load_any(repo_root / config.DATA.TEST_PATH, config.DATA.ROWS_READ_TEST)
+
+    def split_test_rows(seed: int) -> set[str]:
+        splits = make_splits(
+            train_frame,
+            test_frame,
+            n_train=config.DATA.N_TRAIN,
+            n_test=config.DATA.N_TEST,
+            val_fraction=config.DATA.VAL_FRACTION,
+            seed=seed,
+        )
+        return set(combined_text(splits.test))
+
+    assert split_test_rows(effective.SEED) != split_test_rows(config.SEED)
+
+
 @pytest.fixture(scope="module")
 def smoke_run(repo_root: Path, tmp_path_factory) -> tuple[Path, dict, float]:
     """Run the whole pipeline once into a temp run root, and time it."""
@@ -45,6 +89,30 @@ def smoke_run(repo_root: Path, tmp_path_factory) -> tuple[Path, dict, float]:
     run_dir = out / "latest"
     metrics = json.loads((run_dir / "metrics.json").read_text())
     return run_dir, metrics, elapsed
+
+
+@pytest.fixture(scope="module")
+def seeded_smoke_run(repo_root: Path, tmp_path_factory) -> tuple[Path, dict]:
+    """Run the same pipeline with ``--seed 7`` so the override can be checked end to end.
+
+    Deliberately a *separate* run from ``smoke_run``: the unseeded fixture is what every
+    other assertion in this module is written against, and re-seeding it in place would
+    silently change what those assertions cover.
+    """
+    out = tmp_path_factory.mktemp("seeded_smoke_runs")
+    import yaml
+
+    raw = yaml.safe_load((repo_root / "cfg" / "smoke.yaml").read_text())
+    raw["RESULTS"]["OUTPUT_DIR"] = str(out)
+    raw["DATA"]["TRAIN_PATH"] = str(repo_root / raw["DATA"]["TRAIN_PATH"])
+    raw["DATA"]["TEST_PATH"] = str(repo_root / raw["DATA"]["TEST_PATH"])
+    cfg_path = out / "smoke_seeded.yaml"
+    cfg_path.write_text(yaml.safe_dump(raw))
+
+    assert train.main(["-c", str(cfg_path), "--seed", "7", "--force"]) == 0
+
+    run_dir = out / "latest"
+    return run_dir, json.loads((run_dir / "metrics.json").read_text())
 
 
 def test_smoke_finishes_in_under_60_seconds(smoke_run):
@@ -111,6 +179,35 @@ def test_run_meta_records_provenance(smoke_run):
         assert key in meta
     assert meta["hardware"]["device"] == "cpu"
     assert meta["model_source"] == {"name": "roberta-base", "revision": None}
+
+
+def test_seed_override_is_recorded_in_run_artifacts(seeded_smoke_run):
+    """The effective seed must reach every artifact a later audit reads.
+
+    Deliberately not asserted against ``log.jsonl``: that file is currently written by
+    ``logging.basicConfig``, which is a no-op once the root logger has handlers, so a
+    second run in the same process leaves it empty. Tracked separately.
+
+    Also not asserted against ``run_meta["argv"]``: that field records ``sys.argv``, which
+    in-process is pytest's own argv. The seed provenance an auditor actually reads is
+    ``metrics.json`` and the resolved config, and those are checked here.
+    """
+    run_dir, metrics = seeded_smoke_run
+    meta = json.loads((run_dir / "run_meta.json").read_text())
+
+    assert metrics["seed"] == 7
+    assert meta["seed"] == 7
+    assert meta["resolved_config"]["SEED"] == 7
+
+
+def test_unseeded_run_still_uses_the_config_seed(smoke_run):
+    """The override must be inert when absent — no behaviour change without --seed."""
+    run_dir, metrics, _ = smoke_run
+    meta = json.loads((run_dir / "run_meta.json").read_text())
+
+    assert metrics["seed"] == 1337
+    assert meta["resolved_config"]["SEED"] == 1337
+    assert "--seed" not in meta["argv"]
 
 
 def test_split_overlap_audit_is_recorded_and_clean(smoke_run):

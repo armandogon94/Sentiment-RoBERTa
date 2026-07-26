@@ -70,6 +70,15 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     ap.add_argument("-c", "--config", required=True, type=Path, help="path to a cfg/*.yaml")
     ap.add_argument(
+        "--seed",
+        type=int,
+        default=None,
+        help=(
+            "override the config's SEED (records the effective value in run_meta.json); "
+            "used for the multi-seed sweep"
+        ),
+    )
+    ap.add_argument(
         "-p",
         "--hyperparameters",
         type=Path,
@@ -83,6 +92,16 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     ap.add_argument("--force", action="store_true", help="run even if system load average is high")
     return ap.parse_args(argv)
+
+
+def apply_seed_override(cfg: Config, seed: int) -> Config:
+    """Return a revalidated config copy carrying the effective run seed.
+
+    Round-trips through ``model_validate`` for the same reason ``apply_overrides`` does:
+    ``model_copy(update=...)`` skips validation, and a config that reaches a 35-minute
+    training job should have been validated exactly once more, not once less.
+    """
+    return Config.model_validate({**cfg.model_dump(mode="json"), "SEED": seed})
 
 
 def build_splits(cfg: Config) -> Any:
@@ -244,6 +263,8 @@ def strip_private(payload: dict[str, Any]) -> dict[str, Any]:
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     cfg = load_config(args.config)
+    if args.seed is not None:
+        cfg = apply_seed_override(cfg, args.seed)
 
     load1 = os.getloadavg()[0]
     if load1 > LOADAVG_REFUSE and not args.force:
