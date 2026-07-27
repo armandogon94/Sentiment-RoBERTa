@@ -278,9 +278,7 @@ def test_full_figure_export_fails_before_writing_when_checkpoint_is_missing(
         (0.075551, "0.0756"),
     ],
 )
-def test_report_p_value_formatter_uses_three_significant_figures(
-    p_value: float, expected: str
-):
+def test_report_p_value_formatter_uses_three_significant_figures(p_value: float, expected: str):
     import evaluate
 
     assert evaluate.fmt_p_value(p_value) == expected
