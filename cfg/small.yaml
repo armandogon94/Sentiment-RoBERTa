@@ -4,8 +4,9 @@
 # It is the source notebook's data scale (9,000 train / 1,000 test, seq 256, batch 32,
 # lr 2e-5) with the epoch count cut from 5 to 3 so the job fits inside a hard 45-minute
 # wall-clock cap. See docs/adr/0004-subset-size-and-published-config.md for the
-# arithmetic. cfg/default.yaml is the untruncated 5-epoch notebook config and has NOT
-# been run — the README says so plainly.
+# arithmetic. cfg/default.yaml is the untruncated 5-epoch notebook config; it has been run,
+# and it measured that the two extra epochs cost accuracy rather than adding it, so this
+# shorter schedule gives up nothing.
 NAME: small
 DESCRIPTION: >-
   The published configuration. Notebook data scale (9,000 / 1,000, seq 256) with the
@@ -43,7 +44,8 @@ MODEL:
   # 1,800 rows at seq 128 in 65.4 s (57 steps, 1.15 s/step, MPS, Low Power Mode OFF).
   # Doubling the sequence length roughly doubles per-step cost, so 8,100 rows at seq 256 is
   # ~254 steps x ~2.4 s = ~10.2 min/epoch, plus ~25 s of validation. Three epochs lands
-  # near 35 min, inside the 45-minute cap; five would land near 55 and be truncated.
+  # near 35 min, inside the 45-minute cap. cfg/default.yaml later ran the full five in
+  # 57m 19.1s under a raised cap and found no gain past epoch 1, so this cut costs nothing.
   EPOCHS: 3
   LR: 2.0e-5
   WEIGHT_DECAY: 0.01

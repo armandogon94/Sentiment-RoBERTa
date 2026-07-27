@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/armandogon94/33-sentiment-roberta/actions/workflows/ci.yml/badge.svg)](.github/workflows/ci.yml)
 [![Coverage](https://img.shields.io/badge/coverage-95%25-brightgreen)](#testing)
-[![Tests](https://img.shields.io/badge/tests-175-brightgreen)](#testing)
+[![Tests](https://img.shields.io/badge/tests-189-brightgreen)](#testing)
 [![Python](https://img.shields.io/badge/python-3.12-blue)](pyproject.toml)
 [![License: Apache 2.0](https://img.shields.io/badge/license-Apache--2.0-green)](LICENSE)
 
@@ -61,8 +61,13 @@ unexecuted is in
   bottomed at epoch 1 (`0.1238`) and rose at epoch 2 (`0.1793`); validation accuracy was tied best at
   epochs 1 and 3 and worse at epoch 2. Falling train loss against rising validation loss is the
   signature of overfitting having begun, and it is the evidence the published checkpoint is chosen
-  on. **The notebook's 5-epoch schedule was never run here** (`cfg/default.yaml`, NOT RUN), so this
-  repo reports no results for epochs 4 and 5.
+  on.
+- **Training the notebook's full 5-epoch schedule does not help.** `cfg/default.yaml` runs all five
+  epochs on the same seeded split. Validation loss is lowest at epoch 1 (`0.1279`) and rises every
+  epoch after it, ending at `0.2337`. Validation accuracy drifts up to `0.9522` at epoch 4 and then
+  falls to `0.9344` at epoch 5, below its own epoch 1. Both criteria pick an early epoch, so the
+  longer schedule buys nothing. The table is under
+  [Epoch selection](#why-epoch-1-was-selected).
 - **Conventional preprocessing may cost the control real points, but this comparison is
   underpowered.**
   Across the ablation grid the control moves `0.8380` → `0.8700` (3.2 pp). The best cell beats the
@@ -165,6 +170,9 @@ not close the gap**.
 
 <img src="docs/images/training_curves.png" alt="Train and validation loss per epoch: training loss falls monotonically from 0.224 to 0.062 while validation loss bottoms at 0.1238 in epoch 1 and rises to 0.1793 in epoch 2, with the selected epoch marked at 1" width="900">
 
+<sub>Training loss kept falling through epoch 3 while validation loss turned upward immediately
+after epoch 1. The vertical rule marks epoch 1, selected for its lowest validation loss.</sub>
+
 | Epoch | Train loss | Validation loss | Validation accuracy | Wall clock |
 |---|---|---|---|---|
 | **1** | 0.2240 | **0.1238** | 0.9456 | 10m 25.5s |
@@ -181,9 +189,43 @@ epoch 3 `0.9456`. The published `0.9600` is epoch 1's test accuracy and is untou
 
 What this 3-epoch run measured: validation loss bottomed at epoch 1 and rose at epoch 2 while
 training loss kept falling, and validation accuracy never improved on epoch 1 through epoch 3. That
-is why epoch 1 is the selected checkpoint. **Only 3 epochs were run.** The notebook's 5-epoch
-schedule is `cfg/default.yaml`, which has NOT been run here; no claim is made about what epochs 4
-and 5 would have produced.
+is why epoch 1 is the selected checkpoint.
+
+#### The notebook's full 5-epoch schedule, measured
+
+`cfg/default.yaml` is the notebook's untruncated schedule. It runs the same 8,100 / 900 / 1,000
+split at seed 1337, so its curve is directly comparable to the three epochs above.
+
+| Epoch (5-epoch schedule) | Train loss | Validation loss | Validation accuracy | Wall clock |
+|---|---|---|---|---|
+| **1** | 0.2276 | **0.1279** | 0.9456 | 9m 33.0s |
+| 2 | 0.0999 | 0.1471 | 0.9489 | 10m 44.5s |
+| 3 | 0.0598 | 0.1499 | 0.9478 | 10m 31.7s |
+| 4 | 0.0429 | 0.1734 | 0.9522 | 17m 13.4s |
+| 5 | 0.0348 | 0.2337 | 0.9344 | 9m 16.4s |
+
+**More training does not help here.** Validation loss is lowest at the first epoch and increases at
+every epoch after it. Validation accuracy is the more interesting column: it improves to `0.9522` at
+epoch 4, which is better than any epoch of the 3-epoch run, and then drops to `0.9344` at epoch 5,
+below where it started. So the two selection criteria disagree in the middle of the schedule and
+agree at the end: neither one would choose epoch 5. Selection here is on validation loss, fixed
+before the run, and it picks epoch 1.
+
+Rising validation loss against a validation accuracy that is still improving is the signature of a
+model becoming overconfident rather than simply wrong: it is right slightly more often while being
+badly wrong on the cases it misses, and cross-entropy charges for that.
+
+Scored once on its selected epoch-1 checkpoint, this run reaches `0.9560` [0.9414, 0.9671] on the
+same 1,000 test rows. Its paired comparison against the control is recomputed from
+[`reports/evidence/run_5/`](reports/evidence/run_5) by the numbers gate rather than restated here.
+The published `cfg/small.yaml` headline of `0.9600` comes from a separate run at the same seed and
+split; the two differ by four test examples, which is inside the run-to-run spread recorded in
+Limitations. The published headline is not re-selected from these two numbers, because picking
+between runs by test accuracy is the move this repo's method exists to avoid.
+
+The epoch timings above are wall clock on a shared machine: epoch 4 ran under load from other work
+and is not a clean benchmark. The whole run took 57m 19.1s, and `cfg/default.yaml` carries a
+90-minute cap so that all five epochs complete rather than being truncated.
 
 ---
 
@@ -300,7 +342,7 @@ to [`docs/diagrams/`](docs/diagrams) as SVG by `scripts/export_diagrams.sh`.
 ├── utils/                    # seeding, device, run dirs, run metadata, logging, plots, NLTK
 ├── notebooks/                # the ORIGINAL Kaggle notebook + a re-run narrative walkthrough
 ├── scripts/                  # data export | evidence export/check | figure/report drift guards
-├── tests/                    # 175 tests: leakage, metrics, evidence, D1, D3, D8, smoke
+├── tests/                    # 189 tests: leakage, metrics, evidence, D1, D3, D8, smoke
 ├── reports/                  # RESULTS.md + text-free evidence/ + mirrored publication figures/
 ├── docs/                     # PROGRESS · PROVENANCE · architecture · interpretability · adr/
 ├── train.py                  # THE entrypoint: train.py -c cfg/small.yaml
@@ -351,7 +393,7 @@ ablation `run_3` bundle slots.
 
 ## Configuration
 
-Five configs. **Each file records whether it was run:** three were run and two were not. Reported
+Five configs. **Each file records whether it was run:** four were run and one was not. Reported
 measurements come only from completed runs.
 
 | File | Scale (train / val / test) | Epochs | Ran? | Purpose |
@@ -359,13 +401,15 @@ measurements come only from completed runs.
 | `cfg/smoke.yaml` | committed sample, random weights, CPU | 1 | ✅ | CI + fresh clone pipeline check; excluded from reported results. |
 | `cfg/dev.yaml` | 1,800 / 200 / 500, seq 128 | 1 | ✅ | Calibration. Its numbers are labelled `dev` wherever they appear. |
 | `cfg/small.yaml` | 8,100 / 900 / 1,000, seq 256 | 3 | ✅ | **Every headline number above.** |
-| `cfg/default.yaml` | 8,100 / 900 / 1,000, seq 256 | 5 | ❌ | Notebook-scale fixed schedule. Projected 51 to 55 min from the measured small-run rate. |
+| `cfg/default.yaml` | 8,100 / 900 / 1,000, seq 256 | 5 | ✅ | The notebook's untruncated schedule. Ran 57m 19.1s under a 90-minute cap; it is the evidence that more epochs do not help. |
 | `cfg/full.yaml` | 180,000 / 20,000 / 20,000 | 5 | ❌ | Scope specification only; no runtime is claimed without a full run or matched benchmark. |
 
 `cfg/small.yaml` is the notebook's data scale and every one of its hyperparameters, with two stated
 departures. It uses 3 epochs instead of 5 to stay within the compute bound established from a
 measured 2.46 s/step. It also adds a 10% stratified validation split for checkpoint selection, which
-the notebook lacked.
+the notebook lacked. `cfg/default.yaml` keeps the notebook's 5 epochs and has been run: the epoch
+table above shows that the two extra epochs cost accuracy rather than adding it, so the shorter
+schedule loses nothing.
 
 Every future run is bounded. `train.py` checks the deadline before every optimizer step, including
 epoch 1. It can exceed the configured cap only by the in-flight step, then records the partial epoch
@@ -433,12 +477,12 @@ RUNTIME:
 ## Testing
 
 ```bash
-make test           # 175 tests, coverage on the pure-logic core
+make test           # 189 tests, coverage on the pure-logic core
 make lint           # ruff check + ruff format --check + mypy
 make verify         # clone committed HEAD to a temp dir and run the documented quickstart
 ```
 
-**175 tests (one expected `xfail`), 95% coverage** on
+**189 tests (one expected `xfail`), 95% coverage** on
 `datasets/ models/ metrics/ interpretability/ utils/`. No test fetches review data or Hugging Face
 weights; preprocessing tests still require the mutable-name NLTK assets and can download them on a
 cold machine. Selected tests:
@@ -492,8 +536,12 @@ regenerates figure provenance, and requires `reports/RESULTS.md` to be byte-repr
 8. **The interpretability figures use hand-picked reviews:** the notebook's
    `iloc[5, 7, 9, 11, 13, 16]`, kept so the notebook and this README discuss the same examples. They
    illustrate; they do not measure.
-9. **`cfg/default.yaml` and `cfg/full.yaml` have not been run.** Five-epoch and full-scale results
-   are not available.
+9. **`cfg/full.yaml` has not been run.** Full-scale results are not available.
+10. **The 5-epoch schedule was measured on one seed.** The epoch-4 validation accuracy of `0.9522`
+    exceeding every epoch of the published run is a single observation on 900 validation examples,
+    which is roughly 4 examples wide. It is not enough to justify moving the selection criterion off
+    validation loss, and it is reported because it complicates the story rather than because it
+    settles it.
 
 ## Data
 

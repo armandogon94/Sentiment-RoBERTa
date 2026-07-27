@@ -4,6 +4,42 @@ Resume point for a session with no memory of the previous one. On resume:
 `git log --oneline -20`, read `docs/AGENT-BRIEF.md` (gitignored, local only), then start from
 **NEXT ACTION** at the bottom of this file.
 
+## 2026-07-27 training-curve visibility slice
+
+**Status:** `IN PROGRESS`, based on `936b251`.
+
+**Objective (`APPROVED`):** upgrade the existing `training_curves.png` in place so the published
+`runs/run_2` evidence visibly shows training loss falling while validation loss rises after epoch 1,
+with the validation-loss-selected checkpoint marked clearly.
+
+**Published input (`IMPLEMENTED`):** `make figures` defaults to `runs/run_2`, and the README publishes
+that `cfg/small.yaml`, seed 1337 run. `runs/latest` currently points to the separate `runs/run_5`
+schedule run and is not the input to the published training curve.
+
+**Invariants (`APPROVED`):**
+
+- use only the three committed epoch records in `runs/run_2/history.json`;
+- keep both confusion matrices byte-identical;
+- retain the filename and both publication locations;
+- add no caveat inside the plot and add no em dash in this slice;
+- preserve all pre-existing working-tree changes, especially the unrelated README work.
+
+**Acceptance gates (`APPROVED`):** focused RED then GREEN test; `make figures`; visual inspection of
+the resulting PNG; value cross-check against `runs/run_2/history.json`, `README.md`, and
+`reports/RESULTS.md`; byte-hash comparison for both confusion matrices; `make lint`; `make test`;
+scoped review and local commit only.
+
+**Baseline evidence (`IMPLEMENTED`):** the existing plot already contains both loss series, markers,
+and an accuracy panel. It lacks the required selection-criterion label, uses `130` dpi, and titles
+the mechanism instead of the finding. Baseline confusion-matrix SHA-256 values:
+RoBERTa `ea9e74db263ebc682f0449251f2058a0d81ad8ac22b32122bd4dd34164e1a6ce`;
+control `5a40fa75e25f9c77929574db07a5408f52373d6beb22db22cf63a05a5ecac892`.
+
+**RED evidence (`IMPLEMENTED`):**
+`UV_CACHE_DIR=/private/tmp/uv-cache-sentiment-roberta uv run --no-sync pytest -q
+tests/test_training_curves.py` failed because the old title was
+`RoBERTa fine-tuning [dash omitted] train vs validation`, not the required finding.
+
 ## Batch 3 authoritative tracker — methodology honesty and reproducibility
 
 **Status:** `IMPLEMENTED` and `VERIFIED` on an uncommitted worktree based on `70d96b3`.
@@ -98,7 +134,7 @@ test-selected best TF-IDF cell **0.8700**, exact McNemar **p = 2.99e-16**. `cfg/
       requested model revision; content-overlap audit; stale/unsupported prose removed; all
       required gates green. Uncommitted by owner instruction.
 
-**Not done, deliberately:** `cfg/default.yaml` and `cfg/full.yaml` have not been run. See §3.
+**Not done, deliberately:** `cfg/full.yaml` has not been run. See §3.
 
 **Slice 11 worktree verification (2026-07-25):** `make evidence` exported 1,000 rows for each run;
 the numerical guard recomputed 351 stored or published values; `make test` reported 163 passed and
@@ -137,9 +173,10 @@ stated in NEXT ACTION.
 ## 3. Decisions I made, and why
 
 1. **The published config is `cfg/small.yaml` (9,000 / 1,000, seq 256, 3 epochs), not the notebook's
-   5-epoch config.** The 45-minute cap is binding: 5 epochs projects to 51–55 min from the measured
-   rate. `cfg/default.yaml` preserves the notebook-scale schedule with documented validation,
-   separator, and token-pattern departures, and is labelled NOT RUN. → **ADR 0004**
+   5-epoch config.** The 45-minute cap made the choice: 5 epochs projected to 51 to 55 min from the
+   measured rate. `cfg/default.yaml` preserves the notebook-scale schedule with documented
+   validation, separator, and token-pattern departures. It has since been run under a raised
+   90-minute cap, taking 57m 19.1s, and it measured no gain past epoch 1. → **ADR 0004**
 2. **`cfg/small.yaml` adds a 10% stratified validation split**, which the notebook lacked. A
    correctness fix, not a budget one: with no validation set, "5 epochs" is unjustifiable and any
    epoch selection would leak the test set. → ADR 0004
@@ -220,15 +257,14 @@ Consequences the owner has to handle:
 
 Nothing else is blocked. The dataset is ungated and needed no credential; both runs completed.
 
-Two things are *deferred by policy* rather than blocked. Both need only a decision plus machine time —
+One thing is *deferred by policy* rather than blocked. It needs only a decision plus machine time,
 no credentials:
 
 | Item | Exact command | Cost |
 |---|---|---|
-| Run the notebook-scale 5-epoch schedule | raise `RUNTIME.WALL_CLOCK_CAP_MIN` in `cfg/default.yaml`, then `PYTHONHASHSEED=1337 uv run python train.py -c cfg/default.yaml` | 51–55 min projected from the measured small-run rate |
 | Run the full-scale config | raise the cap in `cfg/full.yaml`, then `PYTHONHASHSEED=1337 uv run python train.py -c cfg/full.yaml` | Unknown; no full run or matched benchmark supports a runtime |
 
-If `cfg/default.yaml` is run, regenerate everything downstream so nothing goes stale:
+After any run that changes a published artifact, regenerate everything downstream so nothing goes stale:
 
 ```bash
 PUBLISHED_RUN="$(python3 -c 'from pathlib import Path; print(Path("runs/latest").resolve())')"
@@ -346,19 +382,22 @@ make figures PUBLISHED_RUN="$PUBLISHED_RUN" ABLATION_RUN="$ABLATION_RUN"
    together and every table row names its config. The splits are identical because both runs use the
    same seed and config, but this is guaranteed by determinism rather than by sharing one process.
 
-9. **RETRACTED CLAIM — "the notebook's 5-epoch schedule would have overfit."** This was asserted to
-   the owner twice as established fact. It was never measured. What `runs/run_2/history.json`
-   actually records is a **3-epoch** run (`cfg/small.yaml`, `EPOCHS: 3`) in which training loss fell
-   every epoch (`0.2240` → `0.1001` → `0.0620`) while validation loss bottomed at epoch 1 (`0.1238`)
-   and rose at epoch 2 (`0.1793`), with validation accuracy `0.9456` / `0.9389` / `0.9456`. That is
-   real evidence overfitting had begun by epoch 2, and it is the reason epoch 1 is the published
-   checkpoint. It is **not** evidence about epochs 4 and 5, which were never executed —
-   `cfg/default.yaml` (5 epochs, notebook scale) and `cfg/full.yaml` are both marked NOT RUN.
-   The counterfactual wording was removed from `README.md`, `reports/RESULTS.md`, this file and
-   `docs/adr/0004-subset-size-and-published-config.md`. **Lesson:** an epoch-2 inflection licenses a
-   selection decision, not a verdict on a schedule that was never run. To earn the stronger claim:
-   `PYTHONHASHSEED=1337 uv run python train.py -c cfg/default.yaml` with `RUNTIME.WALL_CLOCK_CAP_MIN`
-   raised past the projected 51–55 min.
+9. **The 5-epoch schedule is now measured, not extrapolated.** `runs/run_5` ran `cfg/default.yaml`
+   to completion (5/5 epochs, 57m 19.1s, 90-minute cap, seed 1337, same split as `runs/run_2`).
+   Validation loss: `0.1279`, `0.1471`, `0.1499`, `0.1734`, `0.2337`. Validation accuracy:
+   `0.9456`, `0.9489`, `0.9478`, `0.9522`, `0.9344`. Epoch 1 holds the minimum loss and is
+   selected; epoch 4 holds the best accuracy; epoch 5 is worst on both. Evidence lives in
+   `reports/evidence/run_5/` and is recomputed by `scripts/check_published_numbers.py`.
+
+   **The methodological lesson stands and is why this was run.** An epoch-2 inflection in a
+   3-epoch curve licenses a selection decision, not a verdict on a schedule nobody executed.
+   Extrapolating one to the other was wrong when it had no measurement behind it, and the fact
+   that the measurement later agreed does not make the extrapolation sound. The two extra epochs
+   were cheap; the guess was not worth making.
+
+   One nuance the measurement added that the extrapolation would have missed: validation accuracy
+   keeps improving to epoch 4 while validation loss is already rising. Loss and accuracy disagree
+   in the middle of the schedule, which is a calibration effect rather than plain overfitting.
 
 ---
 
@@ -429,10 +468,34 @@ history would require retraining, so the values remain unchanged. Validation acc
 weighted and is unaffected: epoch 1 `0.9456`, epoch 2 `0.9389`, epoch 3 `0.9456`. Validation loss
 bottomed at epoch 1 (`0.1238`) and rose at epoch 2 (`0.1793`) while training loss kept falling
 (`0.2240` → `0.1001` → `0.0620`), and validation accuracy never improved on epoch 1 — that is the
-evidence epoch 1 was selected on. **Only 3 epochs were run**; the notebook's 5-epoch schedule
-(`cfg/default.yaml`) has NOT been run here and no claim is made about epochs 4 and 5 in either
-direction. The epoch-1 test accuracy `0.9600` is untouched. Truncation at `max_len` 256:
+evidence epoch 1 was selected on. This run executed 3 epochs; the notebook's full 5-epoch schedule
+was measured separately as `runs/run_5` and is recorded below. The epoch-1 test accuracy `0.9600`
+is untouched. Truncation at `max_len` 256:
 **0.1%** of test reviews (1 of 1,000; median 92 tokens, p95 204, max 304).
+
+### `cfg/default.yaml`, the notebook's full schedule: `runs/run_5`, MPS, Low Power Mode OFF
+
+Same 8,100 / 900 / 1,000 split and seed 1337 as `runs/run_2`, so the curves are comparable. 5 of 5
+epochs, 57m 19.1s, 90-minute cap, not truncated. Losses here are example-weighted, unlike the
+`runs/run_2` history above.
+
+| Epoch | Train loss | Val loss | Val accuracy | Wall clock |
+|---|---|---|---|---|
+| 1 (selected) | 0.2276 | **0.1279** | 0.9456 | 9m 33.0s |
+| 2 | 0.0999 | 0.1471 | 0.9489 | 10m 44.5s |
+| 3 | 0.0598 | 0.1499 | 0.9478 | 10m 31.7s |
+| 4 | 0.0429 | 0.1734 | **0.9522** | 17m 13.4s |
+| 5 | 0.0348 | 0.2337 | 0.9344 | 9m 16.4s |
+
+Validation loss is lowest at epoch 1 and rises at every later epoch. Validation accuracy peaks at
+epoch 4 and then falls below epoch 1 by epoch 5, so neither criterion would select the final epoch.
+Test accuracy on the selected epoch-1 checkpoint is `0.9560` [0.9414, 0.9671], against `0.9600` for
+`runs/run_2` at the same seed and split: a four-example difference, inside the known run-to-run
+spread. Epoch 4's wall clock is inflated by other work on the machine, not by the model.
+
+Evidence: `reports/evidence/run_5/`. The run's `run_meta.json` records a `-dirty` git SHA because
+the cap was raised in the working tree before launch; the same file stores the full resolved config,
+so what actually ran is checkable against the committed `cfg/default.yaml`.
 
 ### `cfg/small.yaml --baselines-only -p cfg/baseline_ablation.json` — `runs/run_3`
 

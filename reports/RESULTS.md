@@ -72,6 +72,20 @@ Validation loss bottomed at epoch 1 (`0.1238`) and rose at epoch 2 (`0.1793`) wh
 
 Sequence truncation, measured rather than assumed: at `max_len` 256, **0.1%** of test reviews are truncated (median 92 tokens, p95 204, max 304).
 
+## Does a longer schedule help
+
+The `cfg/default.yaml` schedule completed 5 of 5 configured epochs in 57m 19.1s total wall clock; selected epoch 1 was chosen using min validation loss.
+
+| Epoch (5-epoch schedule) | Train loss | Validation loss | Validation accuracy | Wall clock |
+|---|---|---|---|---|
+| 1 | 0.2276 | 0.1279 | 0.9456 | 9m 33.0s |
+| 2 | 0.0999 | 0.1471 | 0.9489 | 10m 44.5s |
+| 3 | 0.0598 | 0.1499 | 0.9478 | 10m 31.7s |
+| 4 | 0.0429 | 0.1734 | 0.9522 | 17m 13.4s |
+| 5 | 0.0348 | 0.2337 | 0.9344 | 9m 16.4s |
+
+Validation loss reaches its minimum at epoch 1 (0.1279) and climbs to 0.2337 by epoch 5; validation accuracy peaks at 0.9522 and finishes at 0.9344; selected epoch 1 has test accuracy 0.9560 with a Wilson 95% interval [0.9414, 0.9671].
+
 ## Figures
 
 All regenerable with `make figures`, which defaults explicitly to `runs/run_2` plus `runs/run_3` for the ablation. None hand-exported.

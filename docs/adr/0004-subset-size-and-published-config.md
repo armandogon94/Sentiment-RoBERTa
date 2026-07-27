@@ -30,7 +30,9 @@ Extrapolating: doubling the sequence length roughly doubles per-step cost, so 8,
 51–55 minutes of pure training — over the cap. Three epochs is around 31 minutes — inside it.
 
 That extrapolation was then confirmed by the run itself: epoch 1 of `cfg/small.yaml` took **625.5 s**
-(10.4 min) and `train.py` logged a projected total of 31.3 min before starting epoch 2.
+(10.4 min) and `train.py` logged a projected total of 31.3 min before starting epoch 2. The
+five-epoch schedule was later run under a raised 90-minute cap and took **57m 19.1s**, which is
+consistent with that rate.
 
 ## Decision
 
@@ -58,12 +60,18 @@ bottomed at epoch 1 (`0.1238`) and rose at epoch 2 (`0.1793`); validation accura
 `0.9389`, `0.9456`. Rising validation loss against falling training loss is the signature of
 overfitting having begun by epoch 2, and it is the whole justification for selecting epoch 1.
 
-That is the limit of the claim. **Epochs 4 and 5 were never executed** — `cfg/default.yaml` and
-`cfg/full.yaml` are both marked NOT RUN below. Extrapolating from a 3-epoch curve to "the 5-epoch
-schedule would have overfit" is an unsupported counterfactual and is not asserted anywhere in this
-repo. If that claim is wanted, the run is
-`PYTHONHASHSEED=1337 uv run python train.py -c cfg/default.yaml` with `RUNTIME.WALL_CLOCK_CAP_MIN`
-raised past the projected 51–55 min.
+**What the full 5-epoch schedule measured.** `cfg/default.yaml` was subsequently run to completion
+on the same seeded split, under a 90-minute cap, taking 57m 19.1s. `runs/run_5/history.json`
+records validation loss at its minimum in epoch 1 (`0.1279`) and rising in every later epoch to
+`0.2337`, while validation accuracy improves to `0.9522` at epoch 4 and then falls to `0.9344`,
+below its own epoch 1. Selecting on validation loss picks epoch 1; selecting on validation accuracy
+would pick epoch 4 and would still reject epoch 5. The epoch count is therefore not a compute
+compromise that costs accuracy: the shorter schedule reaches the same selected epoch.
+
+The accuracy column deserves the caveat rather than the headline. It is one seed on 900 validation
+examples, where a single example moves the number by about 0.11 pp, and the selection criterion was
+fixed before the run. Changing it after seeing this curve would be selection on the observed
+result.
 
 **Five configs are committed, and which ones were run is stated in each:**
 
@@ -72,7 +80,7 @@ raised past the projected 51–55 min.
 | `cfg/smoke.yaml` | committed 1k sample, random weights, CPU | ✅ | CI and fresh-clone path. Publishes nothing. |
 | `cfg/dev.yaml` | 2,000 / 500, 1 epoch, seq 128 | ✅ | Calibration and quickstart. Its numbers are published *labelled as dev*. |
 | `cfg/small.yaml` | 9,000 / 1,000, 3 epochs, seq 256 | ✅ | **The published run.** |
-| `cfg/default.yaml` | 9,000 / 1,000, 5 epochs, seq 256 | ❌ | Notebook-scale fixed schedule. Projected 51–55 min, over the cap. |
+| `cfg/default.yaml` | 9,000 / 1,000, 5 epochs, seq 256 | ✅ | The notebook's full schedule. Ran 57m 19.1s under a 90-minute cap; the evidence that later epochs do not improve selection. |
 | `cfg/full.yaml` | 200,000 / 20,000, 5 epochs | ❌ | Scope record only; no runtime is claimed without a full run or matched benchmark. |
 
 `cfg/full.yaml` keeps `WALL_CLOCK_CAP_MIN: 45` deliberately. The deadline is checked before every
@@ -84,16 +92,19 @@ completed validation checkpoint, or the partial model if none exists yet.
 - **Every table cell in the README and `reports/RESULTS.md` names its config.** Mixing a `dev`
   baseline with a `small` transformer in one unlabelled table is precisely the species of dishonesty
   this repo exists to correct.
-- **The README states plainly that `cfg/default.yaml` and `cfg/full.yaml` have not been run.** A
-  reader who wants the notebook's exact 5-epoch result will not find it here, and will not be led to
-  believe they have.
+- **A reader who wants the notebook's exact 5-epoch result will find it.** It is published as its
+  own per-epoch table, from its own committed evidence directory, and it is labelled `default` so it
+  cannot be mistaken for the `small` headline. `cfg/full.yaml` remains unrun and the README says so.
+- **The epoch count is no longer a compromise that has to be taken on trust.** The shorter schedule
+  was chosen under a compute bound, and the longer one was then measured and did not beat it.
 - Conclusions are about *this* data scale. 9,000 rows is 0.25% of the corpus; nothing here transfers
   to full-data training and the Limitations section says so first, not last.
 
 ## Alternatives considered
 
-- **Run `cfg/default.yaml` anyway and blow the cap.** Rejected. The cap exists because the owner is
-  using this machine; a published number is not worth an unbounded job.
+- **Run `cfg/default.yaml` with no cap at all.** Rejected. The cap exists because the machine is
+  shared. `cfg/default.yaml` carries an explicit 90-minute cap sized from the measured rate, which
+  is bounded; it is not the same thing as removing the bound.
 - **Shrink the data instead of the epochs.** Rejected: the test set is what sets the confidence
   interval, and below 1,000 examples the interval widens past the point where the comparison means
   anything. Cutting epochs costs some convergence; cutting the test set costs the ability to conclude.

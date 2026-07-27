@@ -72,12 +72,14 @@ in the results table's `Config` column and in `runs/run_N/run_meta.json`.**
 | `cfg/smoke.yaml` | 1,000 / 400 (committed samples) | 160 | 40 | 100 | 1 | 64 | ✅ CI only — random weights, publishes nothing |
 | `cfg/dev.yaml` | 200,000 / 20,000 | 1,800 | 200 | 500 | 1 | 128 | ✅ calibration |
 | `cfg/small.yaml` | 200,000 / 20,000 | 8,100 | 900 | 1,000 | 3 | 256 | ✅ **the published run** |
-| `cfg/default.yaml` | 200,000 / 20,000 | 8,100 | 900 | 1,000 | 5 | 256 | ❌ over the 45-min cap |
+| `cfg/default.yaml` | 200,000 / 20,000 | 8,100 | 900 | 1,000 | 5 | 256 | ✅ the notebook's full schedule |
 | `cfg/full.yaml` | 200,000 / 20,000 | 180,000 | 20,000 | 20,000 | 5 | 256 | ❌ not run; runtime unknown |
 
 `cfg/default.yaml` preserves the original notebook's data scale and training schedule (9,000 /
-1,000, seq 256, batch 32, lr 2e-5, 5 epochs). Documented implementation departures are the 10%
-validation split, period-joined input, and widened TF-IDF token pattern — see
+1,000, seq 256, batch 32, lr 2e-5, 5 epochs) and has been run: its per-epoch curve is in
+[`../reports/RESULTS.md`](../reports/RESULTS.md) and shows validation loss lowest at epoch 1 and
+rising thereafter. Documented implementation departures are the 10%
+validation split, period-joined input, and widened TF-IDF token pattern; see
 [`../docs/adr/0004-subset-size-and-published-config.md`](../docs/adr/0004-subset-size-and-published-config.md).
 `ROWS_READ_*` and `N_*` are separate config keys on purpose: in the notebook "200K" and "9K" were two
 unrelated literals that readers routinely conflate.
