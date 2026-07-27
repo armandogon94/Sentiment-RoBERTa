@@ -14,14 +14,52 @@ no validation tuning.
 **Does fine-tuning `roberta-base` on 9,000 reviews beat TF-IDF + logistic regression by a margin that
 survives a 1,000-example test set?**
 
-**Against the original notebook's control recipe: yes. The margin is 11.2 percentage points,
-`0.9600` vs `0.8480`, exact McNemar p = 1.98e-21.** The `0.8480` control reproduces
-the notebook's destructive preprocessing, unigrams, `C=1`, and lack of validation tuning. It
-provides the original notebook comparison rather than a tuned TF-IDF baseline.
+## Original notebook comparison
 
-**Against this repo's test-selected best TF-IDF cell: 9.0 pp, `0.9600` vs `0.8700`, discordance
-110 vs 20, exact McNemar p = 2.99e-16.** That second comparison is post hoc because
-the cell was selected by maximum test accuracy, so it is descriptive rather than confirmatory.
+<!-- original-notebook:start -->
+On the original notebook's own 1,000-example test split, fine-tuned RoBERTa scored 0.952 versus
+TF-IDF + logistic regression at 0.861, a 9.1 point gap, with both models evaluated on the same
+512 negative / 488 positive rows.
+
+| Model or class | Accuracy | Precision | Recall | F1 | Support | Confusion matrix |
+|---|---:|---:|---:|---:|---:|---|
+| Logistic regression | 0.861 | | | | 1,000 | [[451, 61], [78, 410]] |
+| Logistic regression: Negative | | 0.85 | 0.88 | 0.87 | 512 | |
+| Logistic regression: Positive | | 0.87 | 0.84 | 0.86 | 488 | |
+| RoBERTa | 0.952 | | | | 1,000 | [[487, 25], [23, 465]] |
+| RoBERTa: Negative | | 0.95 | 0.95 | 0.95 | 512 | |
+| RoBERTa: Positive | | 0.95 | 0.95 | 0.95 | 488 | |
+
+The notebook ran the full five epochs, used training loss only, and landed at 0.952. It had no
+validation split and no validation tracking.
+
+| Epoch | Training loss |
+|---:|---:|
+| 1 | 0.2364 |
+| 2 | 0.1144 |
+| 3 | 0.0706 |
+| 4 | 0.0477 |
+| 5 | 0.0397 |
+
+Per-example predictions were not preserved, so no paired McNemar test, Wilson interval, or
+discordance count is available for the notebook's comparison.
+<!-- original-notebook:end -->
+
+These values are transcribed from the owner's saved rendered Kaggle page and figures, with the
+source notes in
+[`reports/evidence/original_notebook/`](reports/evidence/original_notebook/).
+
+This repository separately implements the notebook's logistic-regression recipe on its own
+1,000-example split, which has 489 negative / 511 positive rows. On those different rows, RoBERTa
+scores `0.9600` against the recipe implementation at `0.8480`, an internal 11.2 point gap. The
+`0.8480` value is this repository's measurement, not the notebook's reported result.
+
+Selecting on validation loss reaches `0.9600` in this repository. More epochs did not help: the
+separate five-epoch repository run did not improve that selected-checkpoint result.
+
+Against this repository's test-selected best TF-IDF cell, the gap is 9.0 pp: `0.9600` vs `0.8700`,
+discordance 110 vs 20, exact McNemar p = 2.99e-16. That comparison is post hoc because the cell was
+selected by maximum test accuracy, so it is descriptive rather than confirmatory.
 
 - **Focus:** binary sentiment polarity, with token-level interpretability
 - **Data:** [Amazon Review Polarity](https://huggingface.co/datasets/fancyzhx/amazon_polarity)
@@ -42,18 +80,17 @@ to Kaggle as
 (Apache-2.0). The original is preserved unmodified at
 [`notebooks/sentiment_analysis_roberta_ORIGINAL.ipynb`](notebooks/sentiment_analysis_roberta_ORIGINAL.ipynb).
 
-All 28 of its code cells were saved with `outputs: []` and `execution_count: null`, so **the original
-notebook contains none of the metrics below**. The measurements come from local reruns of both
-models on Apple Silicon. The forensic evidence that the notebook was run locally and uploaded
-unexecuted is in
-[`docs/PROVENANCE.md`](docs/PROVENANCE.md).
+All 28 code cells in the preserved `.ipynb` were saved with `outputs: []` and
+`execution_count: null`. The owner's saved rendered Kaggle page and figures retain the original
+aggregate results transcribed above. The repository measurements below come from separate local
+reruns on Apple Silicon. Provenance details are in [`docs/PROVENANCE.md`](docs/PROVENANCE.md).
 
 ---
 
 ## Key Findings
 
-- **RoBERTa scores higher than the original notebook control at this scale.** `0.9600`
-  [0.9460, 0.9705] against the control's
+- **This repository's recipe reimplementation also favors RoBERTa on its different split.**
+  `0.9600` [0.9460, 0.9705] against the recipe implementation's
   `0.8480` [0.8244, 0.8689]. They disagree on 152 of 1,000 test examples; RoBERTa alone is right on
   132 of those and the control alone on 20. Exact McNemar **p = 1.98e-21**. `cfg/small.yaml`.
 - **Validation loss rose after epoch 1, which is why epoch 1 was selected.** In the measured
@@ -83,20 +120,21 @@ unexecuted is in
 
 ---
 
-## Results
+## Repository reimplementation results
 
 | Model | Accuracy (Wilson 95% CI) | Precision (macro) | Recall (macro) | F1 (macro) | Train time | Config |
 |---|---|---|---|---|---|---|
 | **RoBERTa (fine-tuned)** | **0.9600** [0.9460, 0.9705] | 0.9605 | 0.9597 | 0.9600 | 32m 07.9s (MPS, Low Power Mode OFF) | `cfg/small.yaml` |
-| TF-IDF + Logistic Regression (control): original notebook | 0.8480 [0.8244, 0.8689] | 0.8481 | 0.8478 | 0.8479 | 4.0s (CPU, Low Power Mode OFF) | `cfg/small.yaml` |
+| TF-IDF + Logistic Regression (control): recipe reimplementation | 0.8480 [0.8244, 0.8689] | 0.8481 | 0.8478 | 0.8479 | 4.0s (CPU, Low Power Mode OFF) | `cfg/small.yaml` |
 
 <sub>seed 1337 · n_train 8,100 (+900 validation) / n_test 1,000 · exact **McNemar p = 1.98e-21** on
 152 discordant pairs · reproduce with <code>uv run python train.py -c cfg/small.yaml</code> · commit
 <code>dcf8b09</code> · 124,647,170 parameters · epoch selected on validation loss, test set scored
 once.</sub>
 
-**The observed gap of 11.2 percentage points has McNemar p = 1.98e-21; on this 1,000-example test set
-it is distinguishable from zero.** The paired test is the one that answers the
+Within this repository's different split, the observed gap of 11.2 percentage points has McNemar
+p = 1.98e-21; on this 1,000-example test set it is distinguishable from zero. The paired test
+is the one that answers the
 question: both models scored the *same* examples, so the effective sample size for the comparison
 is the 152 disagreements, not the 1,000 rows.
 
@@ -104,12 +142,12 @@ is the 152 disagreements, not the 1,000 rows.
 
 <img src="docs/images/confusion_matrix_baseline.png" alt="Confusion matrix for the TF-IDF and logistic regression control on the same 1,000 test examples, as raw counts and row-normalised recall" width="900">
 
-### Two control comparisons, with different evidentiary status
+### Repository control comparisons, with different evidentiary status
 
-The `0.8480` row is the **original notebook's control recipe**, reproduced with destructive
-preprocessing, unigram TF-IDF, logistic-regression `C=1`, and no validation tuning. It is the
-notebook-reproduction control; the repo's stronger TF-IDF configuration appears in the next
-comparison.
+The `0.8480` row is this repository's **implementation of the original notebook's control recipe**
+on this repository's different split: destructive preprocessing, unigram TF-IDF,
+logistic-regression `C=1`, and no validation tuning. It does not represent the notebook's reported
+result. The repository's stronger TF-IDF configuration appears in the next comparison.
 
 The repo's own best TF-IDF cell scores `0.8700`. Paired against the saved RoBERTa predictions,
 RoBERTa alone is correct on 110 discordant rows and that cell alone on 20; the 9.0 pp gap has exact

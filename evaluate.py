@@ -235,13 +235,13 @@ def negation_evidence(source: dict[str, Any]) -> str:
         found = (
             ", ".join(f"`{f}`" for f in neg_features[:6])
             if neg_features
-            else "*none — deleted before vectorisation*"
+            else "*none: deleted before vectorisation*"
         )
         lines.append(f"- **{cell['ablation_label']}** ({lo}, {hi}): {found}")
     if not lines:
         return ""
     return (
-        "Negation markers among each cell's 20 most negative coefficients — the direct check "
+        "Negation markers among each cell's 20 most negative coefficients: the direct check "
         "that the preprocessing chain is or is not destroying them:\n\n" + "\n".join(lines)
     )
 
@@ -317,13 +317,13 @@ def build_report(
 
     parts.append("## What produced these numbers\n")
     parts.append(
-        f"- **Config** — `{metrics['config_path']}` (`{cfg_name}`)\n"
-        f"- **Seed** — `{metrics['seed']}`, single run, single split\n"
-        f"- **Splits** — {splits['n_train']:,} train / {splits['n_val']:,} validation / "
+        f"- **Config:** `{metrics['config_path']}` (`{cfg_name}`)\n"
+        f"- **Seed:** `{metrics['seed']}`, single run, single split\n"
+        f"- **Splits:** {splits['n_train']:,} train / {splits['n_val']:,} validation / "
         f"{splits['n_test']:,} test\n"
-        f"- **Device** — {metrics['device']}, {metrics['power_mode']}\n"
-        f"- **Commit** — `{metrics['git_sha']}`\n"
-        f"- **Reproduce** — run `uv run python train.py -c {metrics['config_path']}` and the "
+        f"- **Device:** {metrics['device']}, {metrics['power_mode']}\n"
+        f"- **Commit:** `{metrics['git_sha']}`\n"
+        f"- **Reproduce:** run `uv run python train.py -c {metrics['config_path']}` and the "
         "documented ablation command, record the two emitted run directories, then pass them as "
         "`PUBLISHED_RUN=... ABLATION_RUN=...` to `make evidence` and `make report`\n"
     )
@@ -338,7 +338,7 @@ def build_report(
             f"on that checkpoint.{capped}\n"
         )
 
-    parts.append("## Model comparison\n")
+    parts.append("## Repository reimplementation comparison\n")
     parts.append(comparison_table(metrics) + "\n")
     if sig:
         mc = sig["mcnemar"]
@@ -349,7 +349,10 @@ def build_report(
             f"{mc['n_discordant']} discordant pairs · `uv run python train.py -c "
             f"{metrics['config_path']}` · commit `{metrics['git_sha']}`</sub>\n"
         )
-        parts.append(f"**{fmt_significance_sentence(sig['sentence'], mc['p_value'])}**\n")
+        parts.append(
+            "Within this repository's different split, "
+            f"{fmt_significance_sentence(sig['sentence'], mc['p_value'])}\n"
+        )
         parts.append(
             f"The 2×2 discordance table both models were compared on: they agree and are both "
             f"right on {mc['a_both_correct']} examples and both wrong on {mc['d_both_wrong']}; "
@@ -361,15 +364,16 @@ def build_report(
 
     if control is not None and roberta is not None:
         gap = 100.0 * (roberta["accuracy"] - control["accuracy"])
-        parts.append("## Reading the control honestly\n")
+        parts.append("## Reading the repository control honestly\n")
         parts.append(
-            "The `0.8480` TF-IDF row is the **original notebook's control recipe**: destructive "
+            "The `0.8480` TF-IDF row is this repository's **implementation of the original "
+            "notebook's control recipe** on a separately sampled split: destructive "
             "preprocessing, unigram TF-IDF, logistic-regression `C=1`, and no validation "
-            "tuning. It is a legitimate control reproduction, not a tuned TF-IDF baseline "
-            'given its best shot. The measured implementation uses `title + ". " + text` '
-            "and a widened vectorizer token pattern; the methodology audit documents both "
-            "departures and measures the token-pattern sensitivity. "
-            f"Against this control, RoBERTa leads by {abs(gap):.1f} percentage points.\n"
+            "tuning. It does not represent the notebook's reported result or a tuned TF-IDF "
+            'baseline given its best shot. The implementation uses `title + ". " + text` and '
+            "a widened vectorizer token pattern; the methodology audit documents both "
+            "departures and measures the token-pattern sensitivity. Within the repository split, "
+            f"RoBERTa leads by {abs(gap):.1f} percentage points.\n"
         )
         if run_dir is not None and ablation_run_dir is not None:
             post_hoc = post_hoc_best_comparison(metrics, abl, run_dir, ablation_run_dir)
@@ -385,7 +389,7 @@ def build_report(
             "chain deletes negation twice over. `not`, `no` and `nor` are NLTK English "
             "stopwords, and the `^\\w+$` filter destroys contractions such as `n't` *before* the "
             "stopword filter even runs. With `ngram_range=(1,1)` no bigram can recover the "
-            'structure, so `"not good"` and `"good"` collapse to the same feature vector — on '
+            'structure, so `"not good"` and `"good"` collapse to the same feature vector on '
             "the one task where negation decides the label.\n"
         )
         parts.append(
@@ -434,9 +438,8 @@ def build_report(
             "returned to 0.9456. The published 0.9600 is epoch 1's test accuracy and is also "
             "untouched.\n"
         )
-        # Epoch selection is justified by what THIS run measured. Any statement about a
-        # longer schedule than the one executed is a counterfactual and is not made here:
-        # the epoch count below is read off the recorded history, never assumed.
+        # Epoch selection is justified by the primary run's recorded history. A separately
+        # supplied schedule is described only from its own committed evidence.
         hist = roberta["training"]["history"]
         n_epochs = len(hist)
         train_arrow = " → ".join(f"`{h['train_loss']:.4f}`" for h in hist)
@@ -456,12 +459,15 @@ def build_report(
             f"the signature of overfitting having begun, and it is the reason **epoch "
             f"{best_epoch} is the selected checkpoint**.\n"
         )
-        parts.append(
-            f"**Only {n_epochs} epochs were run.** The notebook's 5-epoch schedule is "
-            "`cfg/default.yaml`, and that config has NOT been run in this repo. No claim is "
-            "made — in either direction — about what the epochs beyond "
-            f"{n_epochs} would have produced.\n"
-        )
+        if schedule_metrics is None:
+            parts.append(f"The primary run completed {n_epochs} configured epochs.\n")
+        else:
+            parts.append(
+                f"The published run completed {n_epochs} configured epochs. The separate "
+                "`cfg/default.yaml` five-epoch schedule also completed and is reported below. "
+                "Selecting on validation loss reaches the published checkpoint; more epochs "
+                "did not improve that result.\n"
+            )
         trunc = roberta.get("truncation_test", {})
         if trunc:
             parts.append(
@@ -489,7 +495,7 @@ def build_report(
         ("saliency_positive", "Gradient saliency, positive reviews"),
         ("saliency_negative", "Gradient saliency, negative reviews"),
     ):
-        parts.append(f"- [`docs/images/{name}.png`](../docs/images/{name}.png) — {alt}")
+        parts.append(f"- [`docs/images/{name}.png`](../docs/images/{name}.png): {alt}")
     parts.append("")
 
     parts.append("## What these numbers do not support\n")

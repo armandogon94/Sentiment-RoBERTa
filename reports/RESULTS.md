@@ -4,16 +4,16 @@
 
 ## What produced these numbers
 
-- **Config** — `cfg/small.yaml` (`small`)
-- **Seed** — `1337`, single run, single split
-- **Splits** — 8,100 train / 900 validation / 1,000 test
-- **Device** — mps, Low Power Mode OFF
-- **Commit** — `dcf8b09438190b352e116676a5f8a42be5e745d0`
-- **Reproduce** — run `uv run python train.py -c cfg/small.yaml` and the documented ablation command, record the two emitted run directories, then pass them as `PUBLISHED_RUN=... ABLATION_RUN=...` to `make evidence` and `make report`
+- **Config:** `cfg/small.yaml` (`small`)
+- **Seed:** `1337`, single run, single split
+- **Splits:** 8,100 train / 900 validation / 1,000 test
+- **Device:** mps, Low Power Mode OFF
+- **Commit:** `dcf8b09438190b352e116676a5f8a42be5e745d0`
+- **Reproduce:** run `uv run python train.py -c cfg/small.yaml` and the documented ablation command, record the two emitted run directories, then pass them as `PUBLISHED_RUN=... ABLATION_RUN=...` to `make evidence` and `make report`
 
 The transformer ran 3 of 3 configured epochs in 32m 07.9s; epoch 1 was selected on min validation loss, and the test set was scored exactly once on that checkpoint.
 
-## Model comparison
+## Repository reimplementation comparison
 
 | Model | Accuracy (Wilson 95% CI) | Precision (macro) | Recall (macro) | F1 (macro) | Train time | Config |
 |---|---|---|---|---|---|---|
@@ -22,19 +22,19 @@ The transformer ran 3 of 3 configured epochs in 32m 07.9s; epoch 1 was selected 
 
 <sub>seed 1337 · n_train 8,100 / n_test 1,000 · exact McNemar **p = 1.98e-21** on 152 discordant pairs · `uv run python train.py -c cfg/small.yaml` · commit `dcf8b09438190b352e116676a5f8a42be5e745d0`</sub>
 
-**RoBERTa (fine-tuned) leads TF-IDF + LogReg by 11.2 percentage points (0.9600 vs 0.8480) on 1000 test examples. They disagree on 152 of them; exact McNemar gives p = 1.98e-21, so at alpha = 0.05 the gap is distinguishable from zero.**
+Within this repository's different split, RoBERTa (fine-tuned) leads TF-IDF + LogReg by 11.2 percentage points (0.9600 vs 0.8480) on 1000 test examples. They disagree on 152 of them; exact McNemar gives p = 1.98e-21, so at alpha = 0.05 the gap is distinguishable from zero.
 
 The 2×2 discordance table both models were compared on: they agree and are both right on 828 examples and both wrong on 20; RoBERTa alone is right on 132 and the control alone is right on 20. Only those last two counts carry any information about which model is better, which is why the effective sample size for the comparison is 152 and not 1,000.
 
-## Reading the control honestly
+## Reading the repository control honestly
 
-The `0.8480` TF-IDF row is the **original notebook's control recipe**: destructive preprocessing, unigram TF-IDF, logistic-regression `C=1`, and no validation tuning. It is a legitimate control reproduction, not a tuned TF-IDF baseline given its best shot. The measured implementation uses `title + ". " + text` and a widened vectorizer token pattern; the methodology audit documents both departures and measures the token-pattern sensitivity. Against this control, RoBERTa leads by 11.2 percentage points.
+The `0.8480` TF-IDF row is this repository's **implementation of the original notebook's control recipe** on a separately sampled split: destructive preprocessing, unigram TF-IDF, logistic-regression `C=1`, and no validation tuning. It does not represent the notebook's reported result or a tuned TF-IDF baseline given its best shot. The implementation uses `title + ". " + text` and a widened vectorizer token pattern; the methodology audit documents both departures and measures the token-pattern sensitivity. Within the repository split, RoBERTa leads by 11.2 percentage points.
 
 Against the repo's test-selected best TF-IDF cell, *negation preserved, uni+bigram* (0.8700), RoBERTa's 0.9600 lead is 9.0 pp. RoBERTa alone is correct on 110 discordant examples and the best cell alone on 20; exact McNemar **p = 2.99e-16**. Because `evaluate.py` selects this cell with `max(..., key=accuracy)` on test accuracy, the comparison is post hoc rather than confirmatory.
 
 ## Baseline preprocessing ablation
 
-The source notebook's preprocessing chain was: lowercase → keep only `^\w+$` tokens → remove NLTK English stopwords → Porter stem, then unigram TF-IDF. That chain deletes negation twice over. `not`, `no` and `nor` are NLTK English stopwords, and the `^\w+$` filter destroys contractions such as `n't` *before* the stopword filter even runs. With `ngram_range=(1,1)` no bigram can recover the structure, so `"not good"` and `"good"` collapse to the same feature vector — on the one task where negation decides the label.
+The source notebook's preprocessing chain was: lowercase → keep only `^\w+$` tokens → remove NLTK English stopwords → Porter stem, then unigram TF-IDF. That chain deletes negation twice over. `not`, `no` and `nor` are NLTK English stopwords, and the `^\w+$` filter destroys contractions such as `n't` *before* the stopword filter even runs. With `ngram_range=(1,1)` no bigram can recover the structure, so `"not good"` and `"good"` collapse to the same feature vector on the one task where negation decides the label.
 
 This grid measures what that costs. All four cells were run on the same splits, and all four are published whatever they show.
 
@@ -49,10 +49,10 @@ Spread across the grid: **3.2 percentage points**, from 0.8380 (*notebook chain,
 
 **Paired test, best cell vs the notebook's chain.** *negation preserved, uni+bigram* (0.8700) against *notebook chain, unigram* (0.8480) is a gap of 2.2 percentage points. The two cells disagree on 140 of the 1000 test examples; exact McNemar gives **p = 0.0756**. The conditional exact 95% CI for the paired accuracy difference is [-0.22, 4.52] pp. Conditional on the observed discordance, the exact test has 40.0% power at this effect; approximately 3.5 pp would be required for 80% power. This is an underpowered result, not evidence of no effect. The best cell was selected by maximum test accuracy, so this comparison is post hoc.
 
-Negation markers among each cell's 20 most negative coefficients — the direct check that the preprocessing chain is or is not destroying them:
+Negation markers among each cell's 20 most negative coefficients: the direct check that the preprocessing chain is or is not destroying them:
 
-- **notebook chain, unigram** (1, 1): *none — deleted before vectorisation*
-- **notebook chain, uni+bigram** (1, 2): *none — deleted before vectorisation*
+- **notebook chain, unigram** (1, 1): *none: deleted before vectorisation*
+- **notebook chain, uni+bigram** (1, 2): *none: deleted before vectorisation*
 - **negation preserved, unigram** (1, 1): `not`, `n't`, `no`
 - **negation preserved, uni+bigram** (1, 2): `not`, `n't`, `no`, `not worth`
 
@@ -68,7 +68,7 @@ The published train and validation losses were computed as an unweighted mean of
 
 Validation loss bottomed at epoch 1 (`0.1238`) and rose at epoch 2 (`0.1793`) while training loss fell every epoch (`0.2240` → `0.1001` → `0.0620`), and validation accuracy never improved on epoch 1 through epoch 3. Rising validation loss against falling training loss is the signature of overfitting having begun, and it is the reason **epoch 1 is the selected checkpoint**.
 
-**Only 3 epochs were run.** The notebook's 5-epoch schedule is `cfg/default.yaml`, and that config has NOT been run in this repo. No claim is made — in either direction — about what the epochs beyond 3 would have produced.
+The published run completed 3 configured epochs. The separate `cfg/default.yaml` five-epoch schedule also completed and is reported below. Selecting on validation loss reaches the published checkpoint; more epochs did not improve that result.
 
 Sequence truncation, measured rather than assumed: at `max_len` 256, **0.1%** of test reviews are truncated (median 92 tokens, p95 204, max 304).
 
@@ -90,14 +90,14 @@ Validation loss reaches its minimum at epoch 1 (0.1279) and climbs to 0.2337 by 
 
 All regenerable with `make figures`, which defaults explicitly to `runs/run_2` plus `runs/run_3` for the ablation. None hand-exported.
 
-- [`docs/images/confusion_matrix_roberta.png`](../docs/images/confusion_matrix_roberta.png) — RoBERTa confusion matrix
-- [`docs/images/confusion_matrix_baseline.png`](../docs/images/confusion_matrix_baseline.png) — TF-IDF control confusion matrix
-- [`docs/images/training_curves.png`](../docs/images/training_curves.png) — Train and validation loss per epoch
-- [`docs/images/baseline_ablation.png`](../docs/images/baseline_ablation.png) — Preprocessing ablation
-- [`docs/images/attention_heatmap.png`](../docs/images/attention_heatmap.png) — Last-layer attention heatmap
-- [`docs/images/attention_from_token.png`](../docs/images/attention_from_token.png) — Per-token attention
-- [`docs/images/saliency_positive.png`](../docs/images/saliency_positive.png) — Gradient saliency, positive reviews
-- [`docs/images/saliency_negative.png`](../docs/images/saliency_negative.png) — Gradient saliency, negative reviews
+- [`docs/images/confusion_matrix_roberta.png`](../docs/images/confusion_matrix_roberta.png): RoBERTa confusion matrix
+- [`docs/images/confusion_matrix_baseline.png`](../docs/images/confusion_matrix_baseline.png): TF-IDF control confusion matrix
+- [`docs/images/training_curves.png`](../docs/images/training_curves.png): Train and validation loss per epoch
+- [`docs/images/baseline_ablation.png`](../docs/images/baseline_ablation.png): Preprocessing ablation
+- [`docs/images/attention_heatmap.png`](../docs/images/attention_heatmap.png): Last-layer attention heatmap
+- [`docs/images/attention_from_token.png`](../docs/images/attention_from_token.png): Per-token attention
+- [`docs/images/saliency_positive.png`](../docs/images/saliency_positive.png): Gradient saliency, positive reviews
+- [`docs/images/saliency_negative.png`](../docs/images/saliency_negative.png): Gradient saliency, negative reviews
 
 ## What these numbers do not support
 

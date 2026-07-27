@@ -389,8 +389,8 @@ def test_document_claim_perturbations_fail_at_named_metric(
             r"roberta\.total_train_seconds",
         ),
         (
-            "**Splits** — 8,100 train",
-            "**Splits** — 8,101 train",
+            "**Splits:** 8,100 train",
+            "**Splits:** 8,101 train",
             r"splits\[1\]\.train",
         ),
     ],

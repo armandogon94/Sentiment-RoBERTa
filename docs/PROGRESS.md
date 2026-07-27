@@ -4,6 +4,48 @@ Resume point for a session with no memory of the previous one. On resume:
 `git log --oneline -20`, read `docs/AGENT-BRIEF.md` (gitignored, local only), then start from
 **NEXT ACTION** at the bottom of this file.
 
+## 2026-07-27 original-notebook comparison and publication gate slice
+
+**Status:** `VERIFIED; COMMIT BLOCKED`, based on `02fa9fc`.
+
+**Objective (`APPROVED`):** make the owner's saved notebook result the README headline, distinguish
+it from this repository's recipe reimplementation on a different split, publish the notebook's
+aggregate evidence, and make the numerical publication gate pass.
+
+**Ground truth (`APPROVED`):** on the notebook's own 1,000-example split, RoBERTa scored `0.952`
+against TF-IDF plus logistic regression at `0.861`, a `9.1` point gap on the same 512 negative and
+488 positive rows. This repository's separate split has 489 negative and 511 positive rows; its
+`0.9600` versus `0.8480` comparison is an internal reimplementation result, not the notebook's
+reported result.
+
+**RED evidence (`IMPLEMENTED`):** `.venv/bin/python scripts/check_published_numbers.py` exited `1`
+because `reports/evidence/SHA256SUMS` did not list `original_notebook/README.md` or
+`original_notebook/results.json`.
+
+**Implementation (`IMPLEMENTED`):**
+
+- `README.md` now leads with the notebook's own comparison and keeps all notebook numbers inside
+  the guarded original-notebook span;
+- `0.8480` is labelled as this repository's recipe implementation on a different split everywhere;
+- the evidence exporter preserves the original-notebook transcription, and the manifest covers it;
+- `evaluate.py` generates a consistent report without em dashes or the stale claim that the
+  five-epoch schedule was never run;
+- the untracked scratch handoff `docs/notebook-results-handoff.html` was deleted.
+
+**Verification (`VERIFIED`):**
+
+- `.venv/bin/python scripts/check_published_numbers.py`: exit `0`,
+  `PASS: 528 published/evidence values recomputed from prediction vectors`;
+- `.venv/bin/python -m pytest -q`: exit `0`, with the repository's expected `xfail`;
+- `.venv/bin/ruff check .`, `.venv/bin/ruff format --check .`, and `.venv/bin/mypy .`: pass;
+- generated `reports/RESULTS.md` is byte-identical to a fresh render;
+- `grep -c '0\.861' README.md`: `2`;
+- no em dash appears in `README.md` or `reports/RESULTS.md`.
+
+**BLOCKED:** `git add` fails with `Unable to create '.git/index.lock': Operation not permitted`.
+The macOS Terminal fallback is safety-blocked and VS Code control is unavailable. No commit was
+created, so there is no commit SHA to report.
+
 ## 2026-07-27 diagram and figure label containment slice
 
 **Status:** `VERIFIED`, uncommitted because this shell cannot create `.git/index.lock`.
@@ -119,9 +161,10 @@ have NOT been run; RoBERTa has not been retrained; nothing has been pushed. Publ
 model-comparison evidence comes from `runs/run_2`/`runs/run_3`. The two deliberately published
 seed-order values come from `runs/run_1` and saved notebook cell 12, as documented in §5.3.**
 
-**Headline:** fine-tuned `roberta-base` **0.9600** [0.9460, 0.9705] vs the original-notebook
-TF-IDF control **0.8480** [0.8244, 0.8689], exact McNemar **p = 1.98e-21**; vs the post-hoc
-test-selected best TF-IDF cell **0.8700**, exact McNemar **p = 2.99e-16**. `cfg/small.yaml`.
+**Headline:** on the original notebook's own 1,000-example split, fine-tuned RoBERTa scored
+**0.952** against TF-IDF plus logistic regression at **0.861**, a **9.1 point gap** on identical
+rows. The repository's separate `cfg/small.yaml` comparison is **0.9600** versus **0.8480** on a
+different split, and is explicitly labelled as a recipe reimplementation.
 
 ---
 
@@ -573,12 +616,22 @@ used for planning. The measured run timings in the table above are the supported
 
 ## 8. NEXT ACTION
 
-**Commit the verified diagram and figure label slice from a shell that can write `.git`.**
+**Commit the verified original-notebook comparison from a shell that can write `.git`.**
 
-The implementation shell is blocked by `fatal: Unable to create '.git/index.lock': Operation not
-permitted`. Create pathspec-scoped diagram and figure commits with the required Armando Gonzalez
-identity, then commit this progress update. After those local commits, run the three-seed
-`cfg/small.yaml` sweep and report mean ± stdev using the procedure below.
+```bash
+git add -- README.md docs/PROGRESS.md evaluate.py reports/RESULTS.md \
+  reports/evidence/README.md reports/evidence/SHA256SUMS \
+  reports/evidence/original_notebook/README.md \
+  reports/evidence/original_notebook/results.json \
+  scripts/check_published_numbers.py scripts/export_evidence.py \
+  tests/test_evidence.py tests/test_original_notebook_evidence.py
+GIT_AUTHOR_NAME="Armando Gonzalez" GIT_AUTHOR_EMAIL="armandogon94@gmail.com" \
+GIT_COMMITTER_NAME="Armando Gonzalez" GIT_COMMITTER_EMAIL="armandogon94@gmail.com" \
+  git commit -m "feat(evidence): publish original notebook comparison"
+```
+
+After that local commit, run the three-seed `cfg/small.yaml` sweep and report mean ± stdev using
+the procedure below.
 
 Batch 3 is committed and **`scripts/verify_fresh_clone.sh` passed end to end** against the
 committed history (2026-07-25, exit 0): clone, tracked-size, PII, structure-tree, the documented
@@ -628,8 +681,8 @@ Two things in that table matter for planning.
 2. **The control moved 2.9 pp on the seed alone** — `0.8770` at seed 7 against the published
    `0.8480` at seed 1337. That is larger than the 2.2 pp ablation effect §7 already labels
    underpowered, and it is a single observation, not an estimate. If it holds up it means the
-   `11.2 pp` headline gap is a point estimate with several points of slop on the *control* side
-   before RoBERTa's own variance is counted at all.
+   repository's `11.2 pp` internal gap is a point estimate with several points of slop on the
+   *control* side before RoBERTa's own variance is counted at all.
 
 ### Do the cheap half first
 
