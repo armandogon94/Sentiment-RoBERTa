@@ -28,6 +28,15 @@ from metrics.significance import (  # noqa: E402
 )
 
 NUMBER = r"[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?"
+MARKDOWN_NUMBER = re.compile(r"[-+]?(?:\d{1,3}(?:,\d{3})+|\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?")
+ORIGINAL_NOTEBOOK_START = "<!-- original-notebook:start -->"
+ORIGINAL_NOTEBOOK_END = "<!-- original-notebook:end -->"
+ORIGINAL_NOTEBOOK_SPAN = re.compile(
+    rf"{re.escape(ORIGINAL_NOTEBOOK_START)}"
+    rf"(?P<body>.*?)"
+    rf"{re.escape(ORIGINAL_NOTEBOOK_END)}",
+    flags=re.DOTALL,
+)
 RUN_2_COLUMNS = ["index", "label", "tfidf_logreg", "roberta", "text_sha256"]
 RUN_5_COLUMNS = RUN_2_COLUMNS.copy()
 ABLATION_MODELS = (
@@ -1297,9 +1306,292 @@ def _check_test_set_sizes(
         )
 
 
+def _original_notebook_spans(source: Path, text: str) -> list[re.Match[str]]:
+    start_count = text.count(ORIGINAL_NOTEBOOK_START)
+    end_count = text.count(ORIGINAL_NOTEBOOK_END)
+    matches = list(ORIGINAL_NOTEBOOK_SPAN.finditer(text))
+    if start_count != end_count or len(matches) != start_count:
+        raise EvidenceMismatch(
+            f"{source}: malformed original-notebook markers "
+            f"(start={start_count}, end={end_count}, spans={len(matches)})"
+        )
+    if source.name == "README.md" and not matches:
+        raise EvidenceMismatch(f"{source}: original-notebook markers are missing")
+    return matches
+
+
+def _blank_original_notebook_spans(source: Path, text: str) -> str:
+    characters = list(text)
+    for match in _original_notebook_spans(source, text):
+        for index in range(match.start(), match.end()):
+            if characters[index] not in "\r\n":
+                characters[index] = " "
+    return "".join(characters)
+
+
+def _artifact_numbers(value: Any) -> list[float]:
+    if isinstance(value, bool):
+        return []
+    if isinstance(value, int | float):
+        return [float(value)]
+    if isinstance(value, dict):
+        return [number for nested in value.values() for number in _artifact_numbers(nested)]
+    if isinstance(value, list):
+        return [number for nested in value for number in _artifact_numbers(nested)]
+    return []
+
+
+def _visible_markdown_text(text: str) -> str:
+    without_targets = re.sub(r"\]\([^)]+\)", "]", text)
+    return re.sub(r"<[^>]+>", " ", without_targets)
+
+
+def _require_original_phrase(source: Path, text: str, phrase: str) -> None:
+    normalized = re.sub(r"\s+", " ", text).lower()
+    if phrase.lower() not in normalized:
+        raise EvidenceMismatch(f"{source}: original-notebook claim is missing {phrase!r}")
+
+
+def _check_original_report_row(
+    checked: list[CheckedNumber],
+    source: Path,
+    text: str,
+    label: str,
+    expected: dict[str, Any],
+) -> None:
+    pattern = re.compile(
+        rf"\|\s*{re.escape(label)}\s*\|\s*\|\s*"
+        rf"(?P<precision>{NUMBER})\s*\|\s*(?P<recall>{NUMBER})\s*\|\s*"
+        rf"(?P<f1>{NUMBER})\s*\|\s*(?P<support>[\d,]+)\s*\|",
+        flags=re.IGNORECASE,
+    )
+    match = pattern.search(text)
+    if match is None:
+        raise EvidenceMismatch(f"{source}: original-notebook row {label!r} is missing")
+    for field in ("precision", "recall", "f1", "support"):
+        _check_printed(
+            checked,
+            source,
+            f"original_notebook.{label.lower().replace(' ', '_')}.{field}",
+            match.group(field).replace(",", ""),
+            expected[field],
+        )
+
+
+def _check_original_notebook_claims(
+    source: Path,
+    text: str,
+    artifact: dict[str, Any],
+) -> list[CheckedNumber]:
+    """Validate marked original-notebook claims against their transcription artifact."""
+
+    matches = _original_notebook_spans(source, text)
+    if not matches:
+        return []
+    span_text = "\n".join(match.group("body") for match in matches)
+    visible = _visible_markdown_text(span_text)
+
+    split = artifact["test_split"]
+    models = artifact["models"]
+    logistic = models["logistic_regression"]
+    roberta = models["roberta"]
+    training = artifact["training"]
+    recoverability = artifact["prediction_recoverability"]
+    checked: list[CheckedNumber] = []
+
+    for model_name, model in (
+        ("logistic_regression", logistic),
+        ("roberta", roberta),
+    ):
+        matrix = model["confusion_matrix"]
+        if (
+            not isinstance(matrix, list)
+            or len(matrix) != 2
+            or any(not isinstance(row, list) or len(row) != 2 for row in matrix)
+        ):
+            raise EvidenceMismatch(f"original_notebook.{model_name}.confusion_matrix must be 2x2")
+        n_from_matrix = sum(int(cell) for row in matrix for cell in row)
+        accuracy_from_matrix = (int(matrix[0][0]) + int(matrix[1][1])) / n_from_matrix
+        _equal(
+            f"original_notebook.{model_name}.n_from_confusion_matrix",
+            n_from_matrix,
+            split["n"],
+        )
+        _equal(
+            f"original_notebook.{model_name}.accuracy_from_confusion_matrix",
+            accuracy_from_matrix,
+            model["accuracy"],
+        )
+        checked.extend(
+            [
+                CheckedNumber(
+                    "reports/evidence/original_notebook/results.json",
+                    f"original_notebook.{model_name}.n_from_confusion_matrix",
+                    str(split["n"]),
+                    n_from_matrix,
+                    0.0,
+                ),
+                CheckedNumber(
+                    "reports/evidence/original_notebook/results.json",
+                    f"original_notebook.{model_name}.accuracy_from_confusion_matrix",
+                    f"{float(model['accuracy']):.4f}",
+                    accuracy_from_matrix,
+                    0.0,
+                ),
+            ]
+        )
+        for row_index, class_name in enumerate(("negative", "positive")):
+            report = model["classification_report"][class_name]
+            _equal(
+                f"original_notebook.{model_name}.{class_name}.support",
+                int(matrix[row_index][0]) + int(matrix[row_index][1]),
+                report["support"],
+            )
+            _equal(
+                f"original_notebook.{model_name}.{class_name}.split_support",
+                report["support"],
+                split[class_name],
+            )
+
+    gap = round(
+        100.0 * (float(roberta["accuracy"]) - float(logistic["accuracy"])),
+        10,
+    )
+    _equal(
+        "original_notebook.accuracy_gap_percentage_points",
+        gap,
+        artifact["accuracy_gap_percentage_points"],
+    )
+    checked.append(
+        CheckedNumber(
+            "reports/evidence/original_notebook/results.json",
+            "original_notebook.accuracy_gap_percentage_points",
+            str(artifact["accuracy_gap_percentage_points"]),
+            gap,
+            0.0,
+        )
+    )
+
+    history = training["history"]
+    if len(history) != int(training["epochs_configured"]):
+        raise EvidenceMismatch(
+            "original_notebook.training history length does not match epochs_configured"
+        )
+    expected_epochs = list(range(1, int(training["epochs_configured"]) + 1))
+    if [int(row["epoch"]) for row in history] != expected_epochs:
+        raise EvidenceMismatch("original_notebook.training epochs are not consecutive")
+    if training["validation_split"] or training["validation_tracking"]:
+        raise EvidenceMismatch("original_notebook.training incorrectly records validation")
+    if training["loss_tracking"] != "training only":
+        raise EvidenceMismatch("original_notebook.training loss_tracking must be 'training only'")
+
+    lead = re.search(
+        rf"1,000-example test split.*?RoBERTa scored\s+(?P<roberta>{NUMBER}).*?"
+        rf"(?:against|versus)\s+TF-IDF \+ logistic regression at\s+"
+        rf"(?P<logistic>{NUMBER}).*?(?P<gap>{NUMBER})\s+point.*?"
+        r"512 negative\s*/\s*488 positive",
+        visible,
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+    if lead is None:
+        raise EvidenceMismatch(f"{source}: original-notebook headline claim is missing")
+    for field, expected in (
+        ("roberta", roberta["accuracy"]),
+        ("logistic", logistic["accuracy"]),
+        ("gap", artifact["accuracy_gap_percentage_points"]),
+    ):
+        _check_printed(
+            checked,
+            source,
+            f"original_notebook.headline.{field}",
+            lead.group(field),
+            expected,
+        )
+
+    compact_visible = re.sub(r"\s+", "", visible)
+    for model_name, model in (
+        ("logistic_regression", logistic),
+        ("roberta", roberta),
+    ):
+        compact_matrix = json.dumps(model["confusion_matrix"], separators=(",", ":"))
+        if compact_matrix not in compact_visible:
+            raise EvidenceMismatch(
+                f"{source}: original-notebook {model_name} confusion matrix is missing"
+            )
+
+    for model_label, model in (
+        ("Logistic regression", logistic),
+        ("RoBERTa", roberta),
+    ):
+        for class_label, class_key in (("Negative", "negative"), ("Positive", "positive")):
+            _check_original_report_row(
+                checked,
+                source,
+                visible,
+                f"{model_label}: {class_label}",
+                model["classification_report"][class_key],
+            )
+
+    for row in history:
+        loss_token = f"{float(row['train_loss']):.4f}"
+        loss_pattern = re.compile(rf"\|\s*{int(row['epoch'])}\s*\|\s*{re.escape(loss_token)}\s*\|")
+        if loss_pattern.search(visible) is None:
+            raise EvidenceMismatch(
+                f"{source}: original_notebook.training epoch {int(row['epoch'])} is missing"
+            )
+        _check_printed(
+            checked,
+            source,
+            f"original_notebook.training[{int(row['epoch'])}].train_loss",
+            loss_token,
+            row["train_loss"],
+        )
+
+    for phrase in (
+        "training loss only",
+        "no validation split",
+        "no validation tracking",
+        "per-example predictions were not preserved",
+        "no paired McNemar test",
+        "Wilson interval",
+        "discordance count",
+    ):
+        _require_original_phrase(source, visible, phrase)
+    if any(bool(value) for value in recoverability.values()):
+        raise EvidenceMismatch(
+            "original_notebook.prediction_recoverability must record all unavailable"
+        )
+
+    allowed_numbers = _artifact_numbers(artifact)
+    for span_index, match in enumerate(matches, start=1):
+        numbered_text = _visible_markdown_text(match.group("body"))
+        for number_index, number_match in enumerate(
+            MARKDOWN_NUMBER.finditer(numbered_text),
+            start=1,
+        ):
+            token = number_match.group()
+            numeric = float(token.replace(",", ""))
+            if numeric not in allowed_numbers:
+                raise EvidenceMismatch(
+                    f"{source}: original-notebook span {span_index} contains "
+                    f"unjustified number {token}"
+                )
+            checked.append(
+                CheckedNumber(
+                    str(source),
+                    f"original_notebook.span[{span_index}].number[{number_index}]",
+                    token,
+                    numeric,
+                    _printed_tolerance(token.replace(",", "")),
+                )
+            )
+    return checked
+
+
 def _check_document_claims(
     checked: list[CheckedNumber],
     source: Path,
+    text: str,
     recomputed_models: dict[str, dict[str, Any]],
     mc: dict[str, Any],
     best_mc: dict[str, Any],
@@ -1308,7 +1600,6 @@ def _check_document_claims(
     metrics: dict[str, Any],
     stored_ablation_cells: list[dict[str, Any]],
 ) -> None:
-    text = source.read_text(encoding="utf-8")
     _check_comparison_table(checked, source, text, recomputed_models, metrics)
     _check_accuracy_pairs(checked, source, text, recomputed_models, ablation_cells)
     _check_ablation_table(
@@ -1517,12 +1808,17 @@ def validate_published_documents(
     stored_ablation_cells = run_3_metrics["ablation"]
     run_5_dir = evidence_dir / "run_5"
     schedule_metrics = _load_json(run_5_dir / "metrics.json") if run_5_dir.is_dir() else None
+    original_notebook = _load_json(evidence_dir / "original_notebook" / "results.json")
 
     checked: list[CheckedNumber] = []
     for document in (readme, results):
+        raw_text = document.read_text(encoding="utf-8")
+        checked.extend(_check_original_notebook_claims(document, raw_text, original_notebook))
+        repo_text = _blank_original_notebook_spans(document, raw_text)
         _check_document_claims(
             checked,
             document,
+            repo_text,
             recomputed_models,
             mc,
             best_mc,
@@ -1535,7 +1831,7 @@ def validate_published_documents(
             _check_schedule_claims(
                 checked,
                 document,
-                document.read_text(encoding="utf-8"),
+                repo_text,
                 schedule_metrics,
             )
     return checked

@@ -8,6 +8,9 @@ are deterministic derivatives of the ignored Parquet prediction artifacts.
 `run_5` is the notebook's five-epoch schedule (`cfg/default.yaml`) on the same seeded split,
 kept because it is the evidence for how the epoch count was chosen.
 
+`original_notebook/results.json` is a transcription of the source Kaggle notebook's own rendered
+output cells, not a recomputation. It is preserved when the run-derived bundle is regenerated.
+
 No review text is redistributed here. Each `predictions.csv` replaces the source `text` value with
 `text_sha256 = hashlib.sha256(text.encode("utf-8")).hexdigest()`. The label and every prediction
 vector are retained, so the metrics can be recomputed, while someone who lawfully has the raw data

@@ -59,6 +59,9 @@ are deterministic derivatives of the ignored Parquet prediction artifacts.
 `run_5` is the notebook's five-epoch schedule (`cfg/default.yaml`) on the same seeded split,
 kept because it is the evidence for how the epoch count was chosen.
 
+`original_notebook/results.json` is a transcription of the source Kaggle notebook's own rendered
+output cells, not a recomputation. It is preserved when the run-derived bundle is regenerated.
+
 No review text is redistributed here. Each `predictions.csv` replaces the source `text` value with
 `text_sha256 = hashlib.sha256(text.encode("utf-8")).hexdigest()`. The label and every prediction
 vector are retained, so the metrics can be recomputed, while someone who lawfully has the raw data
@@ -222,9 +225,16 @@ def _reset_output_directory(output_dir: Path) -> None:
         raise EvidenceExportError(
             f"refusing to replace {resolved}: the output directory must be named 'evidence'"
         )
-    if resolved.exists():
-        shutil.rmtree(resolved)
-    resolved.mkdir(parents=True)
+    if not resolved.exists():
+        resolved.mkdir(parents=True)
+        return
+    for child in resolved.iterdir():
+        if child.name == "original_notebook" and child.is_dir():
+            continue
+        if child.is_dir():
+            shutil.rmtree(child)
+        else:
+            child.unlink()
 
 
 def export_bundle(run_dirs: list[str | Path], output_dir: Path = DEFAULT_OUTPUT) -> list[str]:
