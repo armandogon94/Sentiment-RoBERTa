@@ -2,8 +2,8 @@
 # Every target below is exercised by scripts/verify_fresh_clone.sh or by CI.
 
 .DEFAULT_GOAL := help
-.PHONY: help setup data sample smoke dev small train ablation evidence figures report test lint \
-        format notebook verify clean all
+.PHONY: help setup data sample smoke dev small train ablation evidence figures diagrams \
+        diagrams-check report test lint format notebook verify clean all
 
 UV ?= uv
 PY := $(UV) run python
@@ -52,6 +52,12 @@ evidence:  ## Export tracked, review-text-free evidence for the published runs
 figures:  ## Regenerate and publish all eight PNGs from the explicit published runs
 	$(PY) scripts/export_figures.py -i $(PUBLISHED_RUN) -a $(ABLATION_RUN) \
 	  -o docs/images --publish
+
+diagrams:  ## Regenerate the committed SVG diagrams from their Markdown sources
+	./scripts/export_diagrams.sh
+
+diagrams-check:  ## Render every Mermaid source and verify every label fits its box
+	$(PY) scripts/check_diagram_text.py
 
 report:  ## Regenerate reports/RESULTS.md from the explicit published runs
 	$(PY) evaluate.py -i $(PUBLISHED_RUN) -a $(ABLATION_RUN) -s $(SCHEDULE_RUN) \

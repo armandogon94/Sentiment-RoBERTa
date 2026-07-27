@@ -8,6 +8,7 @@ Two diagrams. Both are inline Mermaid (GitHub renders them natively) and both ar
 ## 1. The pipeline DAG
 
 ```mermaid
+%%{init: {'htmlLabels': false, 'fontFamily': 'arial, helvetica, sans-serif', 'flowchart': {'htmlLabels': false, 'padding': 16, 'nodeSpacing': 60, 'rankSpacing': 70, 'useMaxWidth': true}}}%%
 flowchart LR
     HF[("fancyzhx/amazon_polarity<br/>parquet · 3.6M / 400k · Apache-2.0")]
     HF -->|"scripts/download_data.py<br/>SHA-256 asserted per shard"| RAW["data/raw/*.parquet<br/>gitignored, 377 MB"]
@@ -42,27 +43,28 @@ normalized content-overlap audit; the published split audit found zero overlap b
 ## 2. The attribution path — where the D1 bug lived
 
 ```mermaid
+%%{init: {'htmlLabels': false, 'fontFamily': 'arial, helvetica, sans-serif'}}%%
 sequenceDiagram
     autonumber
-    participant C as scripts/export_figures.py
-    participant S as interpretability/saliency.py
-    participant E as roberta.embeddings.word_embeddings
-    participant M as RobertaForSequenceClassification
-    participant A as torch.autograd
+    participant C as export_figures.py
+    participant S as saliency.py
+    participant E as word_embeddings
+    participant M as RoBERTa classifier
+    participant A as autograd
 
-    C->>S: gradient_saliency(model, tokenizer, review)
-    S->>S: tokenizer(...) → input_ids, attention_mask
+    C->>S: gradient_saliency(model,<br/>tokenizer, review)
+    S->>S: tokenizer(...) → input_ids,<br/>attention_mask
     S->>E: word_embeddings(input_ids)
-    Note over E: WORD lookup only.<br/>NOT roberta.embeddings(...) — that is the<br/>full module (position + token-type + LayerNorm)
+    Note over E: WORD lookup only.<br/>No full stack.<br/>Position and token<br/>type embeddings,<br/>then LayerNorm.
     E-->>S: embeddings (B, T, 768)
     S->>S: detach, then requires_grad_(True)
-    S->>M: forward(inputs_embeds=embeddings, attention_mask=...)
-    Note over M: adds position + token-type + LayerNorm<br/>EXACTLY ONCE — the training distribution
+    S->>M: forward(inputs_embeds=embeddings,<br/>attention_mask=...)
+    Note over M: Adds position and<br/>token type<br/>embeddings, then<br/>LayerNorm once.
     M-->>S: logits (B, 2)
     S->>A: logits[0, target].backward()
     A-->>S: embeddings.grad (B, T, 768)
-    S->>S: grads.norm(dim=-1) → per-token saliency
-    S-->>C: TokenAttribution(tokens, scores, predicted_label)
+    S->>S: grads.norm(dim=-1)<br/>→ per-token saliency
+    S-->>C: TokenAttribution(tokens, scores,<br/>predicted_label)
 ```
 
 **The decision this encodes, and why it earns its place.** Step 3 is the entire bug. The source

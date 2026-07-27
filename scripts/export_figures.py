@@ -281,15 +281,25 @@ def figure_baseline_ablation(
     roberta = metrics["models"].get("roberta")
     show_roberta = bool(roberta) and not roberta.get("random_weights", False)
     # The transformer reference line is the point of comparison, so the x-range has to
-    # include it — otherwise the axvline is drawn off-chart and silently disappears.
-    right = max(highs) + 0.02
+    # include it. Otherwise the axvline is drawn off-chart and silently disappears.
+    right = max(highs) + 0.035
     if show_roberta:
         right = max(right, roberta["accuracy"] + 0.02)
     ax.set_xlim(max(0.0, min(lows) - 0.02), min(1.0, right))
     ax.grid(visible=True, axis="x", alpha=0.25)
     ax.grid(visible=False, axis="y")
-    for yi, a in zip(y, accs, strict=True):
-        ax.text(a, float(yi), f"  {a:.4f}", va="center", fontsize=9)
+    # Anchor the value label past the upper whisker, not at the bar end. The bar end is exactly
+    # where the error bar is centred, so a label placed there covers its own whisker.
+    for yi, a, high in zip(y, accs, highs, strict=True):
+        ax.annotate(
+            f"{a:.4f}",
+            xy=(high, float(yi)),
+            xytext=(5, 0),
+            textcoords="offset points",
+            ha="left",
+            va="center",
+            fontsize=9,
+        )
 
     if show_roberta:
         ax.axvline(roberta["accuracy"], ls="--", lw=1.4, color="#111111")
@@ -485,14 +495,17 @@ def figure_saliency(
             color=plots.POSITIVE_COLOR if attr.predicted_label == 1 else plots.NEGATIVE_COLOR,
         )
         ax.set_xticks(range(len(toks)), labels=toks, rotation=60, ha="right", fontsize=7)
-        ax.set_ylabel("‖∂logit/∂emb‖₂")
+        # Short enough to stay inside its own panel: a longer label is centred over a 2.5in
+        # axis and runs into the rotated tick labels of the panel above it. The quantity is
+        # named in full in the figure title and the caption.
+        ax.set_ylabel("Token importance", fontsize=9)
         ax.set_title(
             f"true {CLASS_LABELS[true_label]} · predicted {CLASS_LABELS[attr.predicted_label]}"
             f"{'' if attr.predicted_label == true_label else '  ← MISCLASSIFIED'}",
             fontsize=10,
             fontweight="normal",
         )
-    fig.suptitle(f"Gradient-norm saliency — {label_name} reviews", fontsize=12, fontweight="bold")
+    fig.suptitle(f"Gradient-norm saliency: {label_name} reviews", fontsize=12, fontweight="bold")
     plots.caption(
         axes_list[-1],
         f"RoBERTa fine-tuned, cfg/{metrics['config_name']}.yaml · gradient of the predicted-class "
@@ -514,6 +527,7 @@ def figure_saliency(
         },
     )
     fig.tight_layout()
+    fig.subplots_adjust(hspace=0.75)
     slug = "saliency_positive" if label_name == "positive" else "saliency_negative"
     return plots.save_figure(fig, slug, out_dirs)
 

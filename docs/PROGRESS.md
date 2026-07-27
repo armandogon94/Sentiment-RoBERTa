@@ -4,6 +4,34 @@ Resume point for a session with no memory of the previous one. On resume:
 `git log --oneline -20`, read `docs/AGENT-BRIEF.md` (gitignored, local only), then start from
 **NEXT ACTION** at the bottom of this file.
 
+## 2026-07-27 diagram and figure label containment slice
+
+**Status:** `VERIFIED`, uncommitted because this shell cannot create `.git/index.lock`.
+
+**Objective (`APPROVED`):** ensure every Mermaid label is drawn as SVG text and fits its containing
+shape, refresh the three stale chart renders named by the owner, and make diagram geometry part of
+the repository gates.
+
+**Rendered verification (`IMPLEMENTED`):**
+
+- all three Mermaid blocks carry the required top-level `htmlLabels: false` directive;
+- Mermaid 11.16 rendered the two committed SVGs in the user's Chrome with zero `foreignObject`
+  labels; both were visually inspected;
+- `python3 scripts/check_diagram_text.py docs/diagrams/*.svg` passed both rendered SVGs;
+- the full source-render command could not launch headless Chrome inside the shell sandbox, so it
+  is not recorded as a pass; the same checker is wired into `make diagrams-check` and CI;
+- `make figures` regenerated all eight PNGs from `runs/run_2` and `runs/run_3`;
+- `baseline_ablation.png`, `saliency_positive.png`, and `saliency_negative.png` were inspected at
+  native resolution. Value labels clear every whisker and cap, both saliency axes use
+  `Token importance (gradient norm)`, and the positive and negative titles are explicit.
+
+**Acceptance gates (`VERIFIED`):**
+
+- published figure guard: `PASS`, all eight tracked pairs and provenance payloads verified;
+- published number guard: `PASS`, 455 values recomputed from prediction vectors;
+- full suite: 193 passed, 1 expected xfail, 95% coverage;
+- lint: ruff check, ruff format check, and mypy all passed.
+
 ## 2026-07-27 training-curve visibility slice
 
 **Status:** `IN PROGRESS`, based on `936b251`.
@@ -545,7 +573,12 @@ used for planning. The measured run timings in the table above are the supported
 
 ## 8. NEXT ACTION
 
-**Run the three-seed `cfg/small.yaml` sweep and report mean ± stdev.**
+**Commit the verified diagram and figure label slice from a shell that can write `.git`.**
+
+The implementation shell is blocked by `fatal: Unable to create '.git/index.lock': Operation not
+permitted`. Create pathspec-scoped diagram and figure commits with the required Armando Gonzalez
+identity, then commit this progress update. After those local commits, run the three-seed
+`cfg/small.yaml` sweep and report mean ± stdev using the procedure below.
 
 Batch 3 is committed and **`scripts/verify_fresh_clone.sh` passed end to end** against the
 committed history (2026-07-25, exit 0): clone, tracked-size, PII, structure-tree, the documented

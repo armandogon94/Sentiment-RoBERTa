@@ -5,7 +5,7 @@
 # and there is exactly one copy of the truth. This script is how that one copy also becomes an SVG
 # for readers outside a Markdown renderer, so the diagrams are never hand-drawn or hand-exported.
 #
-# Requires mermaid-cli, which is fetched on demand:
+# Requires mermaid-cli. Set MMDC_BIN to an installed executable to avoid a download:
 #   ./scripts/export_diagrams.sh
 set -euo pipefail
 
@@ -28,11 +28,17 @@ awk -v dir="$WORK" '
 ' "$SRC"
 
 count=0
+if [[ -n "${MMDC_BIN:-}" ]]; then
+  MMDC_CMD=("$MMDC_BIN")
+else
+  MMDC_CMD=(npx -y @mermaid-js/mermaid-cli@11)
+fi
+
 for i in "${!NAMES[@]}"; do
   block="$WORK/block_$((i + 1)).mmd"
   [ -f "$block" ] || { echo "FAIL: docs/architecture.md has no block $((i + 1)) (${NAMES[$i]})"; exit 1; }
   echo "    ${NAMES[$i]}.svg"
-  npx -y @mermaid-js/mermaid-cli@11 \
+  "${MMDC_CMD[@]}" \
     --input "$block" \
     --output "$OUT/${NAMES[$i]}.svg" \
     --backgroundColor white \

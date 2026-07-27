@@ -107,7 +107,7 @@ jobs:
 
       - name: No unguarded plt.show()
         # stdlib only, so this job needs no dependency install. Same checker the fresh-clone
-        # verifier and tests/test_utils.py use — one implementation of the rule, not three greps.
+        # verifier and tests/test_utils.py use: one implementation of the rule, not three greps.
         run: python3 scripts/check_no_blocking_show.py
 
       - name: The committed figure set must be complete
@@ -133,6 +133,9 @@ jobs:
 
       - name: Sync dependencies
         run: uv sync --python 3.12
+
+      - name: Mermaid labels fit their rendered boxes
+        run: uv run python scripts/check_diagram_text.py
 
       - name: Recompute every published headline number
         run: uv run python scripts/check_published_numbers.py
