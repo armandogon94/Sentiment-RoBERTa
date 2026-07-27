@@ -12,10 +12,10 @@ from cfg.schema import Config, apply_overrides, load_config
 CFG_DIR = Path(__file__).resolve().parent.parent / "cfg"
 CONFIG_FILES = sorted(CFG_DIR.glob("*.yaml"))
 
-#: Configs whose numbers may be published, i.e. the ones that were actually run.
-RUN_CONFIGS = {"smoke", "dev", "small"}
+#: Configs whose numbers may be published because they were actually run.
+RUN_CONFIGS = {"smoke", "dev", "small", "default"}
 #: Configs committed as specifications and deliberately not run.
-UNRUN_CONFIGS = {"default", "full"}
+UNRUN_CONFIGS = {"full"}
 
 
 def test_every_config_file_is_discovered():
@@ -32,9 +32,9 @@ def test_config_validates(path):
 
 @pytest.mark.parametrize("path", CONFIG_FILES, ids=lambda p: p.stem)
 def test_every_config_has_a_finite_wall_clock_cap(path):
-    """No config in this repo may describe an unbounded job."""
+    """Every cap must be finite; cfg/default.yaml documents why its cap is 90."""
     cfg = load_config(path)
-    assert 0 < cfg.RUNTIME.WALL_CLOCK_CAP_MIN <= 45.0
+    assert 0 < cfg.RUNTIME.WALL_CLOCK_CAP_MIN <= 90.0
 
 
 def test_unknown_key_is_rejected(tmp_path):

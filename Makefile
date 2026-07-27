@@ -14,6 +14,7 @@ export PYTHONHASHSEED
 MLFLOW_PORT ?= 9330
 PUBLISHED_RUN ?= runs/run_2
 ABLATION_RUN ?= runs/run_3
+SCHEDULE_RUN ?= runs/run_5
 
 help:  ## Show this help
 	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -45,14 +46,16 @@ ablation:  ## The 4-cell preprocessing ablation (stopwords x n-gram range)
 	$(PY) train.py -c cfg/small.yaml -p cfg/baseline_ablation.json --baselines-only
 
 evidence:  ## Export tracked, review-text-free evidence for the published runs
-	$(PY) scripts/export_evidence.py $(PUBLISHED_RUN) $(ABLATION_RUN) -o reports/evidence
+	$(PY) scripts/export_evidence.py $(PUBLISHED_RUN) $(ABLATION_RUN) \
+	  run_5=$(SCHEDULE_RUN) -o reports/evidence
 
 figures:  ## Regenerate and publish all eight PNGs from the explicit published runs
 	$(PY) scripts/export_figures.py -i $(PUBLISHED_RUN) -a $(ABLATION_RUN) \
 	  -o docs/images --publish
 
 report:  ## Regenerate reports/RESULTS.md from the explicit published runs
-	$(PY) evaluate.py -i $(PUBLISHED_RUN) -a $(ABLATION_RUN) -o reports/RESULTS.md
+	$(PY) evaluate.py -i $(PUBLISHED_RUN) -a $(ABLATION_RUN) -s $(SCHEDULE_RUN) \
+	  -o reports/RESULTS.md
 
 notebook:  ## Execute the narrative notebook and SAVE its outputs
 	$(PY) scripts/run_notebook.py

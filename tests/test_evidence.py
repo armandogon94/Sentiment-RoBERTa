@@ -95,6 +95,33 @@ def _consistent_evidence(tmp_path: Path) -> Path:
         },
     )
     _write_json(run_3 / "run_meta.json", {"seed": 1337})
+
+    run_5 = evidence / "run_5"
+    run_5.mkdir()
+    run_5_metrics = _metrics(y_true, roberta, tfidf)
+    schedule_history = [
+        {
+            "epoch": 1.0,
+            "epoch_seconds": 61.25,
+            "train_loss": 0.25,
+            "val_accuracy": 0.75,
+            "val_loss": 0.5,
+        }
+    ]
+    run_5_metrics["models"]["roberta"]["training"] = {"history": schedule_history}
+    pd.DataFrame(
+        {
+            "index": np.arange(len(y_true)),
+            "label": y_true,
+            "tfidf_logreg": tfidf,
+            "roberta": roberta,
+            "text_sha256": ["0" * 64] * len(y_true),
+        }
+    ).to_csv(run_5 / "predictions.csv", index=False, lineterminator="\n")
+    _write_json(run_5 / "metrics.json", run_5_metrics)
+    _write_json(run_5 / "run_meta.json", {"seed": 1337})
+    _write_json(run_5 / "history.json", {"history": schedule_history})
+
     (evidence / "README.md").write_text("fixture\n", encoding="utf-8")
     write_sha256_manifest(evidence)
     return evidence
@@ -181,6 +208,29 @@ def test_export_evidence_rejects_unallowlisted_source_column(tmp_path: Path):
         export_bundle([source], tmp_path / "evidence")
 
 
+def test_export_bundle_accepts_explicit_role_path(tmp_path: Path):
+    source = tmp_path / "completed_schedule"
+    source.mkdir()
+    pd.DataFrame(
+        {
+            "index": [0],
+            "label": [1],
+            "text": ["Measured schedule evidence."],
+            "tfidf_logreg": [1],
+            "roberta": [1],
+        }
+    ).to_parquet(source / "predictions.parquet", index=False)
+    _write_json(source / "metrics.json", {})
+    _write_json(source / "run_meta.json", {})
+    (source / "model_roberta.pt").write_bytes(b"checkpoint")
+
+    evidence = tmp_path / "evidence"
+    export_bundle([f"run_5={source}"], evidence)
+
+    assert (evidence / "run_5" / "predictions.csv").is_file()
+    assert not (evidence / "run_2").exists()
+
+
 def test_consistent_evidence_passes(tmp_path: Path):
     checked = validate_evidence(_consistent_evidence(tmp_path))
     assert {item.metric for item in checked} >= {
@@ -201,6 +251,18 @@ def test_flipped_prediction_fails_with_metric_name(tmp_path: Path):
     write_sha256_manifest(evidence)
 
     with pytest.raises(EvidenceMismatch, match=r"roberta\.(n_correct|accuracy)"):
+        validate_evidence(evidence)
+
+
+def test_flipped_run_5_prediction_fails_with_metric_name(tmp_path: Path):
+    evidence = _consistent_evidence(tmp_path)
+    path = evidence / "run_5" / "predictions.csv"
+    frame = pd.read_csv(path, dtype={"text_sha256": str})
+    frame.at[0, "roberta"] = 1 - int(frame["roberta"].iloc[0])
+    frame.to_csv(path, index=False, lineterminator="\n")
+    write_sha256_manifest(evidence)
+
+    with pytest.raises(EvidenceMismatch, match=r"run_5\.roberta\.(n_correct|accuracy)"):
         validate_evidence(evidence)
 
 

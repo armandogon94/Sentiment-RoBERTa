@@ -96,7 +96,7 @@ uv run python scripts/check_published_figures.py
 
 echo '==> Regenerating the published report from evidence and asserting byte identity'
 uv run python evaluate.py -i reports/evidence/run_2 -a reports/evidence/run_3 \
-  -o "$WORK/RESULTS.md"
+  -s reports/evidence/run_5 -o "$WORK/RESULTS.md"
 if ! cmp -s "$WORK/RESULTS.md" reports/RESULTS.md; then
   echo "FAIL: regenerated reports/RESULTS.md differs from the committed file"
   diff -u reports/RESULTS.md "$WORK/RESULTS.md" || true

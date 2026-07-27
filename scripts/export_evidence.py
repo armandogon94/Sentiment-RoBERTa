@@ -39,7 +39,15 @@ EXPECTED_SOURCE_COLUMNS = {
         "tfidf_logreg[negation preserved, unigram]",
         "tfidf_logreg[negation preserved, uni+bigram]",
     ],
+    "run_5": [
+        "index",
+        "label",
+        "text",
+        "tfidf_logreg",
+        "roberta",
+    ],
 }
+INFERRED_EVIDENCE_ROLES = ("run_2", "run_3")
 
 EVIDENCE_README = """# Auditable primary evidence
 
@@ -47,6 +55,9 @@ This directory is the compact, tracked evidence for the published experiments. `
 published RoBERTa-versus-TF-IDF run (`cfg/small.yaml`); `run_3` is the preprocessing ablation on the
 same seeded split. The JSON files are copied byte-for-byte from their run directories. The CSV files
 are deterministic derivatives of the ignored Parquet prediction artifacts.
+
+`run_5` is the notebook's five-epoch schedule (`cfg/default.yaml`) on the same seeded split,
+kept because it is the evidence for how the epoch count was chosen.
 
 No review text is redistributed here. Each `predictions.csv` replaces the source `text` value with
 `text_sha256 = hashlib.sha256(text.encode("utf-8")).hexdigest()`. The label and every prediction
@@ -138,7 +149,8 @@ def _evidence_role(source: Path) -> str:
     columns = list(pd.read_parquet(source).columns)
     matches = [
         role
-        for role, expected_columns in EXPECTED_SOURCE_COLUMNS.items()
+        for role in INFERRED_EVIDENCE_ROLES
+        if (expected_columns := EXPECTED_SOURCE_COLUMNS[role])
         if columns == expected_columns
     ]
     if len(matches) != 1:
@@ -147,6 +159,31 @@ def _evidence_role(source: Path) -> str:
             f"got columns {columns!r}"
         )
     return matches[0]
+
+
+def _parse_run_spec(run_spec: str | Path) -> tuple[str | None, Path]:
+    raw = str(run_spec)
+    role, separator, path_text = raw.partition("=")
+    if not separator:
+        return None, Path(raw).resolve()
+    if role not in EXPECTED_SOURCE_COLUMNS:
+        raise EvidenceExportError(
+            f"{raw!r} names unknown evidence role {role!r}; "
+            f"expected one of {sorted(EXPECTED_SOURCE_COLUMNS)!r}"
+        )
+    if not path_text:
+        raise EvidenceExportError(f"{raw!r} must include a path after '='")
+    return role, Path(path_text).resolve()
+
+
+def _validate_role_schema(source: Path, role: str) -> None:
+    columns = list(pd.read_parquet(source).columns)
+    expected = EXPECTED_SOURCE_COLUMNS[role]
+    if columns != expected:
+        raise EvidenceExportError(
+            f"{source} columns do not match the text-safe {role} allowlist: "
+            f"expected {expected!r}, got {columns!r}"
+        )
 
 
 def _write_checkpoint_manifest(run_dir: Path, destination: Path) -> list[Path]:
@@ -190,16 +227,24 @@ def _reset_output_directory(output_dir: Path) -> None:
     resolved.mkdir(parents=True)
 
 
-def export_bundle(run_dirs: list[Path], output_dir: Path = DEFAULT_OUTPUT) -> list[str]:
+def export_bundle(run_dirs: list[str | Path], output_dir: Path = DEFAULT_OUTPUT) -> list[str]:
     if not run_dirs:
         raise EvidenceExportError("at least one run directory is required")
     output_dir = Path(output_dir).resolve()
-    resolved_runs = [Path(run_dir).resolve() for run_dir in run_dirs]
+    parsed_runs = [_parse_run_spec(run_dir) for run_dir in run_dirs]
+    resolved_runs = [run_dir for _, run_dir in parsed_runs]
     for run_dir in resolved_runs:
         for required in (*JSON_ARTIFACTS, "predictions.parquet"):
             if not (run_dir / required).is_file():
                 raise EvidenceExportError(f"{run_dir / required} is required")
-    roles = [_evidence_role(run_dir / "predictions.parquet") for run_dir in resolved_runs]
+    roles: list[str] = []
+    for explicit_role, run_dir in parsed_runs:
+        prediction_source = run_dir / "predictions.parquet"
+        if explicit_role is None:
+            roles.append(_evidence_role(prediction_source))
+        else:
+            _validate_role_schema(prediction_source, explicit_role)
+            roles.append(explicit_role)
     if len(roles) != len(set(roles)):
         raise EvidenceExportError(f"run directories resolve to duplicate evidence roles: {roles}")
 
@@ -237,13 +282,27 @@ def export_bundle(run_dirs: list[Path], output_dir: Path = DEFAULT_OUTPUT) -> li
                 "run_2 and run_3 do not use the same indexed rows, labels, and text hashes"
             )
 
+    if {"run_2", "run_5"} <= set(roles):
+        run_2 = pd.read_csv(output_dir / "run_2" / "predictions.csv", dtype={"text_sha256": str})
+        run_5 = pd.read_csv(output_dir / "run_5" / "predictions.csv", dtype={"text_sha256": str})
+        identity_columns = ["index", "label", "text_sha256"]
+        if not run_2[identity_columns].equals(run_5[identity_columns]):
+            raise EvidenceExportError(
+                "run_2 and run_5 do not use the same indexed rows, labels, and text hashes"
+            )
+
     write_sha256_manifest(output_dir)
     return messages
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("run_dirs", nargs="+", type=Path)
+    parser.add_argument(
+        "run_dirs",
+        nargs="+",
+        metavar="[ROLE=]PATH",
+        help="run directory, optionally assigned to an explicit evidence role",
+    )
     parser.add_argument("-o", "--out-dir", type=Path, default=DEFAULT_OUTPUT)
     args = parser.parse_args(argv)
     try:

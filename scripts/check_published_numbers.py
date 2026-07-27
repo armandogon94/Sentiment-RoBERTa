@@ -29,6 +29,7 @@ from metrics.significance import (  # noqa: E402
 
 NUMBER = r"[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?"
 RUN_2_COLUMNS = ["index", "label", "tfidf_logreg", "roberta", "text_sha256"]
+RUN_5_COLUMNS = RUN_2_COLUMNS.copy()
 ABLATION_MODELS = (
     "tfidf_logreg[notebook chain, unigram]",
     "tfidf_logreg[notebook chain, uni+bigram]",
@@ -183,39 +184,47 @@ def _recompute_ablation(
     return cells, paired
 
 
-def validate_evidence(evidence_dir: Path) -> list[CheckedNumber]:
-    evidence_dir = Path(evidence_dir)
-    verify_sha256_manifest(evidence_dir)
-    run_dir = evidence_dir / "run_2"
+def _validate_transformer_evidence(
+    run_dir: Path,
+    role: str,
+    checked: list[CheckedNumber],
+) -> tuple[pd.DataFrame, dict[str, Any]]:
     metrics = _load_json(run_dir / "metrics.json")
     history = _load_json(run_dir / "history.json")
+    metric_prefix = "" if role == "run_2" else f"{role}."
+    source = f"reports/evidence/{role}/metrics.json"
     _equal(
-        "roberta.training.history",
+        f"{metric_prefix}roberta.training.history",
         history.get("history"),
         metrics["models"]["roberta"]["training"]["history"],
     )
-    frame = _load_prediction_frame(run_dir / "predictions.csv", RUN_2_COLUMNS)
+    expected_columns = RUN_2_COLUMNS if role == "run_2" else RUN_5_COLUMNS
+    frame = _load_prediction_frame(run_dir / "predictions.csv", expected_columns)
 
     y_true = frame["label"].to_numpy()
     predictions = {
         "roberta": frame["roberta"].to_numpy(),
         "tfidf_logreg": frame["tfidf_logreg"].to_numpy(),
     }
-    checked: list[CheckedNumber] = []
-    recomputed_models: dict[str, dict[str, Any]] = {}
     for model_name, y_pred in predictions.items():
         recomputed = classification_metrics(y_true, y_pred)
         recomputed["accuracy_ci"] = accuracy_interval(y_true, y_pred).as_dict()
-        recomputed_models[model_name] = recomputed
         stored = metrics["models"][model_name]
         for field in ("n", "n_correct", "accuracy", "confusion_matrix"):
-            _record_metric(checked, f"{model_name}.{field}", recomputed[field], stored[field])
+            _record_metric(
+                checked,
+                f"{metric_prefix}{model_name}.{field}",
+                recomputed[field],
+                stored[field],
+                source=source,
+            )
         for field in ("point", "low", "high", "level", "method", "n", "successes"):
             _record_metric(
                 checked,
-                f"{model_name}.accuracy_ci.{field}",
+                f"{metric_prefix}{model_name}.accuracy_ci.{field}",
                 recomputed["accuracy_ci"][field],
                 stored["accuracy_ci"][field],
+                source=source,
             )
 
     recomputed_mc = mcnemar_test(
@@ -232,7 +241,22 @@ def validate_evidence(evidence_dir: Path) -> list[CheckedNumber]:
         "exact",
         "n_discordant",
     ):
-        _record_metric(checked, f"mcnemar.{field}", recomputed_mc[field], stored_mc[field])
+        _record_metric(
+            checked,
+            f"{metric_prefix}mcnemar.{field}",
+            recomputed_mc[field],
+            stored_mc[field],
+            source=source,
+        )
+    return frame, metrics
+
+
+def validate_evidence(evidence_dir: Path) -> list[CheckedNumber]:
+    evidence_dir = Path(evidence_dir)
+    verify_sha256_manifest(evidence_dir)
+    checked: list[CheckedNumber] = []
+    run_dir = evidence_dir / "run_2"
+    frame, _ = _validate_transformer_evidence(run_dir, "run_2", checked)
 
     run_3_dir = evidence_dir / "run_3"
     run_3_metrics = _load_json(run_3_dir / "metrics.json")
@@ -317,6 +341,15 @@ def validate_evidence(evidence_dir: Path) -> list[CheckedNumber]:
                 recomputed["accuracy_ci"][field],
                 stored["accuracy_ci"][field],
                 source="reports/evidence/run_3/metrics.json",
+            )
+
+    run_5_dir = evidence_dir / "run_5"
+    if run_5_dir.is_dir():
+        run_5_frame, _ = _validate_transformer_evidence(run_5_dir, "run_5", checked)
+        identity_columns = ["index", "label", "text_sha256"]
+        if not frame[identity_columns].equals(run_5_frame[identity_columns]):
+            raise EvidenceMismatch(
+                "run_2 and run_5 row identity mismatch: index, label, and text_sha256 must agree"
             )
     return checked
 
@@ -775,34 +808,75 @@ def _check_ablation_endpoints(
                 )
 
 
-def _check_training_claims(
+def _markdown_table_rows(text: str, header: str) -> list[list[list[str]]]:
+    lines = text.splitlines()
+    tables: list[list[list[str]]] = []
+    for header_index, line in enumerate(lines):
+        if line != header:
+            continue
+        rows: list[list[str]] = []
+        for candidate in lines[header_index + 1 :]:
+            if candidate.startswith("|---"):
+                continue
+            if not candidate.startswith("|"):
+                break
+            rows.append(
+                [cell.strip().replace("*", "") for cell in candidate.strip().strip("|").split("|")]
+            )
+        tables.append(rows)
+    return tables
+
+
+def _check_duration_cell(
     checked: list[CheckedNumber],
     source: Path,
-    text: str,
-    metrics: dict[str, Any],
+    metric: str,
+    cell: str,
+    expected: float,
 ) -> None:
-    training = metrics["models"]["roberta"]["training"]
-    history = training["history"]
-    rows: list[list[str]] = []
-    in_table = False
-    for line in text.splitlines():
-        if line.startswith("| Epoch | Train loss |"):
-            in_table = True
-            continue
-        if in_table and line.startswith("|---"):
-            continue
-        if in_table and line.startswith("|"):
-            rows.append(
-                [cell.strip().replace("*", "") for cell in line.strip().strip("|").split("|")]
-            )
-            continue
-        if in_table and rows:
-            break
-    if source.name == "README.md" and len(rows) != len(history):
+    minutes_match = re.fullmatch(r"(?P<minutes>\d+)m\s+(?P<seconds>\d+(?:\.\d+)?)s", cell)
+    seconds_match = re.fullmatch(r"(?P<seconds>\d+(?:\.\d+)?)s", cell)
+    if minutes_match:
+        seconds_token = minutes_match.group("seconds")
+        printed_seconds = 60 * int(minutes_match.group("minutes")) + float(seconds_token)
+    elif seconds_match:
+        seconds_token = seconds_match.group("seconds")
+        printed_seconds = float(seconds_token)
+    else:
+        raise EvidenceMismatch(f"{source}: cannot parse {metric}")
+    tolerance = _printed_tolerance(seconds_token)
+    if not math.isclose(printed_seconds, float(expected), rel_tol=0.0, abs_tol=tolerance):
         raise EvidenceMismatch(
-            f"{source}: expected {len(history)} training-history table rows, found {len(rows)}"
+            f"{source}:{metric} mismatch: published {printed_seconds}, stored "
+            f"{expected!r}, tolerance {tolerance}"
+        )
+    checked.append(
+        CheckedNumber(
+            source=source.name,
+            metric=metric,
+            published=str(printed_seconds),
+            recomputed=expected,
+            tolerance=tolerance,
+        )
+    )
+
+
+def _check_history_table_rows(
+    checked: list[CheckedNumber],
+    source: Path,
+    rows: list[list[str]],
+    history: list[dict[str, Any]],
+    metric_prefix: str,
+) -> None:
+    if len(rows) != len(history):
+        raise EvidenceMismatch(
+            f"{source}: expected {len(history)} {metric_prefix} table rows, found {len(rows)}"
         )
     for index, (row, epoch) in enumerate(zip(rows, history, strict=True)):
+        if len(row) != 5:
+            raise EvidenceMismatch(
+                f"{source}: expected 5 cells in {metric_prefix}[{index}], found {len(row)}"
+            )
         for column, field in (
             (0, "epoch"),
             (1, "train_loss"),
@@ -811,38 +885,39 @@ def _check_training_claims(
         ):
             token_match = re.search(NUMBER, row[column])
             if not token_match:
-                raise EvidenceMismatch(f"{source}: cannot parse history[{index}].{field}")
+                raise EvidenceMismatch(f"{source}: cannot parse {metric_prefix}[{index}].{field}")
             _check_printed(
                 checked,
                 source,
-                f"history[{index}].{field}",
+                f"{metric_prefix}[{index}].{field}",
                 token_match.group(),
                 epoch[field],
             )
-        duration_match = re.fullmatch(
-            r"(?P<minutes>\d+)m\s+(?P<seconds>\d+(?:\.\d+)?)s", row[4]
+        _check_duration_cell(
+            checked,
+            source,
+            f"{metric_prefix}[{index}].epoch_seconds",
+            row[4],
+            epoch["epoch_seconds"],
         )
-        if not duration_match:
-            raise EvidenceMismatch(f"{source}: cannot parse history[{index}].epoch_seconds")
-        seconds_token = duration_match.group("seconds")
-        printed_seconds = 60 * int(duration_match.group("minutes")) + float(seconds_token)
-        tolerance = _printed_tolerance(seconds_token)
-        if not math.isclose(
-            printed_seconds, float(epoch["epoch_seconds"]), rel_tol=0.0, abs_tol=tolerance
-        ):
-            raise EvidenceMismatch(
-                f"{source}:history[{index}].epoch_seconds mismatch: published "
-                f"{printed_seconds}, stored {epoch['epoch_seconds']!r}, tolerance {tolerance}"
-            )
-        checked.append(
-            CheckedNumber(
-                source=source.name,
-                metric=f"history[{index}].epoch_seconds",
-                published=str(printed_seconds),
-                recomputed=epoch["epoch_seconds"],
-                tolerance=tolerance,
-            )
-        )
+
+
+def _check_training_claims(
+    checked: list[CheckedNumber],
+    source: Path,
+    text: str,
+    metrics: dict[str, Any],
+) -> None:
+    training = metrics["models"]["roberta"]["training"]
+    history = training["history"]
+    tables = _markdown_table_rows(
+        text,
+        "| Epoch | Train loss | Validation loss | Validation accuracy | Wall clock |",
+    )
+    if source.name == "README.md" and not tables:
+        raise EvidenceMismatch(f"{source}: training-history table is missing")
+    for rows in tables:
+        _check_history_table_rows(checked, source, rows, history, "history")
 
     history_patterns = (
         rf"bottomed at epoch\s+(?P<epoch1>{NUMBER}).*?\((?:`)?(?P<value1>{NUMBER})"
@@ -894,6 +969,134 @@ def _check_training_claims(
             f"history.train_loss_endpoint[{index}].end",
             match.group("end"),
             history[-1]["train_loss"],
+        )
+
+
+def _check_schedule_claims(
+    checked: list[CheckedNumber],
+    source: Path,
+    text: str,
+    metrics: dict[str, Any],
+) -> None:
+    roberta = metrics["models"]["roberta"]
+    training = roberta["training"]
+    history = training["history"]
+    header = (
+        "| Epoch (5-epoch schedule) | Train loss | Validation loss | "
+        "Validation accuracy | Wall clock |"
+    )
+    tables = _markdown_table_rows(text, header)
+    if source.name == "README.md" and not tables:
+        raise EvidenceMismatch(f"{source}: five-epoch schedule table is missing")
+    if not tables:
+        return
+    if len(history) != 5:
+        raise EvidenceMismatch(
+            f"{source}: run_5 history must contain exactly 5 rows, found {len(history)}"
+        )
+    for rows in tables:
+        if len(rows) != 5:
+            raise EvidenceMismatch(
+                f"{source}: expected exactly 5 schedule table rows, found {len(rows)}"
+            )
+        _check_history_table_rows(
+            checked,
+            source,
+            rows,
+            history,
+            "schedule.history",
+        )
+
+    section_start = text.find("## Does a longer schedule help")
+    if section_start == -1:
+        if source.name == "RESULTS.md":
+            raise EvidenceMismatch(f"{source}: longer-schedule section is missing")
+        schedule_text = text
+    else:
+        section_end = text.find("\n## ", section_start + 1)
+        schedule_text = (
+            text[section_start:] if section_end == -1 else text[section_start:section_end]
+        )
+
+    summary_pattern = re.compile(
+        r"The `(?P<config>[^`]+)` schedule completed "
+        rf"(?P<epochs_run>{NUMBER}) of (?P<epochs_configured>{NUMBER}) configured epochs in "
+        r"(?P<duration>(?:\d+m\s+)?\d+(?:\.\d+)?s) total wall clock; selected epoch "
+        rf"(?P<selected_epoch>{NUMBER}) was chosen using (?P<criterion>[^.]+)\."
+    )
+    summary = summary_pattern.search(schedule_text)
+    if summary is None:
+        if source.name == "RESULTS.md":
+            raise EvidenceMismatch(f"{source}: longer-schedule summary is missing")
+    else:
+        if summary.group("config") != metrics["config_path"]:
+            raise EvidenceMismatch(
+                f"{source}:schedule.config_path mismatch: published "
+                f"{summary.group('config')!r}, stored {metrics['config_path']!r}"
+            )
+        for group, field in (
+            ("epochs_run", "epochs_run"),
+            ("epochs_configured", "epochs_configured"),
+            ("selected_epoch", "selected_epoch"),
+        ):
+            _check_printed(
+                checked,
+                source,
+                f"schedule.{field}",
+                summary.group(group),
+                training[field],
+            )
+        _check_duration_cell(
+            checked,
+            source,
+            "schedule.train_seconds",
+            summary.group("duration"),
+            training["train_seconds"],
+        )
+        if summary.group("criterion") != training["selection_criterion"]:
+            raise EvidenceMismatch(
+                f"{source}:schedule.selection_criterion mismatch: published "
+                f"{summary.group('criterion')!r}, stored "
+                f"{training['selection_criterion']!r}"
+            )
+
+    verdict_pattern = re.compile(
+        r"Validation loss reaches its minimum at epoch "
+        rf"(?P<minimum_epoch>{NUMBER}) \((?P<minimum_loss>{NUMBER})\) and "
+        rf"(?:climbs to|finishes at) (?P<final_loss>{NUMBER}) by epoch "
+        rf"(?P<final_epoch>{NUMBER}); validation accuracy peaks at "
+        rf"(?P<best_accuracy>{NUMBER}) and finishes at (?P<final_accuracy>{NUMBER}); "
+        rf"selected epoch (?P<selected_epoch>{NUMBER}) has test accuracy "
+        rf"(?P<test_accuracy>{NUMBER}) with a Wilson 95% interval "
+        rf"\[(?P<ci_low>{NUMBER}), (?P<ci_high>{NUMBER})\]\."
+    )
+    verdict = verdict_pattern.search(schedule_text)
+    if verdict is None:
+        if source.name == "RESULTS.md":
+            raise EvidenceMismatch(f"{source}: longer-schedule verdict is missing")
+        return
+
+    minimum_loss_epoch = min(history, key=lambda epoch: epoch["val_loss"])
+    final_epoch = history[-1]
+    interval = roberta["accuracy_ci"]
+    for group, expected in (
+        ("minimum_epoch", minimum_loss_epoch["epoch"]),
+        ("minimum_loss", minimum_loss_epoch["val_loss"]),
+        ("final_loss", final_epoch["val_loss"]),
+        ("final_epoch", final_epoch["epoch"]),
+        ("best_accuracy", max(epoch["val_accuracy"] for epoch in history)),
+        ("final_accuracy", final_epoch["val_accuracy"]),
+        ("selected_epoch", training["selected_epoch"]),
+        ("test_accuracy", roberta["accuracy"]),
+        ("ci_low", interval["low"]),
+        ("ci_high", interval["high"]),
+    ):
+        _check_printed(
+            checked,
+            source,
+            f"schedule.{group}",
+            verdict.group(group),
+            expected,
         )
 
 
@@ -1312,6 +1515,8 @@ def validate_published_documents(
     ).as_dict()
     run_3_metrics = _load_json(evidence_dir / "run_3" / "metrics.json")
     stored_ablation_cells = run_3_metrics["ablation"]
+    run_5_dir = evidence_dir / "run_5"
+    schedule_metrics = _load_json(run_5_dir / "metrics.json") if run_5_dir.is_dir() else None
 
     checked: list[CheckedNumber] = []
     for document in (readme, results):
@@ -1326,6 +1531,13 @@ def validate_published_documents(
             metrics,
             stored_ablation_cells,
         )
+        if schedule_metrics is not None:
+            _check_schedule_claims(
+                checked,
+                document,
+                document.read_text(encoding="utf-8"),
+                schedule_metrics,
+            )
     return checked
 
 

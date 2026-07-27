@@ -12,6 +12,7 @@ Usage
 -----
     uv run python evaluate.py -i runs/latest -o reports/RESULTS.md
     uv run python evaluate.py -i runs/run_2 -a runs/run_3 -o reports/RESULTS.md
+    uv run python evaluate.py -i runs/run_2 -a runs/run_3 -s runs/run_5
 """
 
 from __future__ import annotations
@@ -245,11 +246,59 @@ def negation_evidence(source: dict[str, Any]) -> str:
     )
 
 
+def schedule_section(metrics: dict[str, Any]) -> str:
+    """Render the recorded longer schedule without relying on publication prose."""
+    roberta = metrics["models"]["roberta"]
+    training = roberta["training"]
+    history = training["history"]
+    minimum_loss_epoch = min(history, key=lambda epoch: epoch["val_loss"])
+    final_epoch = history[-1]
+    best_validation_accuracy = max(epoch["val_accuracy"] for epoch in history)
+    interval = roberta["accuracy_ci"]
+    loss_direction = (
+        "climbs to" if final_epoch["val_loss"] > minimum_loss_epoch["val_loss"] else "finishes at"
+    )
+
+    lines = [
+        "## Does a longer schedule help",
+        "",
+        f"The `{metrics['config_path']}` schedule completed {training['epochs_run']} of "
+        f"{training['epochs_configured']} configured epochs in "
+        f"{fmt_seconds(training['train_seconds'])} total wall clock; selected epoch "
+        f"{training['selected_epoch']} was chosen using {training['selection_criterion']}.",
+        "",
+        "| Epoch (5-epoch schedule) | Train loss | Validation loss | Validation accuracy | Wall clock |",
+        "|---|---|---|---|---|",
+    ]
+    lines.extend(
+        f"| {int(epoch['epoch'])} | {epoch['train_loss']:.4f} | "
+        f"{epoch['val_loss']:.4f} | {epoch['val_accuracy']:.4f} | "
+        f"{fmt_seconds(epoch['epoch_seconds'])} |"
+        for epoch in history
+    )
+    lines.extend(
+        [
+            "",
+            f"Validation loss reaches its minimum at epoch "
+            f"{int(minimum_loss_epoch['epoch'])} ({minimum_loss_epoch['val_loss']:.4f}) and "
+            f"{loss_direction} {final_epoch['val_loss']:.4f} by epoch "
+            f"{int(final_epoch['epoch'])}; validation accuracy peaks at "
+            f"{best_validation_accuracy:.4f} and finishes at "
+            f"{final_epoch['val_accuracy']:.4f}; selected epoch "
+            f"{training['selected_epoch']} has test accuracy {roberta['accuracy']:.4f} with a "
+            f"Wilson 95% interval [{interval['low']:.4f}, {interval['high']:.4f}].",
+            "",
+        ]
+    )
+    return "\n".join(lines)
+
+
 def build_report(
     metrics: dict[str, Any],
     ablation_source: dict[str, Any] | None,
     run_dir: Path | None = None,
     ablation_run_dir: Path | None = None,
+    schedule_metrics: dict[str, Any] | None = None,
 ) -> str:
     cfg_name = metrics["config_name"]
     splits = metrics["splits"]
@@ -300,9 +349,7 @@ def build_report(
             f"{mc['n_discordant']} discordant pairs · `uv run python train.py -c "
             f"{metrics['config_path']}` · commit `{metrics['git_sha']}`</sub>\n"
         )
-        parts.append(
-            f"**{fmt_significance_sentence(sig['sentence'], mc['p_value'])}**\n"
-        )
+        parts.append(f"**{fmt_significance_sentence(sig['sentence'], mc['p_value'])}**\n")
         parts.append(
             f"The 2×2 discordance table both models were compared on: they agree and are both "
             f"right on {mc['a_both_correct']} examples and both wrong on {mc['d_both_wrong']}; "
@@ -424,6 +471,9 @@ def build_report(
                 f"p95 {int(trunc['p95_tokens'])}, max {int(trunc['max_tokens'])}).\n"
             )
 
+    if schedule_metrics is not None:
+        parts.append(schedule_section(schedule_metrics))
+
     parts.append("## Figures\n")
     parts.append(
         "All regenerable with `make figures`, which defaults explicitly to `runs/run_2` plus "
@@ -468,6 +518,13 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         help="run dir holding the ablation cells, if a different run produced them",
     )
+    ap.add_argument(
+        "-s",
+        "--schedule-run",
+        type=Path,
+        default=None,
+        help="run or evidence dir holding the optional longer-schedule metrics",
+    )
     ap.add_argument("-o", "--out", type=Path, default=REPO_ROOT / "reports" / "RESULTS.md")
     args = ap.parse_args(argv)
 
@@ -477,12 +534,16 @@ def main(argv: list[str] | None = None) -> int:
         if args.ablation_run_dir
         else None
     )
+    schedule = (
+        read_json(args.schedule_run.resolve() / "metrics.json") if args.schedule_run else None
+    )
 
     report = build_report(
         metrics,
         ablation,
         args.run_dir.resolve(),
         args.ablation_run_dir.resolve() if args.ablation_run_dir else None,
+        schedule,
     )
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(report, encoding="utf-8")
