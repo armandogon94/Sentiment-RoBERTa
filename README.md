@@ -1,4 +1,4 @@
-# Sentiment Polarity on Amazon Reviews — RoBERTa Fine-Tuning vs. a TF-IDF Control
+# Sentiment Polarity on Amazon Reviews: RoBERTa Fine-Tuning vs. a TF-IDF Control
 
 [![CI](https://github.com/armandogon94/33-sentiment-roberta/actions/workflows/ci.yml/badge.svg)](.github/workflows/ci.yml)
 [![Coverage](https://img.shields.io/badge/coverage-95%25-brightgreen)](#testing)
@@ -14,22 +14,22 @@ no validation tuning.
 **Does fine-tuning `roberta-base` on 9,000 reviews beat TF-IDF + logistic regression by a margin that
 survives a 1,000-example test set?**
 
-**Against the original notebook's control recipe: yes — 11.2 percentage points, `0.9600` vs
-`0.8480`, exact McNemar p = 1.983984578134213e-21.** That `0.8480` control deliberately reproduces
-the notebook's destructive preprocessing, unigrams, `C=1`, and lack of validation tuning; it is not
-a tuned TF-IDF baseline given its best shot.
+**Against the original notebook's control recipe: yes. The margin is 11.2 percentage points,
+`0.9600` vs `0.8480`, exact McNemar p = 1.983984578134213e-21.** That `0.8480` control deliberately
+reproduces the notebook's destructive preprocessing, unigrams, `C=1`, and lack of validation tuning;
+it is not a tuned TF-IDF baseline given its best shot.
 
 **Against this repo's test-selected best TF-IDF cell: 9.0 pp, `0.9600` vs `0.8700`, discordance
 110 vs 20, exact McNemar p = 2.9914264919694234e-16.** That second comparison is post hoc because
 the cell was selected by maximum test accuracy, so it is descriptive rather than confirmatory.
 
-- **Focus** — binary sentiment polarity, with token-level interpretability
-- **Data** — [Amazon Review Polarity](https://huggingface.co/datasets/fancyzhx/amazon_polarity)
+- **Focus:** binary sentiment polarity, with token-level interpretability
+- **Data:** [Amazon Review Polarity](https://huggingface.co/datasets/fancyzhx/amazon_polarity)
   (Zhang, Zhao & LeCun, NeurIPS 2015) · 3.6M train / 400K test available, public and ungated,
   Apache-2.0 · a documented 9,000-row subset is used, see [`data/README.md`](data/README.md)
-- **Stack** — Python 3.12 · PyTorch 2.13 (MPS) · `transformers` 5.14 · scikit-learn · NLTK · statsmodels
-- **Hardware** — Apple Silicon, 32 GB, **MPS fp32, no CUDA**. No cloud spend.
-- **Output** — a measured leaderboard with Wilson intervals and a paired McNemar test, a four-cell
+- **Stack:** Python 3.12 · PyTorch 2.13 (MPS) · `transformers` 5.14 · scikit-learn · NLTK · statsmodels
+- **Hardware:** Apple Silicon, 32 GB, **MPS fp32, no CUDA**. No cloud spend.
+- **Output:** a measured leaderboard with Wilson intervals and a paired McNemar test, a four-cell
   preprocessing ablation, and eight committed interpretability figures
 
 📄 **[Read the full results & analysis →](reports/RESULTS.md)**
@@ -43,16 +43,16 @@ to Kaggle as
 [`notebooks/sentiment_analysis_roberta_ORIGINAL.ipynb`](notebooks/sentiment_analysis_roberta_ORIGINAL.ipynb).
 
 All 28 of its code cells were saved with `outputs: []` and `execution_count: null`, so **none of the
-metrics below existed anywhere until this repo re-ran both models locally** on Apple Silicon. That is
-not a gap to hide — it is why "re-run it and see" was the first real task. Details, including the
-forensic evidence that the notebook was run locally and uploaded unexecuted:
+metrics below existed anywhere until this repo re-ran both models locally** on Apple Silicon.
+Re-running both models was the first task. Details, including the forensic evidence that the
+notebook was run locally and uploaded unexecuted:
 [`docs/PROVENANCE.md`](docs/PROVENANCE.md).
 
 ---
 
 ## Key Findings
 
-- **The transformer wins clearly against the original notebook control at this scale.** `0.9600`
+- **RoBERTa scores higher than the original notebook control at this scale.** `0.9600`
   [0.9460, 0.9705] against the control's
   `0.8480` [0.8244, 0.8689]. They disagree on 152 of 1,000 test examples; RoBERTa alone is right on
   132 of those and the control alone on 20. Exact McNemar **p = 1.98e-21**. `cfg/small.yaml`.
@@ -62,7 +62,7 @@ forensic evidence that the notebook was run locally and uploaded unexecuted:
   epochs 1 and 3 and worse at epoch 2. Falling train loss against rising validation loss is the
   signature of overfitting having begun, and it is the evidence the published checkpoint is chosen
   on. **The notebook's 5-epoch schedule was never run here** (`cfg/default.yaml`, NOT RUN), so this
-  repo makes no claim — in either direction — about what epochs 4 and 5 would have produced.
+  repo makes no claim about what epochs 4 and 5 would have produced in either direction.
 - **Conventional preprocessing may cost the control real points, but this comparison is
   underpowered.**
   Across the ablation grid the control moves `0.8380` → `0.8700` (3.2 pp). The best cell beats the
@@ -71,9 +71,10 @@ forensic evidence that the notebook was run locally and uploaded unexecuted:
   this is not evidence of no effect.
 - **Adding bigrams to the notebook's chain makes it worse** (`0.8480` → `0.8380`). Once
   `not` / `no` / `n't` have been deleted, bigrams add 226,000 features and no signal. The same bigrams
-  on negation-preserving text produce the best cell in the grid. That contrast is the whole point.
-- **`max_len=256` truncates almost nothing.** Measured, not assumed: **0.1%** of test reviews (1 of
-  1,000; median 92 tokens, p95 204, max 304). The sequence budget was not a constraint here.
+  on negation-preserving text produce the best cell in the grid.
+- **At `max_len=256`,** **0.1%** of test reviews (1 of
+  1,000; median 92 tokens, p95 204, max 304) were truncated. The sequence budget was not a
+  constraint here.
 
 ---
 
@@ -82,7 +83,7 @@ forensic evidence that the notebook was run locally and uploaded unexecuted:
 | Model | Accuracy (Wilson 95% CI) | Precision (macro) | Recall (macro) | F1 (macro) | Train time | Config |
 |---|---|---|---|---|---|---|
 | **RoBERTa (fine-tuned)** | **0.9600** [0.9460, 0.9705] | 0.9605 | 0.9597 | 0.9600 | 32m 08s (MPS, Low Power Mode OFF) | `cfg/small.yaml` |
-| TF-IDF + Logistic Regression (control) — original notebook | 0.8480 [0.8244, 0.8689] | 0.8481 | 0.8478 | 0.8479 | 4s (CPU, Low Power Mode OFF) | `cfg/small.yaml` |
+| TF-IDF + Logistic Regression (control): original notebook | 0.8480 [0.8244, 0.8689] | 0.8481 | 0.8478 | 0.8479 | 4s (CPU, Low Power Mode OFF) | `cfg/small.yaml` |
 
 <sub>seed 1337 · n_train 8,100 (+900 validation) / n_test 1,000 · exact **McNemar p = 1.98e-21** on
 152 discordant pairs · reproduce with <code>uv run python train.py -c cfg/small.yaml</code> · commit
@@ -90,8 +91,8 @@ forensic evidence that the notebook was run locally and uploaded unexecuted:
 once.</sub>
 
 **The observed gap of 11.2 percentage points has McNemar p = 1.98e-21; on this 1,000-example test set
-it is comfortably distinguishable from zero.** The paired test is the one that answers the
-question — both models scored the *same* examples, so the effective sample size for the comparison
+it is distinguishable from zero.** The paired test is the one that answers the
+question: both models scored the *same* examples, so the effective sample size for the comparison
 is the 152 disagreements, not the 1,000 rows.
 
 <img src="docs/images/confusion_matrix_roberta.png" alt="Confusion matrix for fine-tuned RoBERTa on the 1,000-example test set: 463 true negatives, 26 false positives, 14 false negatives, 497 true positives, shown as raw counts and row-normalised recall" width="900">
@@ -101,8 +102,8 @@ is the 152 disagreements, not the 1,000 rows.
 ### Two control comparisons, with different evidentiary status
 
 The `0.8480` row is the **original notebook's control recipe**, reproduced with destructive
-preprocessing, unigram TF-IDF, logistic-regression `C=1`, and no validation tuning. It is legitimate
-and interesting because reproducing the notebook is the point of the repo. It is not a
+preprocessing, unigram TF-IDF, logistic-regression `C=1`, and no validation tuning. It serves the
+notebook-reproduction objective. It is not a
 well-configured TF-IDF baseline given its best shot.
 
 The repo's own best TF-IDF cell scores `0.8700`. Paired against the saved RoBERTa predictions,
@@ -121,12 +122,12 @@ differed. Against RoBERTa, the default-pattern control gives an exact McNemar pr
 pattern. Recompute without RoBERTa training:
 `uv run python scripts/audit_methodology.py`.
 
-### Baseline preprocessing ablation — the notebook's chain was deleting negation
+### Baseline preprocessing ablation: the notebook's chain was deleting negation
 
 The original chain was: lowercase → keep only `^\w+$` tokens → remove NLTK English stopwords → Porter
 stem, then unigram TF-IDF. It deletes negation twice over: `not`, `no` and `nor` are NLTK English
 stopwords, and the `^\w+$` filter destroys `n't` *before* the stopword filter runs. With unigrams
-only, **`"not good"` and `"good"` become the same feature vector** — on the one task where negation
+only, **`"not good"` and `"good"` become the same feature vector** on the one task where negation
 decides the label. ([`tests/test_text_preprocess.py`](tests/test_text_preprocess.py) asserts exactly
 that, in both directions.)
 
@@ -140,7 +141,7 @@ that, in both directions.)
 <sub>Same splits, same seed 1337, same 1,000 test rows as the table above. Reproduce with
 <code>uv run python train.py -c cfg/small.yaml -p cfg/baseline_ablation.json --baselines-only</code>.</sub>
 
-**The honest reading: underpowered, not a null result.** Best cell against the notebook's chain is
+**Interpretation: underpowered, not a null result.** Best cell against the notebook's chain is
 2.2 points over 140 disagreements (81 vs 59), exact McNemar **p = 0.075551**. The conditional exact
 95% CI for the paired accuracy difference is **[-0.22, 4.52] pp**. Conditional on those 140
 discordant pairs, the exact test has **40.0% power** at the observed effect; approximately **3.5 pp**
@@ -149,18 +150,18 @@ hoc. This evidence does not establish no effect. What is unambiguous is the mech
 
 | Cell | Negation markers among the 20 most negative coefficients |
 |---|---|
-| notebook chain, unigram | *none — deleted before vectorisation* |
-| notebook chain, uni+bigram | *none — deleted before vectorisation* |
+| notebook chain, unigram | *none (deleted before vectorisation)* |
+| notebook chain, uni+bigram | *none (deleted before vectorisation)* |
 | negation preserved, unigram | `not`, `n't`, `no` |
 | negation preserved, uni+bigram | `not`, `n't`, `no`, `not worth` |
 
-The tokens the model would most like to use are simply absent from the first two rows. And the best
-cell still trails the transformer by 9.0 points, so **the fair version of the baseline does not close
-the gap** — worth reporting precisely because the opposite would have been the better story.
+The tokens the model would most like to use are simply absent from the first two rows. The best
+cell still trails the transformer by 9.0 points, so **the negation-preserving bigram baseline does
+not close the gap**.
 
 <img src="docs/images/baseline_ablation.png" alt="Horizontal bar chart of the four ablation cells with Wilson 95 percent confidence intervals, ranging from 0.8380 to 0.8700, against a dashed reference line at the fine-tuned RoBERTa accuracy of 0.9600" width="900">
 
-### Why epoch 1 remains the defensible checkpoint
+### Why epoch 1 was selected
 
 <img src="docs/images/training_curves.png" alt="Train and validation loss per epoch: training loss falls monotonically from 0.224 to 0.062 while validation loss bottoms at 0.1238 in epoch 1 and rises to 0.1793 in epoch 2, with the selected epoch marked at 1" width="900">
 
@@ -188,24 +189,22 @@ and 5 would have produced.
 
 ## Interpretability
 
-The part most similar projects skip, and the reason this repo has two defects worth reading about.
+This section reports gradient-norm saliency and attention for selected examples.
 
-### Gradient-norm saliency — not Grad-CAM, and not what the notebook computed
+### Gradient-norm saliency: method and input path
 
 <img src="docs/images/saliency_negative.png" alt="Per-token gradient-norm saliency bar charts for three negative reviews; the first peaks on the tokens missing, no and pages, the second on Worst" width="900">
 
 <img src="docs/images/saliency_positive.png" alt="Per-token gradient-norm saliency bar charts for three positive reviews from the test split" width="900">
 
-Two corrections are baked into these figures.
-
-**The method is named correctly.** The notebook called this "Grad-CAM". It computes
-`‖∂logit_target/∂embedding_t‖₂` — gradient-norm saliency. Grad-CAM pools gradients per channel and
+**Method.** The notebook called this "Grad-CAM". It computes
+`‖∂logit_target/∂embedding_t‖₂`: gradient-norm saliency. Grad-CAM pools gradients per channel and
 weights the *activations* of a chosen layer, then applies ReLU. Different method, different
-guarantees. Renaming it and explaining why is a stronger signal than shipping a mislabelled one.
+guarantees.
 ([ADR 0005](docs/adr/0005-gradient-saliency-not-gradcam.md))
 
-**The gradient is taken w.r.t. the *word* embeddings only — the notebook's version was computed on a
-distorted input.** It did:
+**Input path.** The gradient is taken w.r.t. the *word* embeddings only. The notebook's version was
+computed on a distorted input:
 
 ```python
 embeddings = model.roberta.embeddings(input_ids=input_ids)  # the FULL embedding module
@@ -215,8 +214,8 @@ outputs = model(inputs_embeds=embeddings, attention_mask=mask)
 `RobertaEmbeddings.forward` does word lookup **plus** position embeddings, token-type embeddings,
 LayerNorm and dropout. Passing its output back in as `inputs_embeds` runs all of that a *second*
 time. Every attribution the notebook produced was taken on an input distribution the model had never
-seen in training. The fix is one line, and it is exactly testable — in `eval()` mode dropout is off,
-so the word-embedding path must reproduce the `input_ids` logits bit for bit:
+seen in training. In `eval()` mode dropout is off, so the word-embedding path must reproduce the
+`input_ids` logits bit for bit:
 
 ```text
 logits(input_ids)  vs  logits(word_embeddings(input_ids))   →  max |Δ| = 0.0     ← the fix
@@ -224,7 +223,7 @@ logits(input_ids)  vs  logits(FULL embeddings(input_ids))   →  max |Δ| ≠ 0 
 ```
 
 Both assertions live in [`tests/test_attribution.py`](tests/test_attribution.py), the broken one as a
-strict `xfail` that names the bug — plus a third test proving the two paths really do differ, so the
+strict `xfail` that names the bug, plus a third test proving the two paths really do differ, so the
 `xfail` can never quietly go vacuous.
 
 ### Attention
@@ -236,8 +235,8 @@ strict `xfail` that names the bug — plus a third test proving the two paths re
 `<s>` and `</s>` are excluded: RoBERTa's `<s>` is an attention sink, and leaving it in flattens every
 real token to the bottom of the colour scale.
 
-Getting these figures at all required fixing a silent no-op. The notebook passed
-`attn_implementation="eager"` to `RobertaConfig.from_pretrained`, where nothing reads it —
+The notebook passed
+`attn_implementation="eager"` to `RobertaConfig.from_pretrained`, where nothing reads it;
 `transformers` reads the private `config._attn_implementation`. On `transformers` 5.x the default is
 `sdpa`, and **`sdpa` returns an empty attentions tuple with only a warning**, so today that code
 would produce blank figures rather than slightly wrong ones. Verified locally:
@@ -281,11 +280,11 @@ flowchart LR
 
 Both models consume the *same* `Splits` object and write into the *same* run directory in one
 process. That is what makes the leaderboard like-for-like rather than two numbers that happen to
-share a table — and it is what makes McNemar possible at all, because the paired predictions for both
+share a table. It also makes McNemar possible because the paired predictions for both
 models exist for the same 1,000 rows in one `predictions.parquet`.
 
-A second diagram — a sequence diagram of the attribution path, which is exactly where the
-double-embedding bug lived — is in [`docs/architecture.md`](docs/architecture.md). Both are exported
+A second diagram, a sequence diagram of the attribution path where the
+double-embedding bug lived, is in [`docs/architecture.md`](docs/architecture.md). Both are exported
 to [`docs/diagrams/`](docs/diagrams) as SVG by `scripts/export_diagrams.sh`.
 
 ---
@@ -295,7 +294,7 @@ to [`docs/diagrams/`](docs/diagrams) as SVG by `scripts/export_diagrams.sh`.
 ```bash
 33-sentiment-roberta/
 ├── cfg/                      # 5 YAML configs + Pydantic schema; *.json = the ablation grid
-├── data/                     # gitignored except data/sample/ — provenance in data/README.md
+├── data/                     # gitignored except data/sample/; provenance in data/README.md
 ├── datasets/                 # loading, stratified splits, the TF-IDF chain, torch Dataset
 ├── models/                   # TF-IDF control + RoBERTa behind one Protocol, plus the registry
 ├── metrics/                  # classification metrics · Wilson CIs · exact McNemar
@@ -303,7 +302,7 @@ to [`docs/diagrams/`](docs/diagrams) as SVG by `scripts/export_diagrams.sh`.
 ├── utils/                    # seeding, device, run dirs, run metadata, logging, plots, NLTK
 ├── notebooks/                # the ORIGINAL Kaggle notebook + a re-run narrative walkthrough
 ├── scripts/                  # data export | evidence export/check | figure/report drift guards
-├── tests/                    # 175 tests — leakage, metrics, evidence, D1, D3, D8, smoke
+├── tests/                    # 175 tests: leakage, metrics, evidence, D1, D3, D8, smoke
 ├── reports/                  # RESULTS.md + text-free evidence/ + mirrored publication figures/
 ├── docs/                     # PROGRESS · PROVENANCE · architecture · interpretability · adr/
 ├── train.py                  # THE entrypoint: train.py -c cfg/small.yaml
@@ -324,7 +323,7 @@ make smoke          # full pipeline on data/sample/, CPU, ~6 s
 make test           # test suite; exact collected count is stated under Testing
 ```
 
-`make smoke` uses random weights on purpose — it verifies the *plumbing*, and its accuracy is
+`make smoke` uses random weights on purpose: it verifies the *plumbing*, and its accuracy is
 deliberately meaningless and published nowhere ([ADR 0007](docs/adr/0007-offline-smoke-path.md)).
 It does not fetch review data or Hugging Face weights. It does require NLTK `punkt`, `punkt_tab`, and
 `stopwords`; on a cold machine, `ensure_nltk_data()` downloads them by mutable package name.
@@ -353,7 +352,7 @@ schemas to the published `run_2` and ablation `run_3` bundle slots.
 
 ## Configuration
 
-Five configs. **Which ones were actually run is stated here and in each file** — three were, two were
+Five configs. **Which ones were actually run is stated here and in each file:** three were, two were
 not, and no number in this repo comes from the two that were not.
 
 | File | Scale (train / val / test) | Epochs | Ran? | Purpose |
@@ -361,17 +360,17 @@ not, and no number in this repo comes from the two that were not.
 | `cfg/smoke.yaml` | committed sample, random weights, CPU | 1 | ✅ | CI + fresh clone. Publishes nothing. |
 | `cfg/dev.yaml` | 1,800 / 200 / 500, seq 128 | 1 | ✅ | Calibration. Its numbers are labelled `dev` wherever they appear. |
 | `cfg/small.yaml` | 8,100 / 900 / 1,000, seq 256 | 3 | ✅ | **Every headline number above.** |
-| `cfg/default.yaml` | 8,100 / 900 / 1,000, seq 256 | 5 | ❌ | Notebook-scale fixed schedule. Projected 51–55 min from the measured small-run rate. |
+| `cfg/default.yaml` | 8,100 / 900 / 1,000, seq 256 | 5 | ❌ | Notebook-scale fixed schedule. Projected 51 to 55 min from the measured small-run rate. |
 | `cfg/full.yaml` | 180,000 / 20,000 / 20,000 | 5 | ❌ | Scope specification only; no runtime is claimed without a full run or matched benchmark. |
 
 `cfg/small.yaml` is the notebook's data scale and every one of its hyperparameters, with two stated
 departures: 3 epochs instead of 5 (a compute bound, sized from a measured 2.46 s/step), and a 10%
-stratified validation split the notebook lacked (a correctness fix — see the training curves above).
+stratified validation split the notebook lacked (a correctness fix; see the training curves above).
 Reasoning: [ADR 0004](docs/adr/0004-subset-size-and-published-config.md).
 
 Every future run is bounded. `train.py` checks the deadline before every optimizer step, including
 epoch 1. It can exceed the configured cap only by the in-flight step, then records the partial epoch
-and saves the best completed validation checkpoint—or the partial model if none exists yet. It also
+and saves the best completed validation checkpoint or the partial model if none exists yet. It also
 refuses to start above a 1-minute load average of 12 without `--force`.
 
 <details>
@@ -421,14 +420,14 @@ RUNTIME:
   Recompute with `uv run python scripts/audit_methodology.py`.
 - **Per-example predictions are persisted** to `runs/run_N/predictions.parquet`, so McNemar can be
   recomputed without re-training.
-- **A compact primary-evidence bundle is committed** at
+- **A primary-evidence bundle is committed** at
   [`reports/evidence/`](reports/evidence/): source JSON copied verbatim plus labels, prediction
-  vectors, and SHA-256 review identifiers—never review text. `scripts/check_published_numbers.py`
+  vectors, and SHA-256 review identifiers, never review text. `scripts/check_published_numbers.py`
   recomputes the accuracies, confusion/discordance tables, Wilson intervals, and exact McNemar p,
   then checks the published comparison, ablation, training-history, truncation, and parameter
   headline claims numerically at their displayed precision.
 - **The numbers above were produced by commit `dcf8b09`**, on MPS with Low Power Mode OFF.
-- **Timings are honest about their conditions.** Both runs happened with other work on the machine
+- **Timing conditions are recorded.** Both runs happened with other work on the machine
   (1-minute load average 9.5 at the launch of the published run). They are pessimistic upper bounds,
   not clean benchmarks.
 
@@ -443,17 +442,17 @@ make verify         # clone committed HEAD to a temp dir and run the documented 
 **175 tests (one expected `xfail`), 95% coverage** on
 `datasets/ models/ metrics/ interpretability/ utils/`. No test fetches review data or Hugging Face
 weights; preprocessing tests still require the mutable-name NLTK assets and can download them on a
-cold machine. The ones that carry the most weight:
+cold machine. Selected tests:
 
 | File | Asserts |
 |---|---|
-| `test_attribution.py` | **D1** — `logits(input_ids) ≈ logits(word_embeddings(ids))`, plus a strict `xfail` reproducing the double-embedding bug and a guard so it cannot go vacuous |
-| `test_text_preprocess.py` | **D3** — `"not good"` and `"good"` collapse to one vector under the notebook's chain and separate under the fixed one |
-| `test_splits.py` | leakage — disjoint index sets, no shared text, and a vectorizer vocabulary provably free of a marker token present in every test row |
-| `test_loading.py` | the label-flip trap — HF `{0,1}` and Kaggle `{1,2}` must normalise to identical frames |
+| `test_attribution.py` | **D1:** `logits(input_ids) ≈ logits(word_embeddings(ids))`, plus a strict `xfail` reproducing the double-embedding bug and a guard so it cannot go vacuous |
+| `test_text_preprocess.py` | **D3:** `"not good"` and `"good"` collapse to one vector under the notebook's chain and separate under the fixed one |
+| `test_splits.py` | leakage: disjoint index sets, no shared text, and a vectorizer vocabulary provably free of a marker token present in every test row |
+| `test_loading.py` | the label-flip trap: HF `{0,1}` and Kaggle `{1,2}` must normalise to identical frames |
 | `test_metrics.py` | Wilson against `statsmodels` to 1e-9; McNemar against a 2×2 computed by hand in the docstring |
 | `test_evidence.py` | deterministic text-free export; consistent bundle passes; one flipped prediction fails by metric name; scientific-notation precision |
-| `test_attention.py` | **D8** — an `sdpa` model raises rather than silently plotting nothing |
+| `test_attention.py` | **D8:** an `sdpa` model raises rather than silently plotting nothing |
 | `test_utils.py` | parses every `.py` with `ast` to prove no unguarded `plt.show()` survives |
 
 CI runs lint → types → tests → a smoke train on Python 3.12 and 3.13, plus independent documentation
@@ -466,7 +465,7 @@ regenerates figure provenance, and requires `reports/RESULTS.md` to be byte-repr
 
 ## Limitations
 
-1. **8,100 training rows — 0.22% of the 3.6M available.** Laptop-scale by choice. Nothing here
+1. **8,100 training rows: 0.22% of the 3.6M available.** Laptop-scale by choice. Nothing here
    transfers to full-data training, where the literature reports single-digit error rates for both
    model families.
 2. **The 2.2 pp ablation comparison is underpowered.** Its conditional exact paired 95% CI is
@@ -474,16 +473,16 @@ regenerates figure provenance, and requires `reports/RESULTS.md` to be byte-repr
    would be required for 80% power with the same discordance. Marginal Wilson-interval overlap is
    not used to decide a paired difference.
 3. **One seed, one split, one run per config, and run-to-run variance is measurably non-zero.**
-   `cfg/dev.yaml` was executed twice — once by `train.py` and once by the narrative notebook,
+   `cfg/dev.yaml` was executed twice, once by `train.py` and once by the narrative notebook,
    which differ only in *where* `set_seed` sits relative to model construction, and therefore in
    how much RNG state the classifier head's initialisation consumes. They produced **0.9460** and
-   **0.9560** — a 1.0-point spread from RNG-consumption order alone, on identical data with an
+   **0.9560**, a 1.0-point spread from RNG-consumption order alone, on identical data with an
    identical seed. (`0.9460` is in `runs/run_1/metrics.json`; `0.9560` is in the saved output of
    cell 12 of [`notebooks/sentiment_analysis_roberta.ipynb`](notebooks/sentiment_analysis_roberta.ipynb),
    because the notebook does not create a run directory.) Every point estimate in this repo should
    be read with that in mind. Running `cfg/small.yaml` across several seeds and reporting
    mean ± stdev is the top item in [`docs/PROGRESS.md`](docs/PROGRESS.md)'s NEXT ACTION.
-4. **MPS fp32 only** — no mixed precision, no `torch.compile`. Timings are not comparable to CUDA
+4. **MPS fp32 only:** no mixed precision, no `torch.compile`. Timings are not comparable to CUDA
    figures in papers, and both runs shared the machine with other work.
 5. **Gradient-norm saliency is not axiomatically attributive.** It is a first-order local
    sensitivity; where a logit has saturated, gradients are small regardless of importance. Integrated
@@ -491,7 +490,7 @@ regenerates figure provenance, and requires `reports/RESULTS.md` to be byte-repr
 6. **Attention weights are not explanations.** High attention is not causal importance. These figures
    show where the model looks, which is a weaker claim than attribution.
 7. **Amazon reviews circa 2013.** Domain shift to any other review corpus is unmeasured.
-8. **The interpretability figures use hand-picked reviews** — the notebook's
+8. **The interpretability figures use hand-picked reviews:** the notebook's
    `iloc[5, 7, 9, 11, 13, 16]`, kept so the notebook and this README discuss the same examples. They
    illustrate; they do not measure.
 9. **`cfg/default.yaml` and `cfg/full.yaml` have not been run.** A reader wanting a five-epoch or
@@ -499,28 +498,28 @@ regenerates figure provenance, and requires `reports/RESULTS.md` to be byte-repr
 
 ## Data
 
-[Amazon Review Polarity](https://huggingface.co/datasets/fancyzhx/amazon_polarity) — 3.6M train /
+[Amazon Review Polarity](https://huggingface.co/datasets/fancyzhx/amazon_polarity): 3.6M train /
 400K test, Apache-2.0, public and ungated, constructed for
 [Zhang, Zhao & LeCun, *Character-level Convolutional Networks for Text Classification*, NeurIPS 2015](https://papers.nips.cc/paper_files/paper/2015/hash/250cf8b51c773f3f8dc8b4be867a9a02-Abstract.html).
 
 Not committed. Two small stratified samples are (1,400 rows, 615 KB total), so tests and the
-quickstart need no review-data download. Measured class balance of the rows actually read — 50.58% positive
-in the first 200,000 train rows, 51.07% in the first 20,000 test rows — plus the schema, both
-provenance URLs and the shard checksums: [`data/README.md`](data/README.md).
+quickstart need no review-data download. Measured class balance of the rows actually read is 50.58% positive
+in the first 200,000 train rows and 51.07% in the first 20,000 test rows. The schema, both
+provenance URLs, and the shard checksums are in [`data/README.md`](data/README.md).
 
 ## License
 
-**Apache-2.0** — see [LICENSE](LICENSE). This matches the licence of the original Kaggle notebook
+**Apache-2.0:** see [LICENSE](LICENSE). This matches the licence of the original Kaggle notebook
 this repo was built from. Third-party attributions (`roberta-base` weights, MIT; the dataset,
 Apache-2.0 *as asserted by its upstream card*) are in [NOTICE](NOTICE).
 
 **Scope of that claim.** Those licences are recorded as upstream assertions, not as an independently
 verified rights chain. This repository commits 1,400 verbatim third-party review texts, and it does
-**not** establish the rights position for that underlying text — Amazon's terms, reviewer rights, and
-the original McAuley–Leskovec collection terms are all unaddressed here. See
+**not** establish the rights position for that underlying text. Amazon's terms, reviewer rights, and
+the original McAuley-Leskovec collection terms are all unaddressed here. See
 [`docs/PROVENANCE.md`](docs/PROVENANCE.md#scope-of-the-licence-evidence) for the full scoping. Treat
 the committed sample as illustrative of the pipeline, not as licence-cleared redistribution.
 
 ## Author
 
-Armando Gonzalez — ex-software engineer (fintech), M.S. Data Science & AI.
+Armando Gonzalez: ex-software engineer (fintech), M.S. Data Science & AI.
