@@ -1,19 +1,23 @@
-# Default config — the source Kaggle notebook's scale and fixed 5-epoch schedule:
+# Default config: the source Kaggle notebook's scale and its full 5-epoch schedule.
 # 9,000 train / 1,000 test, seq 256, batch 32, lr 2e-5, 5 epochs.
 #
-# ⚠️  NOT RUN. The measured cfg/small.yaml epoch rate projects this schedule at 51–55
-# minutes, beyond the 45-minute cap. No number anywhere in this repo came from this file.
+# RUN. It answers one question: does training the notebook's whole schedule beat stopping
+# early. It does not. Validation loss is lowest at epoch 1 (0.1279) and rises at every epoch
+# after it, reaching 0.2337 at epoch 5; validation accuracy improves to 0.9522 at epoch 4 and
+# then falls to 0.9344, below its own epoch 1. Epoch 1 is selected on validation loss.
+# The per-epoch table is in README.md and reports/RESULTS.md, and the evidence it is
+# recomputed from is reports/evidence/run_5/.
 #
 # It preserves the schedule as executable data with documented implementation departures:
 # VAL_FRACTION adds validation; combined text uses `title + ". " + text`; and the control's
 # vectorizer widens sklearn's token pattern. See README and docs/PROVENANCE.md.
 #
-# To run all five epochs, raise the cap explicitly:
-#   PYTHONHASHSEED=1337 uv run python train.py -c cfg/default.yaml  # after editing the cap
+# Reproduce:
+#   PYTHONHASHSEED=1337 uv run python train.py -c cfg/default.yaml
 NAME: default
 DESCRIPTION: >-
-  Notebook-scale schedule specification (9,000 / 1,000, seq 256, 5 epochs).
-  NOT RUN in this repo — projected at 51-55 min from the measured cfg/small.yaml rate.
+  The notebook's untruncated schedule (9,000 / 1,000, seq 256, 5 epochs). Run once; it is the
+  evidence that epochs beyond the first do not improve the selected checkpoint.
 
 SEED: 1337
 
@@ -41,7 +45,7 @@ MODEL:
   REVISION: null
   MAX_LEN: 256
   BATCH_SIZE: 32
-  EPOCHS: 5                      # the notebook's value, and the reason this config is over cap
+  EPOCHS: 5                      # the notebook's value, kept whole so it could be measured
   LR: 2.0e-5
   WEIGHT_DECAY: 0.01
   NUM_LABELS: 2
@@ -53,7 +57,10 @@ BASELINE:
 
 RUNTIME:
   DEVICE: auto
-  WALL_CLOCK_CAP_MIN: 45.0       # can interrupt epoch 1; any partial epoch is recorded
+  WALL_CLOCK_CAP_MIN: 90.0       # 90, not 45, so all five epochs complete instead of being
+                                 # truncated: the run took 57m 19.1s of wall clock. Still checked
+                                 # before every optimizer step, so a partial epoch would be
+                                 # recorded rather than silently dropped.
   LOG_EVERY_STEPS: 25
   NUM_WORKERS: 0
 
