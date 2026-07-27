@@ -11,18 +11,18 @@
 - **Commit** — `dcf8b09438190b352e116676a5f8a42be5e745d0`
 - **Reproduce** — run `uv run python train.py -c cfg/small.yaml` and the documented ablation command, record the two emitted run directories, then pass them as `PUBLISHED_RUN=... ABLATION_RUN=...` to `make evidence` and `make report`
 
-The transformer ran 3 of 3 configured epochs in 32m 08s; epoch 1 was selected on min validation loss, and the test set was scored exactly once on that checkpoint.
+The transformer ran 3 of 3 configured epochs in 32m 07.9s; epoch 1 was selected on min validation loss, and the test set was scored exactly once on that checkpoint.
 
 ## Model comparison
 
 | Model | Accuracy (Wilson 95% CI) | Precision (macro) | Recall (macro) | F1 (macro) | Train time | Config |
 |---|---|---|---|---|---|---|
-| RoBERTa (fine-tuned) | **0.9600** [0.9460, 0.9705] | 0.9605 | 0.9597 | 0.9600 | 32m 08s (MPS, Low Power Mode OFF) | `cfg/small.yaml` |
-| TF-IDF + Logistic Regression (control) | **0.8480** [0.8244, 0.8689] | 0.8481 | 0.8478 | 0.8479 | 4s (CPU, Low Power Mode OFF) | `cfg/small.yaml` |
+| RoBERTa (fine-tuned) | **0.9600** [0.9460, 0.9705] | 0.9605 | 0.9597 | 0.9600 | 32m 07.9s (MPS, Low Power Mode OFF) | `cfg/small.yaml` |
+| TF-IDF + Logistic Regression (control) | **0.8480** [0.8244, 0.8689] | 0.8481 | 0.8478 | 0.8479 | 4.0s (CPU, Low Power Mode OFF) | `cfg/small.yaml` |
 
-<sub>seed 1337 · n_train 8,100 / n_test 1,000 · exact McNemar **p = 1.984e-21** on 152 discordant pairs · `uv run python train.py -c cfg/small.yaml` · commit `dcf8b09438190b352e116676a5f8a42be5e745d0`</sub>
+<sub>seed 1337 · n_train 8,100 / n_test 1,000 · exact McNemar **p = 1.98e-21** on 152 discordant pairs · `uv run python train.py -c cfg/small.yaml` · commit `dcf8b09438190b352e116676a5f8a42be5e745d0`</sub>
 
-**RoBERTa (fine-tuned) leads TF-IDF + LogReg by 11.2 percentage points (0.9600 vs 0.8480) on 1000 test examples. They disagree on 152 of them; exact McNemar gives p = 1.984e-21, so at alpha = 0.05 the gap is distinguishable from zero.**
+**RoBERTa (fine-tuned) leads TF-IDF + LogReg by 11.2 percentage points (0.9600 vs 0.8480) on 1000 test examples. They disagree on 152 of them; exact McNemar gives p = 1.98e-21, so at alpha = 0.05 the gap is distinguishable from zero.**
 
 The 2×2 discordance table both models were compared on: they agree and are both right on 828 examples and both wrong on 20; RoBERTa alone is right on 132 and the control alone is right on 20. Only those last two counts carry any information about which model is better, which is why the effective sample size for the comparison is 152 and not 1,000.
 
@@ -30,7 +30,7 @@ The 2×2 discordance table both models were compared on: they agree and are both
 
 The `0.8480` TF-IDF row is the **original notebook's control recipe**: destructive preprocessing, unigram TF-IDF, logistic-regression `C=1`, and no validation tuning. It is a legitimate control reproduction, not a tuned TF-IDF baseline given its best shot. The measured implementation uses `title + ". " + text` and a widened vectorizer token pattern; the methodology audit documents both departures and measures the token-pattern sensitivity. Against this control, RoBERTa leads by 11.2 percentage points.
 
-Against the repo's test-selected best TF-IDF cell, *negation preserved, uni+bigram* (0.8700), RoBERTa's 0.9600 lead is 9.0 pp. RoBERTa alone is correct on 110 discordant examples and the best cell alone on 20; exact McNemar **p = 2.9914e-16**. Because `evaluate.py` selects this cell with `max(..., key=accuracy)` on test accuracy, the comparison is post hoc rather than confirmatory.
+Against the repo's test-selected best TF-IDF cell, *negation preserved, uni+bigram* (0.8700), RoBERTa's 0.9600 lead is 9.0 pp. RoBERTa alone is correct on 110 discordant examples and the best cell alone on 20; exact McNemar **p = 2.99e-16**. Because `evaluate.py` selects this cell with `max(..., key=accuracy)` on test accuracy, the comparison is post hoc rather than confirmatory.
 
 ## Baseline preprocessing ablation
 
@@ -40,14 +40,14 @@ This grid measures what that costs. All four cells were run on the same splits, 
 
 | Preprocessing | n-grams | Accuracy (Wilson 95% CI) | F1 (macro) | Vocabulary | Fit time | Config |
 |---|---|---|---|---|---|---|
-| notebook chain (alnum filter + stopwords removed + Porter stem) | (1, 1) | **0.8480** [0.8244, 0.8689] | 0.8479 | 20,938 | 4s (CPU) | `cfg/small.yaml` |
-| notebook chain (alnum filter + stopwords removed + Porter stem) | (1, 2) | **0.8380** [0.8139, 0.8595] | 0.8378 | 247,041 | 4s (CPU) | `cfg/small.yaml` |
-| negation preserved (no filter, no stopword removal, no stemming) | (1, 1) | **0.8510** [0.8276, 0.8717] | 0.8510 | 30,449 | 2s (CPU) | `cfg/small.yaml` |
-| negation preserved (no filter, no stopword removal, no stemming) | (1, 2) | **0.8700** [0.8477, 0.8894] | 0.8700 | 275,634 | 3s (CPU) | `cfg/small.yaml` |
+| notebook chain (alnum filter + stopwords removed + Porter stem) | (1, 1) | **0.8480** [0.8244, 0.8689] | 0.8479 | 20,938 | 3.8s (CPU) | `cfg/small.yaml` |
+| notebook chain (alnum filter + stopwords removed + Porter stem) | (1, 2) | **0.8380** [0.8139, 0.8595] | 0.8378 | 247,041 | 4.0s (CPU) | `cfg/small.yaml` |
+| negation preserved (no filter, no stopword removal, no stemming) | (1, 1) | **0.8510** [0.8276, 0.8717] | 0.8510 | 30,449 | 1.8s (CPU) | `cfg/small.yaml` |
+| negation preserved (no filter, no stopword removal, no stemming) | (1, 2) | **0.8700** [0.8477, 0.8894] | 0.8700 | 275,634 | 2.8s (CPU) | `cfg/small.yaml` |
 
 Spread across the grid: **3.2 percentage points**, from 0.8380 (*notebook chain, uni+bigram*) to 0.8700 (*negation preserved, uni+bigram*). This endpoint description is descriptive; the paired test and paired interval below address the difference.
 
-**Paired test, best cell vs the notebook's chain.** *negation preserved, uni+bigram* (0.8700) against *notebook chain, unigram* (0.8480) is a gap of 2.2 percentage points. The two cells disagree on 140 of the 1000 test examples; exact McNemar gives **p = 0.075551**. The conditional exact 95% CI for the paired accuracy difference is [-0.22, 4.52] pp. Conditional on the observed discordance, the exact test has 40.0% power at this effect; approximately 3.5 pp would be required for 80% power. This is an underpowered result, not evidence of no effect. The best cell was selected by maximum test accuracy, so this comparison is post hoc.
+**Paired test, best cell vs the notebook's chain.** *negation preserved, uni+bigram* (0.8700) against *notebook chain, unigram* (0.8480) is a gap of 2.2 percentage points. The two cells disagree on 140 of the 1000 test examples; exact McNemar gives **p = 0.0756**. The conditional exact 95% CI for the paired accuracy difference is [-0.22, 4.52] pp. Conditional on the observed discordance, the exact test has 40.0% power at this effect; approximately 3.5 pp would be required for 80% power. This is an underpowered result, not evidence of no effect. The best cell was selected by maximum test accuracy, so this comparison is post hoc.
 
 Negation markers among each cell's 20 most negative coefficients — the direct check that the preprocessing chain is or is not destroying them:
 
@@ -60,9 +60,9 @@ Negation markers among each cell's 20 most negative coefficients — the direct 
 
 | Epoch | Train loss | Validation loss | Validation accuracy | Wall clock |
 |---|---|---|---|---|
-| 1 | 0.2240 | 0.1238 | 0.9456 | 10m 26s |
-| 2 | 0.1001 | 0.1793 | 0.9389 | 11m 09s |
-| 3 | 0.0620 | 0.1563 | 0.9456 | 10m 33s |
+| 1 | 0.2240 | 0.1238 | 0.9456 | 10m 25.5s |
+| 2 | 0.1001 | 0.1793 | 0.9389 | 11m 09.0s |
+| 3 | 0.0620 | 0.1563 | 0.9456 | 10m 32.6s |
 
 The published train and validation losses were computed as an unweighted mean of batch means. With final batches smaller than the others, those three loss values are not per-example means. The bug is fixed for future runs; re-deriving the published losses would require retraining, so the recorded values remain unchanged. Validation accuracy was correctly computed as `correct / seen` and is unaffected: epoch 1 was tied best at 0.9456, epoch 2 fell to 0.9389, and epoch 3 returned to 0.9456. The published 0.9600 is epoch 1's test accuracy and is also untouched.
 

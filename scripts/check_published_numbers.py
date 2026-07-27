@@ -432,16 +432,21 @@ def _check_comparison_table(
             )
         time_cell = cells[5]
         if model_name == "roberta":
-            duration = re.search(r"(?P<minutes>\d+)m\s*(?P<seconds>\d+)s", time_cell)
+            duration = re.search(
+                r"(?P<minutes>\d+)m\s*(?P<seconds>\d+(?:\.\d+)?)s",
+                time_cell,
+            )
             if not duration:
                 raise EvidenceMismatch(f"{source}: cannot parse roberta train time")
-            published_seconds = 60 * int(duration.group("minutes")) + int(duration.group("seconds"))
+            seconds_token = duration.group("seconds")
+            published_seconds = 60 * int(duration.group("minutes")) + float(seconds_token)
             expected_seconds = float(metrics["models"]["roberta"]["training"]["train_seconds"])
         else:
-            duration = re.search(r"(?P<seconds>\d+)s", time_cell)
+            duration = re.search(r"(?P<seconds>\d+(?:\.\d+)?)s", time_cell)
             if not duration:
                 raise EvidenceMismatch(f"{source}: cannot parse tfidf_logreg train time")
-            published_seconds = int(duration.group("seconds"))
+            seconds_token = duration.group("seconds")
+            published_seconds = float(seconds_token)
             expected_seconds = float(metrics["models"]["tfidf_logreg"]["train_seconds"])
         _check_rounded_value(
             checked,
@@ -449,7 +454,7 @@ def _check_comparison_table(
             f"{model_name}.train_seconds",
             str(published_seconds),
             expected_seconds,
-            0.5,
+            _printed_tolerance(seconds_token),
         )
 
 
@@ -543,13 +548,12 @@ def _check_ablation_table(
             fit_seconds = re.search(NUMBER, row[5])
             if not fit_seconds:
                 raise EvidenceMismatch(f"{source}: cannot parse ablation[{index}].train_seconds")
-            _check_rounded_value(
+            _check_printed(
                 checked,
                 source,
                 f"ablation[{index}].train_seconds",
                 fit_seconds.group(),
                 float(stored["train_seconds"]),
-                0.5,
             )
 
 
@@ -815,13 +819,14 @@ def _check_training_claims(
                 token_match.group(),
                 epoch[field],
             )
-        duration_match = re.fullmatch(r"(?P<minutes>\d+)m\s+(?P<seconds>\d+)s", row[4])
+        duration_match = re.fullmatch(
+            r"(?P<minutes>\d+)m\s+(?P<seconds>\d+(?:\.\d+)?)s", row[4]
+        )
         if not duration_match:
             raise EvidenceMismatch(f"{source}: cannot parse history[{index}].epoch_seconds")
-        printed_seconds = 60 * int(duration_match.group("minutes")) + int(
-            duration_match.group("seconds")
-        )
-        tolerance = 0.5
+        seconds_token = duration_match.group("seconds")
+        printed_seconds = 60 * int(duration_match.group("minutes")) + float(seconds_token)
+        tolerance = _printed_tolerance(seconds_token)
         if not math.isclose(
             printed_seconds, float(epoch["epoch_seconds"]), rel_tol=0.0, abs_tol=tolerance
         ):
@@ -984,20 +989,22 @@ def _check_recorded_claims(
 
     for index, match in enumerate(
         re.finditer(
-            r"transformer ran .*? in (?P<minutes>\d+)m\s+(?P<seconds>\d+)s",
+            r"transformer ran .*? in (?P<minutes>\d+)m\s+"
+            r"(?P<seconds>\d+(?:\.\d+)?)s",
             text,
             flags=re.IGNORECASE,
         ),
         start=1,
     ):
-        published_seconds = 60 * int(match.group("minutes")) + int(match.group("seconds"))
+        seconds_token = match.group("seconds")
+        published_seconds = 60 * int(match.group("minutes")) + float(seconds_token)
         _check_rounded_value(
             checked,
             source,
             f"roberta.total_train_seconds[{index}]",
             str(published_seconds),
             float(roberta["training"]["train_seconds"]),
-            0.5,
+            _printed_tolerance(seconds_token),
         )
 
 

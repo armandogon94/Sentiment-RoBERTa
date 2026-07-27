@@ -26,7 +26,7 @@ published headline measurements.
 **RED evidence (`IMPLEMENTED`):**
 
 - `uv run pytest -q tests/test_models.py::test_validation_loss_is_weighted_by_examples_not_batches`
-  returned `5.0` where the per-example mean is `3.6666666666666665`;
+  returned `5.0` where the per-example mean is `3.6667`;
 - `uv run pytest -q tests/test_models.py::test_training_loss_is_weighted_by_examples_not_batches`
   returned the same wrong `5.0`;
 - the focused cap test completed one full epoch under a near-zero cap;
@@ -40,7 +40,7 @@ also requires a self-contained HTML presentation opened in Chrome.
 
 **Verification (`IMPLEMENTED`, 2026-07-25):**
 
-- `uv run pytest` — `174 passed, 1 xfailed in 17.60s` (`175` collected);
+- `uv run pytest`: `174 passed, 1 xfailed in 17.6s` (`175` collected);
 - coverage run — `174 passed, 1 xfailed`; `919` statements, `47` missed, `95%` total;
 - published-number guard — `PASS: 353 published/evidence values recomputed from prediction vectors`;
 - committed-data guard — exit `0`, no stdout;
@@ -56,8 +56,8 @@ model-comparison evidence comes from `runs/run_2`/`runs/run_3`. The two delibera
 seed-order values come from `runs/run_1` and saved notebook cell 12, as documented in §5.3.**
 
 **Headline:** fine-tuned `roberta-base` **0.9600** [0.9460, 0.9705] vs the original-notebook
-TF-IDF control **0.8480** [0.8244, 0.8689], exact McNemar **p = 1.984e-21**; vs the post-hoc
-test-selected best TF-IDF cell **0.8700**, exact McNemar **p = 2.9914e-16**. `cfg/small.yaml`.
+TF-IDF control **0.8480** [0.8244, 0.8689], exact McNemar **p = 1.98e-21**; vs the post-hoc
+test-selected best TF-IDF cell **0.8700**, exact McNemar **p = 2.99e-16**. `cfg/small.yaml`.
 
 ---
 
@@ -166,8 +166,8 @@ stated in NEXT ACTION.
    and produced a fake null result. The published control therefore differs from the notebook's
    bare vectorizer in this one respect. Measured on the published split, the default pattern gives
    20,907 features / `0.8490`, versus 20,938 / `0.8480`; seven predictions differ. Against
-   RoBERTa, their discordances are 129 vs 18 (`p = 7.045683399024081e-22`) and 132 vs 20
-   (`p = 1.983984578134213e-21`), respectively.
+   RoBERTa, their discordances are 129 vs 18 (`p = 7.05e-22`) and 132 vs 20
+   (`p = 1.98e-21`), respectively.
 8. **`train.py` refuses to start above a 1-minute load average of 12** unless `--force`. Other agent
    sessions were running on this machine tonight; both real runs were launched with `--force` and the
    observed load is recorded in each `run_meta.json` under `hardware.loadavg_1m`.
@@ -285,8 +285,8 @@ make figures PUBLISHED_RUN="$PUBLISHED_RUN" ABLATION_RUN="$ABLATION_RUN"
       `scripts/check_no_blocking_show.py` — stdlib `ast`, one implementation shared by the test
       suite, CI and the verifier.
    The old verifier also caught a genuine orphan: the README quoted the ablation p-value as `0.076`
-   where the generator prints `0.07555`. A rounding, not a fabrication, and a two-character diff —
-   which is the argument for automating the check rather than trusting care.
+   where the generator prints `0.0756`. This display rounding is why the check validates published
+   precision numerically rather than relying on exact strings.
 0b. **`ruff format` silently reformatted the ORIGINAL notebook, and the first guard missed it.**
    Worth reading before touching anything in `notebooks/`. ruff formats `.ipynb` by default, so
    before `extend-exclude = ["notebooks"]` landed it reflowed the published Kaggle export from
@@ -322,7 +322,7 @@ make figures PUBLISHED_RUN="$PUBLISHED_RUN" ABLATION_RUN="$ABLATION_RUN"
    | Execution | RoBERTa accuracy | Wilson 95% | McNemar p vs control |
    |---|---|---|---|
    | `train.py -c cfg/dev.yaml` (`runs/run_1`) | **0.9460** | [0.9226, 0.9626] | 8.40e-09 |
-   | `notebooks/sentiment_analysis_roberta.ipynb` | **0.9560** | [0.9343, 0.9708] | 1.812e-10 |
+   | `notebooks/sentiment_analysis_roberta.ipynb` | **0.9560** | [0.9343, 0.9708] | 1.81e-10 |
 
    A **1.0 percentage-point spread from RNG-consumption order alone**, on identical data with an
    identical seed. This is not a bug — both are correct runs of the same config — but it means every

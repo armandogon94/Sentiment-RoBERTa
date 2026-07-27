@@ -2,8 +2,8 @@
 
 ## Where this came from
 
-This repository began as a **coursework notebook for an M.S. Data Science & AI course at Florida
-International University**, written by the author, and subsequently published to Kaggle.
+This repository began as a **coursework notebook for an M.S. Data Science and AI course**, written
+by the author, and subsequently published to Kaggle.
 
 | Field | Value |
 |---|---|
@@ -96,8 +96,8 @@ single-character tokens. On the published split, `uv run python scripts/audit_me
 measures sklearn's default pattern at 20,907 features and `0.8490` accuracy versus 20,938 and
 `0.8480` for the widened pattern; seven predictions differ. Against the saved RoBERTa predictions,
 the default pattern has discordance 129 vs 18 and exact McNemar probability
-`7.045683399024081e-22`; the widened published pattern has 132 vs 20 and
-`1.983984578134213e-21`. The published implementation is kept unchanged and the deviation is
+`7.05e-22`; the widened published pattern has 132 vs 20 and
+`1.98e-21`. The published implementation is kept unchanged and the deviation is
 explicit.
 
 Every reported accuracy therefore carries its actual Wilson interval. Model differences are paired

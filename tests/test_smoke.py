@@ -270,6 +270,37 @@ def test_full_figure_export_fails_before_writing_when_checkpoint_is_missing(
     assert not out.exists()
 
 
+@pytest.mark.parametrize(
+    ("p_value", "expected"),
+    [
+        (1.983984578134213e-21, "1.98e-21"),
+        (2.9914264919694234e-16, "2.99e-16"),
+        (0.075551, "0.0756"),
+    ],
+)
+def test_report_p_value_formatter_uses_three_significant_figures(
+    p_value: float, expected: str
+):
+    import evaluate
+
+    assert evaluate.fmt_p_value(p_value) == expected
+
+
+@pytest.mark.parametrize(
+    ("seconds", "expected"),
+    [
+        (4.0357242499885615, "4.0s"),
+        (625.5485116670025, "10m 25.5s"),
+        (669.0322916659934, "11m 09.0s"),
+        (1927.9028442089912, "32m 07.9s"),
+    ],
+)
+def test_report_duration_formatter_uses_one_decimal(seconds: float, expected: str):
+    import evaluate
+
+    assert evaluate.fmt_seconds(seconds) == expected
+
+
 def test_report_can_be_generated_from_the_run(smoke_run, tmp_path):
     import evaluate
 

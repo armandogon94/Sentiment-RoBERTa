@@ -17,6 +17,7 @@ Usage
 from __future__ import annotations
 
 import argparse
+import re
 import sys
 from pathlib import Path
 from typing import Any
@@ -33,11 +34,26 @@ PRETTY = {
 }
 
 
+def fmt_p_value(p_value: float) -> str:
+    return f"{p_value:.3g}"
+
+
 def fmt_seconds(seconds: float) -> str:
-    total = round(seconds)
-    if total < 60:
-        return f"{total}s"
-    return f"{total // 60}m {total % 60:02d}s"
+    total = round(seconds, 1)
+    minutes = int(total // 60)
+    remainder = total - 60 * minutes
+    if minutes == 0:
+        return f"{remainder:.1f}s"
+    return f"{minutes}m {remainder:04.1f}s"
+
+
+def fmt_significance_sentence(sentence: str, p_value: float) -> str:
+    return re.sub(
+        r"\bp = [-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?",
+        f"p = {fmt_p_value(p_value)}",
+        sentence,
+        count=1,
+    )
 
 
 def fmt_accuracy(block: dict[str, Any]) -> str:
@@ -148,7 +164,7 @@ def ablation_significance(source: dict[str, Any], run_dir: Path) -> str:
         f"({best_cell['accuracy']:.4f}) against *{baseline_cell['ablation_label']}* "
         f"({baseline_cell['accuracy']:.4f}) is a gap of {gap:.1f} percentage points. The two cells "
         f"disagree on {mc.n_discordant} of the {n_total} test examples; exact McNemar gives "
-        f"**p = {mc.p_value:.5g}**. The conditional exact 95% CI for the paired accuracy "
+        f"**p = {fmt_p_value(mc.p_value)}**. The conditional exact 95% CI for the paired accuracy "
         f"difference is [{paired_ci.low_pp:.2f}, {paired_ci.high_pp:.2f}] pp. Conditional on "
         f"the observed discordance, the exact test has {100 * power.power:.1f}% power at this "
         f"effect; approximately {power.gap_for_80_percent_power_pp:.1f} pp would be required "
@@ -195,7 +211,8 @@ def post_hoc_best_comparison(
         f"Against the repo's test-selected best TF-IDF cell, *{best['ablation_label']}* "
         f"({best['accuracy']:.4f}), RoBERTa's {roberta_accuracy:.4f} lead is {gap:.1f} pp. "
         f"RoBERTa alone is correct on {mc.b_only_a_correct} discordant examples and the best "
-        f"cell alone on {mc.c_only_b_correct}; exact McNemar **p = {mc.p_value:.5g}**. "
+        f"cell alone on {mc.c_only_b_correct}; exact McNemar "
+        f"**p = {fmt_p_value(mc.p_value)}**. "
         "Because `evaluate.py` selects this cell with `max(..., key=accuracy)` on test "
         "accuracy, the comparison is post hoc rather than confirmatory."
     )
@@ -278,11 +295,14 @@ def build_report(
         mc = sig["mcnemar"]
         parts.append(
             f"<sub>seed {metrics['seed']} · n_train {splits['n_train']:,} / n_test "
-            f"{splits['n_test']:,} · exact McNemar **p = {mc['p_value']:.4g}** on "
+            f"{splits['n_test']:,} · exact McNemar "
+            f"**p = {fmt_p_value(mc['p_value'])}** on "
             f"{mc['n_discordant']} discordant pairs · `uv run python train.py -c "
             f"{metrics['config_path']}` · commit `{metrics['git_sha']}`</sub>\n"
         )
-        parts.append(f"**{sig['sentence']}**\n")
+        parts.append(
+            f"**{fmt_significance_sentence(sig['sentence'], mc['p_value'])}**\n"
+        )
         parts.append(
             f"The 2×2 discordance table both models were compared on: they agree and are both "
             f"right on {mc['a_both_correct']} examples and both wrong on {mc['d_both_wrong']}; "
