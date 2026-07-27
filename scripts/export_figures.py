@@ -157,34 +157,69 @@ def figure_training_curves(metrics: dict[str, Any], out_dirs: list[Path]) -> lis
     train = [h["train_loss"] for h in history]
     val = [h["val_loss"] for h in history]
     val_acc = [h["val_accuracy"] for h in history]
+    epoch_ticks = [int(epoch) for epoch in epochs]
 
-    fig, (ax, ax2) = plt.subplots(1, 2, figsize=(9.0, 3.6))
-    ax.plot(epochs, train, marker="o", label="train loss", color=plots.OKABE_ITO[0])
-    ax.plot(epochs, val, marker="s", label="validation loss", color=plots.OKABE_ITO[1])
-    selected = block["training"]["selected_epoch"]
-    ax.axvline(selected, ls="--", lw=1.1, color="#666666")
-    ax.annotate(
-        f"selected epoch {selected}",
-        xy=(selected, max(max(train), max(val))),
-        xytext=(4, -8),
-        textcoords="offset points",
-        fontsize=8,
-        color="#444444",
+    fig, (ax, ax2) = plt.subplots(
+        2,
+        1,
+        figsize=(9.0, 5.8),
+        sharex=True,
+        gridspec_kw={"height_ratios": [2.35, 1.0]},
     )
-    ax.set_xlabel("epoch")
-    ax.set_ylabel("cross-entropy loss")
-    ax.set_title("loss per epoch")
-    ax.set_xticks(epochs)
-    ax.legend()
+    ax.plot(
+        epochs,
+        train,
+        marker="o",
+        markersize=5.5,
+        linestyle="-",
+        linewidth=1.8,
+        label="training loss",
+        color=plots.OKABE_ITO[0],
+    )
+    ax.plot(
+        epochs,
+        val,
+        marker="s",
+        markersize=5.5,
+        linestyle="--",
+        linewidth=1.8,
+        label="validation loss",
+        color=plots.OKABE_ITO[1],
+    )
+    selected = block["training"]["selected_epoch"]
+    ax.axvline(selected, linestyle="-.", linewidth=1.2, color="#555555")
+    ax2.axvline(selected, linestyle="-.", linewidth=1.2, color="#555555")
+    criterion = block["training"]["selection_criterion"]
+    criterion_label = "lowest validation loss" if criterion == "min validation loss" else criterion
+    ax.text(
+        selected + 0.06,
+        0.08,
+        f"selected: {criterion_label}",
+        transform=ax.get_xaxis_transform(),
+        fontsize=8,
+        color="#333333",
+        ha="left",
+        va="center",
+        bbox={"facecolor": "white", "edgecolor": "none", "alpha": 0.88, "pad": 1.5},
+    )
+    ax.set_ylabel("loss (cross entropy)")
+    ax.legend(loc="upper right")
 
-    ax2.plot(epochs, val_acc, marker="o", color=plots.OKABE_ITO[2])
-    ax2.set_xlabel("epoch")
+    ax2.plot(
+        epochs,
+        val_acc,
+        marker="^",
+        markersize=5.0,
+        linestyle=":",
+        linewidth=1.5,
+        color=plots.OKABE_ITO[2],
+    )
+    ax2.set_xlabel("training epoch")
     ax2.set_ylabel("validation accuracy")
-    ax2.set_title("validation accuracy per epoch")
-    ax2.set_xticks(epochs)
+    ax2.set_xticks(epoch_ticks)
 
     run = block["training"]
-    fig.suptitle("RoBERTa fine-tuning — train vs validation", fontsize=12, fontweight="bold")
+    fig.suptitle("Validation loss rose after epoch 1", fontsize=13, fontweight="bold")
     plots.caption(
         ax,
         f"cfg/{metrics['config_name']}.yaml · {block['n_train']} train / {block['n_val']} val · "
@@ -203,8 +238,9 @@ def figure_training_curves(metrics: dict[str, Any], out_dirs: list[Path]) -> lis
             "selected_epoch": selected,
         },
     )
-    fig.tight_layout()
-    return plots.save_figure(fig, "training_curves", out_dirs)
+    fig.tight_layout(rect=(0, 0.03, 1, 0.96), h_pad=1.0)
+    with plt.rc_context({"savefig.dpi": 160}):
+        return plots.save_figure(fig, "training_curves", out_dirs)
 
 
 def figure_baseline_ablation(

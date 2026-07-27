@@ -171,7 +171,8 @@ not close the gap**.
 <img src="docs/images/training_curves.png" alt="Train and validation loss per epoch: training loss falls monotonically from 0.224 to 0.062 while validation loss bottoms at 0.1238 in epoch 1 and rises to 0.1793 in epoch 2, with the selected epoch marked at 1" width="900">
 
 <sub>Training loss kept falling through epoch 3 while validation loss turned upward immediately
-after epoch 1. The vertical rule marks epoch 1, selected for its lowest validation loss.</sub>
+after epoch 1. The vertical rule marks epoch 1 as the checkpoint selected for its lowest
+validation loss.</sub>
 
 | Epoch | Train loss | Validation loss | Validation accuracy | Wall clock |
 |---|---|---|---|---|
