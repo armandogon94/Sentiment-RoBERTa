@@ -1,4 +1,4 @@
-# 33-sentiment-roberta: one command per pipeline stage.
+# Sentiment-RoBERTa: one command per pipeline stage.
 # Every target below is exercised by scripts/verify_fresh_clone.sh or by CI.
 
 .DEFAULT_GOAL := help

@@ -47,6 +47,8 @@ dev = [
 ]
 
 [project.urls]
+"Homepage" = "https://github.com/armandogon94/Sentiment-RoBERTa"
+"Repository" = "https://github.com/armandogon94/Sentiment-RoBERTa"
 "Kaggle original" = "https://www.kaggle.com/code/armandogon94/sentiment-analysis-using-roberta"
 "Dataset" = "https://huggingface.co/datasets/fancyzhx/amazon_polarity"
 

@@ -85,7 +85,7 @@ strict `xfail`).
 
 ## Why there is no service diagram
 
-This is a Template A research repo. It has a config-driven entrypoint, a run directory, and a
+This is a research repo. It has a config-driven entrypoint, a run directory, and a
 report: no frontend, no API, no database, no tracking server. Ports `3330` / `8330` / `5433` /
 `9330` are reserved in [`ports.example.md`](ports.example.md) so nothing in this repo can ever
 collide with another project on the same machine; **none of them is bound.** Reserving a port and
