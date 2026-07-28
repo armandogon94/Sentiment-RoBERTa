@@ -1,8 +1,9 @@
 # Interpretability methods
 
-This document does two things: it fixes the *naming*, which is where the original notebook was
-wrong, and it records the two defects that made the original figures untrustworthy, both of which are
-now covered by tests rather than by care.
+This document does three things: it fixes the *naming*, which is where the original notebook was
+wrong; it records the two defects that made the original figures untrustworthy, both of which are
+now covered by tests rather than by care; and it states what the three representation-level readouts
+in `interpretability/representations.py` do and do not measure.
 
 ## Method naming: the correction
 
@@ -31,7 +32,10 @@ and states the distinction rather than shipping a mislabelled method. See
 | **Attention heatmap** (last layer, head-mean, inner tokens only) | Which token positions attend to which | Attention weight is not causal importance. A high weight does not mean the prediction depended on that token. |
 | **Per-token attention** (a chosen source token → all targets) | The attention row for one token of interest | Same caveat, plus head-averaging can cancel opposing heads. |
 | **Gradient-norm saliency** | Local sensitivity magnitude per token | Unsigned: shows *how much*, never *which direction*. First-order only; saturated logits give small gradients regardless of importance. |
-| **Gradient × input** (`grad_x_input`) | Signed contribution per token | Still first-order, but recovers direction. Implemented and tested; not currently one of the eight committed figures. |
+| **Gradient × input** (`grad_x_input`) | Signed contribution per token | Still first-order, but recovers direction. Implemented and tested; not currently one of the eleven committed figures. |
+| **Final-layer [CLS] geometry** (t-SNE to 3 components, errors marked) | Where the errors sit relative to the two class clouds | t-SNE distances and cluster sizes are not metrically meaningful. The supporting statistics, the predicted-probability margin and the opposite-label neighbour fraction, are measured in the original 768-dimensional space, before the projection. |
+| **Layer-wise linear probe** (logistic regression on each hidden state's [CLS] vector) | At what depth the label becomes linearly decodable | Decodability is not use. The probe is a second model fitted on these activations; a feature it can read is not thereby a feature the classification head reads. It is fitted on the train split and scored on the test split, never the same rows. |
+| **Attention entropy atlas** (mean Shannon entropy of all 12x12 heads) | How focused or diffuse each head's attention is | Same caveat as the heatmap: entropy describes spread, not importance, and says nothing about *what* a head attends to. `<s>`, `</s>` and padding are excluded and rows renormalised, so this is non-sink attention rather than a head's complete distribution. |
 
 **Integrated Gradients** is the principled upgrade, since it satisfies completeness and sensitivity axioms
 that plain gradients do not, and is listed in the README's Limitations as future work rather than
@@ -116,6 +120,13 @@ same six examples.
 | `attention_from_token.png` | the attention row of one chosen source token |
 | `saliency_positive.png` | gradient-norm saliency, 3 positive reviews, post-D1-fix |
 | `saliency_negative.png` | gradient-norm saliency, 3 negative reviews, post-D1-fix |
+| `embedding_space_3d.png` | final-layer [CLS] under a 3-component t-SNE, misclassified rows marked |
+| `layer_probe_accuracy.png` | linear-probe test accuracy against hidden-state index, all 13 states |
+| `attention_entropy_atlas.png` | mean attention entropy of all 12x12 heads over the test split |
+
+The last three read the whole test split rather than the notebook's six hand-picked reviews, so they
+measure rather than illustrate. They are forward passes on the published checkpoint; nothing in
+`interpretability/representations.py` trains the transformer.
 
 `<s>` and `</s>` are dropped from the heatmap. RoBERTa's `<s>` acts as an attention sink and routinely
 absorbs a large share of the mass; leaving it in compresses every real token into the bottom of the
@@ -135,3 +146,9 @@ over-sell:
    is named in the README's Limitations as future work rather than claimed as done.
 3. **These figures come from one run, one seed, one split.** Nothing here is averaged over restarts,
    so the stability of any individual token's ranking is unmeasured.
+4. **A linear probe measures decodability, not use.** That a logistic regression can recover the
+   label from a hidden state says the information is present and linearly available there. It does
+   not say the network's own classification head uses it, and it does not locate a mechanism.
+5. **t-SNE is for looking at, not for measuring.** The method preserves neighbourhoods rather than
+   distances, and a cluster's diameter is a function of the perplexity. Every quantitative claim
+   made alongside the 3D scatter is computed in the original representation space.

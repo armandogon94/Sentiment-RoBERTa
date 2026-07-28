@@ -1,8 +1,8 @@
 # Sentiment Polarity on Amazon Reviews: RoBERTa Fine-Tuning vs. a TF-IDF Control
 
 [![CI](https://github.com/armandogon94/Sentiment-RoBERTa/actions/workflows/ci.yml/badge.svg)](https://github.com/armandogon94/Sentiment-RoBERTa/actions/workflows/ci.yml)
-[![Coverage](https://img.shields.io/badge/coverage-95%25-brightgreen)](#testing)
-[![Tests](https://img.shields.io/badge/tests-196-brightgreen)](#testing)
+[![Coverage](https://img.shields.io/badge/coverage-96%25-brightgreen)](#testing)
+[![Tests](https://img.shields.io/badge/tests-225-brightgreen)](#testing)
 [![Python](https://img.shields.io/badge/python-3.12-blue)](pyproject.toml)
 [![License: Apache 2.0](https://img.shields.io/badge/license-Apache--2.0-green)](LICENSE)
 
@@ -68,7 +68,7 @@ selected by maximum test accuracy, so it is descriptive rather than confirmatory
 - **Stack:** Python 3.12 · PyTorch 2.13 (MPS) · `transformers` 5.14 · scikit-learn · NLTK · statsmodels
 - **Hardware:** Apple Silicon, 32 GB, **MPS fp32, no CUDA**. No cloud spend.
 - **Output:** a measured leaderboard with Wilson intervals and a paired McNemar test, a four-cell
-  preprocessing ablation, and eight committed interpretability figures
+  preprocessing ablation, and eleven committed figures
 
 📄 **[Read the full results & analysis →](reports/RESULTS.md)**
 
@@ -328,8 +328,71 @@ attn_implementation="eager"  →  len(out.attentions) == 12
 
 `interpretability/attention.py` now raises on a non-eager model instead of plotting nothing.
 
-**What these figures do not claim:** attention weight is not causal importance, and gradient-norm
-saliency satisfies none of Integrated Gradients' axioms. Full treatment in
+### Representation geometry, layer-wise decodability, and the head atlas
+
+Three further figures read the checkpoint's internals rather than its outputs. All three come out
+of the same `scripts/export_figures.py` invocation as the eight above, from the same `runs/run_2`
+weights, with no retraining: forward passes only.
+
+<img src="docs/images/embedding_space_3d.png" alt="Three-dimensional t-SNE scatter of the final-layer CLS vector for all 1,000 test reviews, coloured by true label into two separated clouds, with the 40 misclassified reviews drawn as large black-edged crosses concentrated in the band between the clouds and inside the opposite cloud" width="900">
+
+**What it shows.** The final-layer `[CLS]` vector of all 1,000 test reviews, reduced to three
+components with t-SNE and coloured by *true* label. The `40` misclassified reviews are drawn as
+crosses, and they are not scattered at random: they carry a mean predicted-probability margin of
+`0.3933` where the `960` correct rows average `0.9112`, and on the raw logits the two means are
+`1.1728` and `4.2794`. Measured in the raw 768-dimensional `[CLS]` space rather than in the
+projection, `77.5%` of an error's `10` nearest neighbours by cosine distance carry the opposite
+true label, where correct rows sit at `3.4%`. The errors are not merely near the frontier; they are
+on the far side of it.
+
+**What it does not support.** t-SNE distances and cluster sizes are not metrically meaningful. The
+method preserves neighbourhoods, not distances, and a cluster's diameter is an artifact of the
+perplexity rather than a property of the data. The claim above rests on the margin and neighbour
+statistics, both measured in the original space. The projection is there to be looked at, not to be
+measured.
+
+<img src="docs/images/layer_probe_accuracy.png" alt="Line chart of linear-probe test accuracy against hidden-state index, rising from 0.5110 at the embedding output to 0.8220 after block 1, climbing steadily through the middle blocks, and flattening in a narrow band from block 9 to block 12" width="900">
+
+**What it shows.** One logistic regression per hidden state, fitted on the run's 8,100 train rows
+and scored on its 1,000 test rows, never on the same rows. `roberta-base` exposes 13 hidden states:
+the embedding output plus 12 encoder blocks.
+
+| Hidden state | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| Probe accuracy | 0.5110 | 0.8220 | 0.8420 | 0.8540 | 0.8630 | 0.8960 | 0.9270 | 0.9280 | 0.9410 | 0.9560 | 0.9580 | 0.9530 | 0.9630 |
+
+Hidden state 0 is the embedding of `<s>` at position 0, the same vector for every review, so its
+probe can only return the majority class at `0.5110`, which is exactly the positive rate of this
+test split. One block of self-attention lifts that to `0.8220`. The curve then climbs steadily: the
+probe peaks at `0.9630`, and from block `9` onward it stays within one accuracy point of that peak.
+Blocks 9 through 12 span a single accuracy point, which is inside the noise of a 1,000-row test
+set.
+
+**What it does not support.** A linear probe measures whether the label is *decodable* from a
+representation, not that the model uses that information downstream. The probe is a second model
+fitted on these activations, not a read-out of the network's own computation, so a feature it can
+read is not thereby a feature the classification head reads.
+
+<img src="docs/images/attention_entropy_atlas.png" alt="Twelve by twelve heatmap of mean attention entropy per encoder layer and head, most cells between 2 and 3 nats, with the most focused head circled at layer 2 head 3 and the most diffuse at layer 1 head 11" width="900">
+
+**What it shows.** The mean Shannon entropy of every one of the 12 x 12 attention distributions,
+over the same 1,000 test reviews. `<s>`, `</s>` and padding are dropped from both axes and the
+surviving rows renormalised, for the reason the attention module already gives: `<s>` is an
+attention sink, and leaving it in flattens the scale. Low entropy is a focused head, high entropy a
+diffuse one. The attainable ceiling is `log(inner tokens)`, mean `4.4413` nats at `99.4` inner
+tokens per review. The median head sits at `2.6385` nats, and only `4` of the 144 fall below 1 nat,
+so a sharply focused head is the exception rather than the rule. The extremes are `L2H3` at
+`0.0039` nats and `L1H11` at `4.3160` nats: effectively a delta and effectively uniform. Neither is
+a sink artifact, because they send `1.4%` and `4.1%` of their raw mass to the excluded tokens.
+
+**What it does not support.** Entropy describes how a head spreads its weight and nothing more.
+Attention weight is not causal importance, so a focused head is not thereby an important one, and
+the atlas says nothing about what any head is focused *on*. Excluding `<s>` also means this is
+non-sink attention: a head's full behaviour includes the mass the figure removes.
+
+**What these figures do not claim:** attention weight is not causal importance, gradient-norm
+saliency satisfies none of Integrated Gradients' axioms, and a linear probe measures decodability
+rather than use. Full treatment in
 [`docs/interpretability.md`](docs/interpretability.md).
 
 ---
@@ -378,11 +441,11 @@ Sentiment-RoBERTa/
 ├── datasets/                 # loading, stratified splits, the TF-IDF chain, torch Dataset
 ├── models/                   # TF-IDF control + RoBERTa behind one Protocol, plus the registry
 ├── metrics/                  # classification metrics · Wilson CIs · exact McNemar
-├── interpretability/         # attention maps + gradient saliency (the D1 fix lives here)
+├── interpretability/         # attention · gradient saliency (the D1 fix) · [CLS] probes + entropy
 ├── utils/                    # seeding, device, run dirs, run metadata, logging, plots, NLTK
 ├── notebooks/                # the ORIGINAL Kaggle notebook + a re-run narrative walkthrough
 ├── scripts/                  # data export | evidence export/check | figure/report drift guards
-├── tests/                    # 196 tests: leakage, metrics, evidence, D1, D3, D8, smoke
+├── tests/                    # 225 tests: leakage, metrics, evidence, probes, D1, D3, D8, smoke
 ├── reports/                  # RESULTS.md + text-free evidence/ + mirrored publication figures/
 ├── docs/                     # PROVENANCE · architecture · interpretability · adr/ (7 ADRs)
 ├── train.py                  # THE entrypoint: train.py -c cfg/small.yaml
@@ -520,12 +583,12 @@ RUNTIME:
 ## Testing
 
 ```bash
-make test           # 196 tests, coverage on the pure-logic core
+make test           # 225 tests, coverage on the pure-logic core
 make lint           # ruff check + ruff format --check + mypy
 make verify         # clone committed HEAD to a temp dir and run the documented quickstart
 ```
 
-**196 tests (one expected `xfail`), 95% coverage** on
+**225 tests (one expected `xfail`), 96% coverage** on
 `datasets/ models/ metrics/ interpretability/ utils/`. No test fetches review data or Hugging Face
 weights; preprocessing tests still require the mutable-name NLTK assets and can download them on a
 cold machine. Selected tests:
@@ -576,15 +639,22 @@ regenerates figure provenance, and requires `reports/RESULTS.md` to be byte-repr
 6. **Attention weights are not explanations.** High attention is not causal importance. These figures
    show where the model looks, which is a weaker claim than attribution.
 7. **Amazon reviews circa 2013.** Domain shift to any other review corpus is unmeasured.
-8. **The interpretability figures use hand-picked reviews:** the notebook's
+8. **The saliency and attention figures use hand-picked reviews:** the notebook's
    `iloc[5, 7, 9, 11, 13, 16]`, kept so the notebook and this README discuss the same examples. They
-   illustrate; they do not measure.
+   illustrate; they do not measure. The embedding-space, layer-probe and entropy-atlas figures read
+   the whole test split instead, so those three do measure, on one seed and one split.
 9. **`cfg/full.yaml` has not been run.** Full-scale results are not available.
 10. **The 5-epoch schedule was measured on one seed.** The epoch-4 validation accuracy of `0.9522`
     exceeding every epoch of the published run is a single observation on 900 validation examples,
     which is roughly 4 examples wide. It is not enough to justify moving the selection criterion off
     validation loss, and it is reported because it complicates the story rather than because it
     settles it.
+11. **A linear probe measures decodability, not use.** That a logistic regression recovers the label
+    from a hidden state says the information is present and linearly available there. It is not
+    evidence that the model's own classification head uses it, and it locates no mechanism.
+12. **t-SNE is for looking at, not for measuring.** It preserves neighbourhoods rather than
+    distances, and a cluster's diameter is a function of the perplexity. Every quantitative claim
+    made alongside the 3D scatter is computed in the original 768-dimensional space.
 
 ## Data
 

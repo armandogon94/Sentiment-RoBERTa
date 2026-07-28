@@ -47,6 +47,15 @@ ABLATION_MODELS = (
 )
 RUN_3_COLUMNS = ["index", "label", "tfidf_logreg", *ABLATION_MODELS, "text_sha256"]
 
+#: The three figures whose measured values cannot be recomputed from the evidence bundle,
+#: because they need the unpublished checkpoint. Their numbers are read back out of the
+#: tracked PNG provenance instead. See ``_figure_payloads``.
+REPRESENTATION_FIGURES = (
+    "embedding_space_3d",
+    "layer_probe_accuracy",
+    "attention_entropy_atlas",
+)
+
 
 class EvidenceMismatch(RuntimeError):
     """Committed evidence, generated metrics, or published prose disagree."""
@@ -1306,6 +1315,202 @@ def _check_test_set_sizes(
         )
 
 
+def _figure_payloads(figures_dir: Path) -> dict[str, dict[str, Any]]:
+    """The embedded JSON provenance of the three representation figures.
+
+    Those figures cannot be regenerated from the committed evidence bundle: they need the
+    476 MB checkpoint and the review text, neither of which is published. Their measured
+    values live in the tracked PNG instead, and ``scripts/check_published_figures.py`` ties
+    that payload to the checkpoint digest and the run's Git SHA. This function reads it back
+    so the prose quoting those values is checked rather than trusted.
+    """
+    from PIL import Image
+
+    payloads: dict[str, dict[str, Any]] = {}
+    for name in REPRESENTATION_FIGURES:
+        path = figures_dir / f"{name}.png"
+        with Image.open(path) as image:
+            description = image.info.get("Description")
+        if not isinstance(description, str):
+            raise EvidenceMismatch(f"{path}: missing the JSON provenance payload")
+        payload = json.loads(description)
+        if not isinstance(payload, dict):
+            raise EvidenceMismatch(f"{path}: provenance payload is not a JSON object")
+        payloads[name] = payload
+    return payloads
+
+
+def _check_probe_table(
+    checked: list[CheckedNumber],
+    source: Path,
+    text: str,
+    accuracies: list[float],
+) -> None:
+    """The README publishes the whole probe curve as a table row; check every cell."""
+    rows = [
+        line for line in text.splitlines() if line.replace("*", "").startswith("| Probe accuracy |")
+    ]
+    if not rows:
+        return
+    if len(rows) != 1:
+        raise EvidenceMismatch(
+            f"{source}: expected one probe-accuracy table row, found {len(rows)}"
+        )
+    cells = [cell.strip() for cell in rows[0].strip().strip("|").split("|")][1:]
+    if len(cells) != len(accuracies):
+        raise EvidenceMismatch(
+            f"{source}: probe-accuracy row has {len(cells)} values, the figure has "
+            f"{len(accuracies)} hidden states"
+        )
+    for layer, (cell, expected) in enumerate(zip(cells, accuracies, strict=True)):
+        _check_printed(checked, source, f"probe.accuracy[{layer}]", cell, expected)
+
+
+def _strip_markdown_emphasis(text: str) -> str:
+    """Drop code ticks and emphasis so one claim template matches both published documents.
+
+    ``reports/RESULTS.md`` is generated and quotes its numbers bare; ``README.md`` writes the
+    same numbers inside code ticks. Removing both characters means the templates below
+    describe the sentence rather than its formatting.
+    """
+    return text.replace("`", "").replace("*", "")
+
+
+def _claim_pattern(template: str) -> re.Pattern[str]:
+    """Compile a published-claim template, where ``<N>`` marks the number to be checked.
+
+    Everything else in the template is literal, but the words are joined with ``\\s+`` so a
+    claim still matches after Markdown re-wraps the paragraph. Call it against text that has
+    already been through :func:`_strip_markdown_emphasis`.
+    """
+    before, marker, after = template.partition("<N>")
+    if not marker:
+        raise ValueError(f"claim template has no <N> placeholder: {template!r}")
+    head = r"\s+".join(re.escape(word) for word in before.split())
+    tail = r"\s+".join(re.escape(word) for word in after.split())
+    if head and before[-1].isspace():
+        head += r"\s+"
+    if tail and after[0].isspace():
+        tail = r"\s+" + tail
+    # MARKDOWN_NUMBER, not NUMBER: published counts carry thousands separators, and NUMBER
+    # would match only the "100" of "8,100" and then compare that against 8100.
+    return re.compile(rf"{head}(?P<value>{MARKDOWN_NUMBER.pattern}){tail}", flags=re.IGNORECASE)
+
+
+def _representation_claims(
+    payloads: dict[str, dict[str, Any]],
+) -> tuple[tuple[str, float | int, tuple[str, ...]], ...]:
+    """Every value the published prose quotes from the three representation figures."""
+    embedding = payloads["embedding_space_3d"]
+    probe = payloads["layer_probe_accuracy"]
+    atlas = payloads["attention_entropy_atlas"]
+    accuracies = [float(value) for value in probe["accuracies"]]
+    focused = atlas["most_focused"]
+    diffuse = atlas["most_diffuse"]
+    return (
+        ("embedding.n_incorrect", embedding["n_incorrect"], ("<N> misclassified reviews",)),
+        (
+            "embedding.probability_margin_incorrect",
+            embedding["probability_margin_incorrect"],
+            ("mean predicted-probability margin of <N>",),
+        ),
+        ("embedding.n_correct", embedding["n_correct"], ("where the <N> correct rows average",)),
+        (
+            "embedding.probability_margin_correct",
+            embedding["probability_margin_correct"],
+            ("correct rows average <N>",),
+        ),
+        (
+            "embedding.logit_margin_incorrect",
+            embedding["logit_margin_incorrect"],
+            ("the two means are <N>",),
+        ),
+        (
+            "embedding.logit_margin_correct",
+            embedding["logit_margin_correct"],
+            ("and <N>. Measured in the raw",),
+        ),
+        (
+            "embedding.opposite_neighbours_incorrect",
+            100 * embedding["opposite_neighbours_incorrect"],
+            ("<N>% of an error's",),
+        ),
+        ("embedding.n_neighbours", embedding["n_neighbours"], ("of an error's <N> nearest",)),
+        (
+            "embedding.opposite_neighbours_correct",
+            100 * embedding["opposite_neighbours_correct"],
+            ("where correct rows sit at <N>%",),
+        ),
+        (
+            "probe.n_train",
+            probe["n_train"],
+            ("<N> train rows and scored", "<N> train rows and scores"),
+        ),
+        ("probe.n_test", probe["n_test"], ("<N> test rows, never",)),
+        ("probe.majority_class", accuracies[0], ("the majority class at <N>",)),
+        ("probe.first_block", accuracies[1], ("lifts that to <N>",)),
+        ("probe.best", max(accuracies), ("the probe peaks at <N>",)),
+        ("probe.saturation_layer", probe["saturation_layer"], ("from block <N> onward",)),
+        ("atlas.n_examples", atlas["n_examples"], ("<N> test reviews",)),
+        ("atlas.mean_max_entropy", atlas["mean_max_entropy"], ("mean <N> nats at",)),
+        ("atlas.mean_inner_tokens", atlas["mean_inner_tokens"], ("nats at <N> inner tokens",)),
+        ("atlas.median_entropy", atlas["median_entropy"], ("median head sits at <N> nats",)),
+        (
+            "atlas.n_sharply_focused",
+            atlas["n_sharply_focused"],
+            ("<N> of the 144 fall below 1 nat",),
+        ),
+        ("atlas.min_entropy", atlas["min_entropy"], (f"{focused} at <N> nats",)),
+        ("atlas.max_entropy", atlas["max_entropy"], (f"{diffuse} at <N> nats",)),
+        (
+            "atlas.most_focused_sink_share",
+            100 * atlas["most_focused_sink_share"],
+            ("they send <N>% and",),
+        ),
+        (
+            "atlas.most_diffuse_sink_share",
+            100 * atlas["most_diffuse_sink_share"],
+            ("% and <N>% of their raw mass",),
+        ),
+    )
+
+
+def _check_representation_claims(
+    checked: list[CheckedNumber],
+    source: Path,
+    text: str,
+    payloads: dict[str, dict[str, Any]],
+) -> None:
+    """Check every number the prose quotes from the three representation figures.
+
+    Each claim is anchored on the phrase that introduces it, so a value cannot drift from the
+    figure it describes without this failing. A document that does not name the two extreme
+    heads is not discussing these figures at all and is skipped.
+    """
+    atlas = payloads["attention_entropy_atlas"]
+    if atlas["most_focused"] not in text or atlas["most_diffuse"] not in text:
+        return
+
+    plain = _strip_markdown_emphasis(text)
+    _check_probe_table(
+        checked, source, plain, [float(v) for v in payloads["layer_probe_accuracy"]["accuracies"]]
+    )
+    for metric, expected, templates in _representation_claims(payloads):
+        matches = [
+            match for template in templates for match in _claim_pattern(template).finditer(plain)
+        ]
+        if not matches:
+            raise EvidenceMismatch(f"{source}: found no published claim for {metric}")
+        for index, match in enumerate(matches, start=1):
+            _check_printed(
+                checked,
+                source,
+                f"{metric}[{index}]",
+                match.group("value").replace(",", ""),
+                expected,
+            )
+
+
 def _original_notebook_spans(source: Path, text: str) -> list[re.Match[str]]:
     start_count = text.count(ORIGINAL_NOTEBOOK_START)
     end_count = text.count(ORIGINAL_NOTEBOOK_END)
@@ -1776,7 +1981,7 @@ def _check_document_claims(
 
 
 def validate_published_documents(
-    readme: Path, results: Path, evidence_dir: Path
+    readme: Path, results: Path, evidence_dir: Path, figures_dir: Path | None = None
 ) -> list[CheckedNumber]:
     metrics = _load_json(evidence_dir / "run_2" / "metrics.json")
     frame = pd.read_csv(evidence_dir / "run_2" / "predictions.csv", dtype={"text_sha256": str})
@@ -1809,12 +2014,16 @@ def validate_published_documents(
     run_5_dir = evidence_dir / "run_5"
     schedule_metrics = _load_json(run_5_dir / "metrics.json") if run_5_dir.is_dir() else None
     original_notebook = _load_json(evidence_dir / "original_notebook" / "results.json")
+    figure_payloads = _figure_payloads(
+        figures_dir if figures_dir is not None else REPO_ROOT / "reports" / "figures"
+    )
 
     checked: list[CheckedNumber] = []
     for document in (readme, results):
         raw_text = document.read_text(encoding="utf-8")
         checked.extend(_check_original_notebook_claims(document, raw_text, original_notebook))
         repo_text = _blank_original_notebook_spans(document, raw_text)
+        _check_representation_claims(checked, document, repo_text, figure_payloads)
         _check_document_claims(
             checked,
             document,

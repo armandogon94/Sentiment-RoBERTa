@@ -98,6 +98,17 @@ All regenerable with `make figures`, which defaults explicitly to `runs/run_2` p
 - [`docs/images/attention_from_token.png`](../docs/images/attention_from_token.png): Per-token attention
 - [`docs/images/saliency_positive.png`](../docs/images/saliency_positive.png): Gradient saliency, positive reviews
 - [`docs/images/saliency_negative.png`](../docs/images/saliency_negative.png): Gradient saliency, negative reviews
+- [`docs/images/embedding_space_3d.png`](../docs/images/embedding_space_3d.png): Final-layer [CLS] under a 3D t-SNE, errors marked
+- [`docs/images/layer_probe_accuracy.png`](../docs/images/layer_probe_accuracy.png): Linear-probe accuracy per hidden state
+- [`docs/images/attention_entropy_atlas.png`](../docs/images/attention_entropy_atlas.png): Mean attention entropy of all 12x12 heads
+
+### Reading the three representation figures
+
+**`embedding_space_3d`** shows the final-layer `[CLS]` vector of every test review under a 3-component t-SNE, coloured by true label, with the 40 misclassified reviews marked. Those errors carry a mean predicted-probability margin of 0.3933 where the 960 correct rows average 0.9112, and on the raw logits the two means are 1.1728 and 4.2794. Measured in the raw 768-dimensional `[CLS]` space rather than in the projection, 77.5% of an error's 10 nearest neighbours carry the opposite true label, where correct rows sit at 3.4%. *It does not support* any reading of the picture's distances: t-SNE distances and cluster sizes are not metrically meaningful, and the claim rests on the two statistics above, both computed before the projection.
+
+**`layer_probe_accuracy`** fits one logistic regression per hidden state on 8,100 train rows and scores it on 1,000 test rows, never the same rows. Hidden state 0, the raw `<s>` embedding, is the same vector for every review, so its probe returns the majority class at 0.5110; one encoder block lifts that to 0.8220; the probe peaks at 0.9630 and is within one accuracy point of that peak from block 9 onward. *It does not support* the claim that the model uses what the probe reads: a linear probe measures decodability, and the probe is a second model fitted on these activations rather than a read-out of the network's own computation.
+
+**`attention_entropy_atlas`** averages the Shannon entropy of all 1,000 test reviews for each of the 12x12 heads, with `<s>`, `</s>` and padding excluded on both axes and the surviving rows renormalised. The attainable ceiling is log(inner tokens), mean 4.4413 nats at 99.4 inner tokens; the median head sits at 2.6385 nats and 4 of the 144 fall below 1 nat. The extremes are L2H3 at 0.0039 nats and L1H11 at 4.3160 nats, and neither is a sink artifact: they send 1.4% and 4.1% of their raw mass to the excluded tokens. *It does not support* any claim about importance: attention weight is not causal importance, the atlas says nothing about what a head attends *to*, and excluding `<s>` means these are non-sink distributions rather than complete ones.
 
 ## What these numbers do not support
 
