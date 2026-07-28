@@ -459,15 +459,17 @@ def attention_entropy_atlas(
                 # carrying no information about the head. Skipped rather than averaged in.
                 continue
             index = torch.tensor(keep, dtype=torch.long, device=weights.device)
-            rows = weights[:, row].index_select(2, index)
             live_index = torch.tensor(
                 np.flatnonzero(live).tolist(), dtype=torch.long, device=weights.device
             )
-            retained = rows.index_select(3, index).sum(dim=-1)
-            available = rows.index_select(3, live_index).sum(dim=-1).clamp_min(_EPS)
+            # Inner query rows over every live key, then the same rows over inner keys only.
+            # The mass the second slice drops is what the atlas reports as sink_share.
+            live_rows = weights[:, row].index_select(2, index).index_select(3, live_index)
+            inner = weights[:, row].index_select(2, index).index_select(3, index)
+            retained = inner.sum(dim=-1)
+            available = live_rows.sum(dim=-1).clamp_min(_EPS)
             sink = (1.0 - retained / available).mean(dim=-1)
-            inner = rows.index_select(3, index)
-            inner = inner / inner.sum(dim=-1, keepdim=True).clamp_min(_EPS)
+            inner = inner / retained.unsqueeze(-1).clamp_min(_EPS)
             entropy = -(inner * inner.clamp_min(_EPS).log()).sum(dim=-1).mean(dim=-1)
             total = entropy if total is None else total + entropy
             sink_total = sink if sink_total is None else sink_total + sink
