@@ -72,11 +72,14 @@ print(f'    smoke accuracy = {a:.4f}  (random weights, a plumbing check, not a r
 
 echo "==> Asserting the committed figures are present"
 expected_figures=(
+  attention_entropy_atlas.png
   attention_from_token.png
   attention_heatmap.png
   baseline_ablation.png
   confusion_matrix_baseline.png
   confusion_matrix_roberta.png
+  embedding_space_3d.png
+  layer_probe_accuracy.png
   saliency_negative.png
   saliency_positive.png
   training_curves.png
@@ -89,7 +92,7 @@ figure_count="$(find docs/images -maxdepth 1 -type f -name '*.png' | wc -l | tr 
   echo "FAIL: docs/images contains $figure_count PNGs; expected exactly ${#expected_figures[@]}"
   exit 1
 }
-echo "    exact eight-file publication set present"
+echo "    exact eleven-file publication set present"
 
 echo '==> Regenerating published figure data from evidence and checking all tracked figures'
 uv run python scripts/check_published_figures.py

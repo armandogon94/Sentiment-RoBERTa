@@ -49,7 +49,7 @@ evidence:  ## Export tracked, review-text-free evidence for the published runs
 	$(PY) scripts/export_evidence.py $(PUBLISHED_RUN) $(ABLATION_RUN) \
 	  run_5=$(SCHEDULE_RUN) -o reports/evidence
 
-figures:  ## Regenerate and publish all eight PNGs from the explicit published runs
+figures:  ## Regenerate and publish all eleven PNGs from the explicit published runs
 	$(PY) scripts/export_figures.py -i $(PUBLISHED_RUN) -a $(ABLATION_RUN) \
 	  -o docs/images --publish
 

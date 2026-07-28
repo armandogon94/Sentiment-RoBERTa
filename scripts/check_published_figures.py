@@ -1,13 +1,14 @@
 #!/usr/bin/env python
-"""Regenerate evidence-derived figures and verify all eight tracked publication PNGs.
+"""Regenerate evidence-derived figures and verify all eleven tracked publication PNGs.
 
 PNG raster bytes are not compared across CI platforms: Matplotlib delegates font rendering to the
 host, so the same data and code produce different antialiasing bytes on macOS and Linux. Instead,
 each PNG embeds a canonical, text-free JSON provenance payload. The four metric figures are
-regenerated from committed evidence and those payloads must match exactly. The four model-dependent
-figures cannot be regenerated in a clone because the 476 MB checkpoint and review text are
-deliberately excluded; their embedded config/method/checkpoint provenance is checked against the
-committed digest, and all eight docs/report copies must be byte-identical to one another.
+regenerated from committed evidence and those payloads must match exactly. The seven
+model-dependent figures cannot be regenerated in a clone because the 476 MB checkpoint and review
+text are deliberately excluded; their embedded config/method/checkpoint provenance is checked
+against the committed digest, and all eleven docs/report copies must be byte-identical to one
+another.
 """
 
 from __future__ import annotations
@@ -35,8 +36,11 @@ METRIC_FIGURES = {
     "training_curves.png",
 }
 MODEL_FIGURE_METHODS = {
+    "attention_entropy_atlas.png": "attention_entropy_atlas",
     "attention_from_token.png": "last_layer_head_mean_attention",
     "attention_heatmap.png": "last_layer_head_mean_attention",
+    "embedding_space_3d.png": "final_layer_cls_tsne_3d",
+    "layer_probe_accuracy.png": "layerwise_linear_probe",
     "saliency_negative.png": "gradient_norm_saliency",
     "saliency_positive.png": "gradient_norm_saliency",
 }
@@ -153,7 +157,7 @@ def main(argv: list[str] | None = None) -> int:
     for message in messages:
         print(f"    {message}")
     print(
-        "PASS: four metric figures regenerated from evidence; all eight tracked pairs and "
+        "PASS: four metric figures regenerated from evidence; all eleven tracked pairs and "
         "provenance payloads verified"
     )
     return 0

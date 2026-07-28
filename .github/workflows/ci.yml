@@ -117,11 +117,12 @@ jobs:
         run: |
           for f in confusion_matrix_baseline confusion_matrix_roberta training_curves \
                    attention_heatmap attention_from_token saliency_positive \
-                   saliency_negative baseline_ablation; do
+                   saliency_negative baseline_ablation embedding_space_3d \
+                   layer_probe_accuracy attention_entropy_atlas; do
             test -f "docs/images/$f.png" || { echo "missing docs/images/$f.png"; exit 1; }
           done
-          test "$(find docs/images -maxdepth 1 -type f -name '*.png' | wc -l)" -eq 8 \
-            || { echo "docs/images must contain exactly eight PNGs"; exit 1; }
+          test "$(find docs/images -maxdepth 1 -type f -name '*.png' | wc -l)" -eq 11 \
+            || { echo "docs/images must contain exactly eleven PNGs"; exit 1; }
 
   published-evidence:
     name: published evidence and drift
