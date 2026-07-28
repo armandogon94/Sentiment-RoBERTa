@@ -602,6 +602,8 @@ cold machine. Selected tests:
 | `test_metrics.py` | Wilson against `statsmodels` to 1e-9; McNemar against a 2×2 computed by hand in the docstring |
 | `test_evidence.py` | deterministic text-free export; consistent bundle passes; one flipped prediction fails by metric name; scientific-notation precision |
 | `test_attention.py` | **D8:** an `sdpa` model raises rather than silently plotting nothing |
+| `test_representations.py` | the layer probe refuses the same rows for fit and score; uniform attention scores exactly `log k` nats and one-hot attention exactly `0`; the atlas rejects `sdpa` too |
+| `test_figure_labels.py` | every published caption still carries its caveat, and the figure set is exactly eleven |
 | `test_utils.py` | parses every `.py` with `ast` to prove no unguarded `plt.show()` survives |
 
 CI runs lint → types → tests → a smoke train on Python 3.12 and 3.13, plus independent documentation
