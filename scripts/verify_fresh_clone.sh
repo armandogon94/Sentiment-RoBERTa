@@ -25,8 +25,8 @@ echo "    tracked size: ${tracked_kb} KB"
 if [ "$tracked_kb" -gt 5120 ]; then
   echo "FAIL: tracked files exceed 5 MB, something large got committed"; exit 1
 fi
-if git ls-files | grep -iqE 'AGENT-BRIEF|CLAUDE\.md|AGENTS\.md|^PLAN\.md|\.claude/'; then
-  echo "FAIL: agent scaffolding is tracked"; git ls-files | grep -iE 'AGENT-BRIEF|CLAUDE\.md|AGENTS\.md|^PLAN\.md|\.claude/'; exit 1
+if git ls-files | grep -iqE 'AGENT-BRIEF|CLAUDE\.md|AGENTS\.md|^PLAN\.md|PROGRESS\.md|\.claude/'; then
+  echo "FAIL: agent scaffolding is tracked"; git ls-files | grep -iE 'AGENT-BRIEF|CLAUDE\.md|AGENTS\.md|^PLAN\.md|PROGRESS\.md|\.claude/'; exit 1
 fi
 
 echo "==> Asserting tracked data contains no contact details"

@@ -1,6 +1,8 @@
 # ── Agent runtime, never commit ───────────────────────────────────────────────
 .claude/
 docs/AGENT-BRIEF.md
+# Working session log: local resume notes, stale pre-rewrite SHAs, local machine paths
+docs/PROGRESS.md
 
 # ── Data, gitignored except the committed 1k sample ───────────────────────────
 data/*
