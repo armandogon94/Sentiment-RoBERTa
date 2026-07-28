@@ -22,6 +22,10 @@ dependencies = [
     # figures
     "matplotlib>=3.9",
     "seaborn>=0.13",
+    # reads the JSON provenance payload back out of a published PNG (evaluate.py,
+    # scripts/check_published_figures.py). A matplotlib transitive, declared because
+    # this repo imports it directly.
+    "pillow>=10.0",
     # config + logging
     "pydantic>=2.9",
     "pyyaml>=6.0",
