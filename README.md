@@ -1,8 +1,8 @@
 # Sentiment Polarity on Amazon Reviews: RoBERTa Fine-Tuning vs. a TF-IDF Control
 
-[![CI](https://github.com/armandogon94/33-sentiment-roberta/actions/workflows/ci.yml/badge.svg)](.github/workflows/ci.yml)
+[![CI](https://github.com/armandogon94/Sentiment-RoBERTa/actions/workflows/ci.yml/badge.svg)](https://github.com/armandogon94/Sentiment-RoBERTa/actions/workflows/ci.yml)
 [![Coverage](https://img.shields.io/badge/coverage-95%25-brightgreen)](#testing)
-[![Tests](https://img.shields.io/badge/tests-189-brightgreen)](#testing)
+[![Tests](https://img.shields.io/badge/tests-196-brightgreen)](#testing)
 [![Python](https://img.shields.io/badge/python-3.12-blue)](pyproject.toml)
 [![License: Apache 2.0](https://img.shields.io/badge/license-Apache--2.0-green)](LICENSE)
 
@@ -372,7 +372,7 @@ to [`docs/diagrams/`](docs/diagrams) as SVG by `scripts/export_diagrams.sh`.
 ## Repository Structure
 
 ```bash
-33-sentiment-roberta/
+Sentiment-RoBERTa/
 ├── cfg/                      # 5 YAML configs + Pydantic schema; *.json = the ablation grid
 ├── data/                     # gitignored except data/sample/; provenance in data/README.md
 ├── datasets/                 # loading, stratified splits, the TF-IDF chain, torch Dataset
@@ -382,9 +382,9 @@ to [`docs/diagrams/`](docs/diagrams) as SVG by `scripts/export_diagrams.sh`.
 ├── utils/                    # seeding, device, run dirs, run metadata, logging, plots, NLTK
 ├── notebooks/                # the ORIGINAL Kaggle notebook + a re-run narrative walkthrough
 ├── scripts/                  # data export | evidence export/check | figure/report drift guards
-├── tests/                    # 189 tests: leakage, metrics, evidence, D1, D3, D8, smoke
+├── tests/                    # 196 tests: leakage, metrics, evidence, D1, D3, D8, smoke
 ├── reports/                  # RESULTS.md + text-free evidence/ + mirrored publication figures/
-├── docs/                     # PROGRESS · PROVENANCE · architecture · interpretability · adr/
+├── docs/                     # PROVENANCE · architecture · interpretability · adr/ (7 ADRs)
 ├── train.py                  # THE entrypoint: train.py -c cfg/small.yaml
 ├── evaluate.py               # explicit run/evidence artifacts → reports/RESULTS.md
 └── Makefile                  # setup | smoke | train | evidence | figures | report | test
@@ -394,10 +394,9 @@ to [`docs/diagrams/`](docs/diagrams) as SVG by `scripts/export_diagrams.sh`.
 
 ## Quickstart
 
-Clone this repository from the URL shown by its hosting page. The local checkout has no configured
-Git remote, so the hosting page is the source of the clone URL. From the cloned directory:
-
 ```bash
+git clone https://github.com/armandogon94/Sentiment-RoBERTa.git
+cd Sentiment-RoBERTa
 make setup          # uv sync + pre-commit hooks
 make smoke          # full pipeline on data/sample/, CPU, ~6 s
 make test           # test suite; exact collected count is stated under Testing
@@ -509,7 +508,11 @@ RUNTIME:
   recomputes the accuracies, confusion/discordance tables, Wilson intervals, and exact McNemar p,
   then checks the published comparison, ablation, training-history, truncation, and parameter
   headline claims numerically at their displayed precision.
-- **The numbers above were produced by commit `dcf8b09`**, on MPS with Low Power Mode OFF.
+- **The numbers above were produced by commit `dcf8b09`**, on MPS with Low Power Mode OFF. That is
+  the SHA `run_meta.json` recorded at run time, and it does not resolve in the published history: a
+  third-party reviewer's contact detail was later redacted from `data/sample/reviews_sample.csv`
+  with `git-filter-repo`, which renumbered every commit from that file's introduction onward.
+  Reproduction is checked against the committed evidence bundle, not against the SHA.
 - **Timing conditions are recorded.** Both runs happened with other work on the machine
   (1-minute load average 9.5 at the launch of the published run). They are pessimistic upper bounds,
   not clean benchmarks.
@@ -517,12 +520,12 @@ RUNTIME:
 ## Testing
 
 ```bash
-make test           # 189 tests, coverage on the pure-logic core
+make test           # 196 tests, coverage on the pure-logic core
 make lint           # ruff check + ruff format --check + mypy
 make verify         # clone committed HEAD to a temp dir and run the documented quickstart
 ```
 
-**189 tests (one expected `xfail`), 95% coverage** on
+**196 tests (one expected `xfail`), 95% coverage** on
 `datasets/ models/ metrics/ interpretability/ utils/`. No test fetches review data or Hugging Face
 weights; preprocessing tests still require the mutable-name NLTK assets and can download them on a
 cold machine. Selected tests:
@@ -564,7 +567,7 @@ regenerates figure provenance, and requires `reports/RESULTS.md` to be byte-repr
    cell 12 of [`notebooks/sentiment_analysis_roberta.ipynb`](notebooks/sentiment_analysis_roberta.ipynb),
    because the notebook does not create a run directory.) Every point estimate in this repo should
    be read with that in mind. Running `cfg/small.yaml` across several seeds and reporting
-   mean ± stdev is the top item in [`docs/PROGRESS.md`](docs/PROGRESS.md)'s NEXT ACTION.
+   mean ± stdev has not been done; no multi-seed number is published, because none was measured.
 4. **MPS fp32 only:** no mixed precision, no `torch.compile`. Timings are not comparable to CUDA
    figures in papers, and both runs shared the machine with other work.
 5. **Gradient-norm saliency is not axiomatically attributive.** It is a first-order local
