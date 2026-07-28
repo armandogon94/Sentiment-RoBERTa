@@ -2,7 +2,7 @@
 
 HuggingFace ``amazon_polarity`` uses ``label`` in {0, 1} with 0 = negative. The Kaggle CSV is
 headerless with ``polarity`` in {1, 2}, also 1 = negative. Getting the remap backwards inverts
-every label and yields an accuracy around ``1 - true_accuracy`` — roughly 0.07 instead of
+every label and yields an accuracy around ``1 - true_accuracy``, roughly 0.07 instead of
 0.93. That is exactly the disaster the brief's lower sanity bound exists to catch, and it is
 cheaper to catch it here.
 """

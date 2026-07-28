@@ -15,8 +15,8 @@ HF ``amazon_polarity``  ``label``, ``title``, ``content``   0 = neg, 1 = pos
 Kaggle CSV (headerless) ``polarity``, ``title``, ``text``   1 = neg, 2 = pos
 ===================  ==============================  ==========================
 
-Getting the remap backwards yields an accuracy near ``1 - true_accuracy`` — around
-0.07 rather than 0.93 — which is precisely the failure the brief's lower sanity bound
+Getting the remap backwards yields an accuracy near ``1 - true_accuracy``, around
+0.07 rather than 0.93, which is precisely the failure the brief's lower sanity bound
 exists to catch. ``tests/test_loading.py`` asserts the two paths produce identical
 frames on the same 100 rows, so the trap is covered by a test rather than by care.
 """
@@ -86,7 +86,7 @@ def read_kaggle_csv(path: Path, nrows: int | None = None) -> pd.DataFrame:
     """Read the original headerless Kaggle CSV and normalise it.
 
     Provided so a reader who wants inputs byte-identical to the source notebook can get
-    them. It is *not* the default path — the CSV tarball is only reachable through a
+    them. It is *not* the default path: the CSV tarball is only reachable through a
     Google Drive interstitial (see ``data/README.md``).
     """
     raw = pd.read_csv(path, header=None, names=KAGGLE_COLUMNS, nrows=nrows)

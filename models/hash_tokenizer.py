@@ -2,8 +2,8 @@
 
 CI must never reach the network: no 377 MB parquet download and no Hugging Face hub fetch.
 The smoke run therefore pairs a 2-layer randomly-initialised ``RobertaForSequenceClassification``
-with this tokenizer, and what it verifies is the *architecture and the plumbing* — that the
-pipeline splits, tokenises, trains, evaluates, writes ``metrics.json``, and renders PNGs — not
+with this tokenizer, and what it verifies is the *architecture and the plumbing*: that the
+pipeline splits, tokenises, trains, evaluates, writes ``metrics.json``, and renders PNGs, not
 the quality of any weights. Its accuracy is real and meaningless, and it is never published.
 
 The interface is the subset of ``transformers.PreTrainedTokenizerBase`` this repo actually

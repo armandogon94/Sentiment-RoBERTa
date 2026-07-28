@@ -23,7 +23,7 @@ It is the provenance artifact and must not be edited. The re-run narrative walkt
 file.
 
 Stating the coursework origin plainly is deliberate. Taking your own earlier work and holding it to a
-higher standard — reproducible structure, measured numbers, honest confidence intervals — is a
+higher standard (reproducible structure, measured numbers, honest confidence intervals) is a
 better signal than presenting it as though it had always been a production repo.
 
 ## The outputs were never saved
@@ -37,7 +37,7 @@ execution_count values present: [None]
 ```
 
 Every code cell carries `outputs: []` and `execution_count: null`. Consequently, **before this repo
-re-ran the models locally, no metric for either model existed anywhere** — not the baseline accuracy,
+re-ran the models locally, no metric for either model existed anywhere**: not the baseline accuracy,
 not the RoBERTa accuracy, neither confusion matrix, and none of the five interpretability figures.
 
 This is the reason the first substantive task in this repo is re-running both models on this machine
@@ -49,10 +49,10 @@ transcribe.
 Three details in the notebook and its Kaggle metadata all point to local execution followed by an
 unexecuted upload:
 
-1. **The data path is local and relative** — `./amazon_review_polarity_csv/train.csv`. A Kaggle
+1. **The data path is local and relative:** `./amazon_review_polarity_csv/train.csv`. A Kaggle
    kernel declaring `datasetDataSources: ["kritanjalijain/amazon-reviews"]` mounts that dataset under
    `/kaggle/input/amazon-reviews/`, so this path cannot resolve in a Kaggle session.
-2. **`nltk.download()` is called with no arguments**, which opens an interactive Tk downloader — not
+2. **`nltk.download()` is called with no arguments**, which opens an interactive Tk downloader, which is not
    possible in a headless kernel.
 3. **The internet flag disagrees with itself**: the kernel metadata records
    `enableInternetNullable: false` while the embedded notebook metadata records

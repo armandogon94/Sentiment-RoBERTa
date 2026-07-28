@@ -1,12 +1,12 @@
-# Smoke config — the CI and fresh-clone path. Runs on the COMMITTED 1,000-row sample
+# Smoke config: the CI and fresh-clone path. Runs on the COMMITTED 1,000-row sample
 # with a 2-layer randomly-initialised RoBERTa, so it touches neither the 377 MB parquet
 # download nor the Hugging Face hub. Target: under 60 seconds on CPU.
 # The TF-IDF control still needs NLTK punkt/punkt_tab/stopwords and may download them on
 # a cold machine; this is not a blanket offline guarantee.
 #
 # The accuracy it produces is real but meaningless (random weights, 160 training rows).
-# It is asserted to be a finite number in (0, 1) — that the pipeline runs end to end and
-# writes artifacts — and it is never published as a result.
+# It is asserted to be a finite number in (0, 1), which shows the pipeline runs end to end and
+# writes artifacts, and it is never published as a result.
 NAME: smoke
 DESCRIPTION: >-
   End-to-end plumbing check on the committed sample with random weights. Proves the

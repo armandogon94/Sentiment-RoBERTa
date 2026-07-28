@@ -1,4 +1,4 @@
-"""TF-IDF + logistic regression — a genuine control, not a formality.
+"""TF-IDF + logistic regression, a genuine control rather than a formality.
 
 This class reproduces the source notebook's deliberately fixed preprocessing, unigram,
 ``C=1`` control recipe and the repo's ablation cells. Its widened vectorizer token pattern
@@ -70,7 +70,7 @@ class TfidfLogisticRegression:
     def save(self, path: Path) -> Path:
         """Pickle the fitted vectorizer and classifier together.
 
-        Gitignored (``*.pkl``) — a run artifact, not a repo artifact.
+        Gitignored (``*.pkl``), a run artifact rather than a repo artifact.
         """
         self._require_fitted()
         path = Path(path)

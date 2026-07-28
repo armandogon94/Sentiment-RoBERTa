@@ -1,10 +1,10 @@
 # Interpretability methods
 
-This document does two things: it fixes the *naming* — which is where the original notebook was
-wrong — and it records the two defects that made the original figures untrustworthy, both of which are
+This document does two things: it fixes the *naming*, which is where the original notebook was
+wrong, and it records the two defects that made the original figures untrustworthy, both of which are
 now covered by tests rather than by care.
 
-## Method naming — the correction
+## Method naming: the correction
 
 The original notebook labelled its token-attribution function **Grad-CAM**. It is not Grad-CAM. What
 it computes is:
@@ -30,11 +30,11 @@ and states the distinction rather than shipping a mislabelled method. See
 |---|---|---|
 | **Attention heatmap** (last layer, head-mean, inner tokens only) | Which token positions attend to which | Attention weight is not causal importance. A high weight does not mean the prediction depended on that token. |
 | **Per-token attention** (a chosen source token → all targets) | The attention row for one token of interest | Same caveat, plus head-averaging can cancel opposing heads. |
-| **Gradient-norm saliency** | Local sensitivity magnitude per token | Unsigned — shows *how much*, never *which direction*. First-order only; saturated logits give small gradients regardless of importance. |
+| **Gradient-norm saliency** | Local sensitivity magnitude per token | Unsigned: shows *how much*, never *which direction*. First-order only; saturated logits give small gradients regardless of importance. |
 | **Gradient × input** (`grad_x_input`) | Signed contribution per token | Still first-order, but recovers direction. Implemented and tested; not currently one of the eight committed figures. |
 
-**Integrated Gradients** is the principled upgrade — it satisfies completeness and sensitivity axioms
-that plain gradients do not — and is listed in the README's Limitations as future work rather than
+**Integrated Gradients** is the principled upgrade, since it satisfies completeness and sensitivity axioms
+that plain gradients do not, and is listed in the README's Limitations as future work rather than
 claimed as done.
 
 ## The embedding bug that corrupted the original figures
@@ -77,7 +77,7 @@ merely fixed.
 ## Getting attention weights back at all
 
 `transformers` reads `config._attn_implementation`. Passing the public-named `attn_implementation`
-kwarg to `RobertaConfig.from_pretrained` sets an attribute nothing reads — a silent no-op, which is
+kwarg to `RobertaConfig.from_pretrained` sets an attribute nothing reads, a silent no-op, which is
 what the original notebook did. The attention figures worked only because `transformers` detects
 `output_attentions=True` at call time and falls back to eager attention with a warning. Pass it to
 the **model** instead:
@@ -100,7 +100,7 @@ So the notebook's no-op would now produce **empty** attention figures rather tha
 `interpretability/attention.py` raises on a non-eager model instead of plotting nothing, and
 `models/roberta.py` asserts `config._attn_implementation == "eager"` immediately after construction.
 Both behaviours are pinned by `tests/test_attention.py`, including a test that asserts sdpa really
-does return an empty tuple — so nobody later "simplifies away" a guard whose reason has been
+does return an empty tuple, so nobody later "simplifies away" a guard whose reason has been
 forgotten.
 
 ## Figures
@@ -126,7 +126,7 @@ colour scale and the figure stops saying anything.
 Worth stating plainly, because interpretability figures are the easiest thing in a portfolio repo to
 over-sell:
 
-1. **Attention is not explanation.** High attention weight is not causal importance — this is a
+1. **Attention is not explanation.** High attention weight is not causal importance. This is a
    well-established caveat, not a hedge. These plots show where the model *looks*, which is
    descriptive and genuinely useful, and is a weaker claim than attribution.
 2. **Gradient-norm saliency is not axiomatically attributive.** It is a first-order local sensitivity.

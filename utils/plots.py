@@ -115,6 +115,6 @@ def save_figure(
         fig.savefig(path, metadata=metadata)
         written.append(path)
     if show:  # pragma: no cover - interactive only
-        plt.show()  # reachable only under `if show` — the explicit --show flag, never in CI
+        plt.show()  # reachable only under `if show`, the explicit --show flag, never in CI
     plt.close(fig)
     return written

@@ -1,8 +1,8 @@
-# ── Agent runtime — never commit ──────────────────────────────────────────────
+# ── Agent runtime, never commit ───────────────────────────────────────────────
 .claude/
 docs/AGENT-BRIEF.md
 
-# ── Data — gitignored except the committed 1k sample ──────────────────────────
+# ── Data, gitignored except the committed 1k sample ───────────────────────────
 data/*
 !data/README.md
 !data/sample/
@@ -11,7 +11,7 @@ data/*
 *.parquet
 !data/sample/*.parquet
 
-# ── Run artifacts — auto-incrementing, never overwritten, never committed ─────
+# ── Run artifacts: auto-incrementing, never overwritten, never committed ──────
 runs/
 mlruns/
 *.ckpt
@@ -66,12 +66,12 @@ Thumbs.db
 *~
 *.bak
 
-# Downloaded HF parquet shards (~377 MB) — data/README.md documents how to refetch
+# Downloaded HF parquet shards (~377 MB); data/README.md documents how to refetch
 data/raw/
 data/processed/
 
-# Codex context — deliberately NOT committed (AI-agent tell)
+# Codex context, deliberately NOT committed (AI-agent tell)
 AGENTS.md
-# VPS topology + port inventory — local only, never published (discloses private project names)
+# VPS topology + port inventory: local only, never published (discloses private project names)
 PORT-MAP.md
 PORTS.md

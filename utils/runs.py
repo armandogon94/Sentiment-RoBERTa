@@ -1,4 +1,4 @@
-"""Auto-incrementing run directories — the repo's primary experiment tracker.
+"""Auto-incrementing run directories: the repo's primary experiment tracker.
 
 ``runs/run_0``, ``runs/run_1``, … one per launch, nothing ever overwritten, plus a
 ``runs/latest`` symlink so documented commands can be copy-pasteable without a run id in

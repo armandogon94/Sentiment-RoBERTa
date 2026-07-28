@@ -1,6 +1,6 @@
-"""Gradient-based token attribution — with the bug fixed and the method named correctly.
+"""Gradient-based token attribution, with the bug fixed and the method named correctly.
 
-**D1 — the bug.** The source notebook did this::
+**D1, the bug.** The source notebook did this::
 
     embeddings = model.roberta.embeddings(input_ids=input_ids)   # full embedding MODULE
     embeddings = embeddings.detach(); embeddings.requires_grad_(True)
@@ -13,7 +13,7 @@ second time: position and token-type embeddings are added twice and LayerNorm is
 The forward pass therefore runs on an input distribution the model never saw in training, and
 every gradient taken from it is an attribution *on a distorted input*.
 
-The fix is one line — take the word embeddings only, so the model adds position/token-type/
+The fix is one line: take the word embeddings only, so the model adds position/token-type/
 LayerNorm exactly once::
 
     embeddings = model.roberta.embeddings.word_embeddings(input_ids)
@@ -22,11 +22,11 @@ This is directly testable. In ``eval()`` mode dropout is off, so
 ``logits(input_ids) == logits(word_embeddings(input_ids))`` exactly, while the old path differs.
 ``tests/test_attribution.py`` asserts both, the broken one as an ``xfail`` naming the bug.
 
-**D2 — the name.** The notebook called this "Grad-CAM". It is not. It computes
+**D2, the name.** The notebook called this "Grad-CAM". It is not. It computes
 ``grads.norm(dim=-1)``: the L2 norm of the gradient of a target logit with respect to the input
 embeddings. That is **gradient-norm saliency** (vanilla gradient attribution). Grad-CAM uses
 channel-wise-pooled gradients as weights over the *activations* of a chosen layer, followed by
-ReLU — a different method with different guarantees, and one that needs a convolutional or
+ReLU, a different method with different guarantees, and one that needs a convolutional or
 otherwise spatially-structured feature map to be meaningful. See ``docs/interpretability.md``.
 """
 
@@ -55,7 +55,7 @@ class TokenAttribution:
 
 
 def word_embeddings_of(model: Any, input_ids: torch.Tensor) -> torch.Tensor:
-    """Word-embedding lookup only — the D1 fix, isolated so a test can target it.
+    """Word-embedding lookup only: the D1 fix, isolated so a test can target it.
 
     Explicitly **not** ``model.roberta.embeddings(input_ids=...)``, which is the full embedding
     module and double-applies position/token-type/LayerNorm when its output is passed back in
@@ -168,7 +168,7 @@ def grad_x_input(
     """Gradient ⊙ input, summed over the embedding dimension. Signed.
 
     A first-order Taylor estimate of each token's contribution to the target logit. Cheaper
-    than Integrated Gradients and, unlike gradient-norm saliency, it has a sign — but it still
+    than Integrated Gradients and, unlike gradient-norm saliency, it has a sign, but it still
     satisfies none of IG's axioms (see the Limitations section of the README).
     """
     return _attribute(

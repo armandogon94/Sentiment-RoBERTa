@@ -23,7 +23,7 @@ echo "==> Asserting the clone carries no unwanted weight"
 tracked_kb="$(git ls-files -z | xargs -0 du -ck 2>/dev/null | tail -1 | cut -f1)"
 echo "    tracked size: ${tracked_kb} KB"
 if [ "$tracked_kb" -gt 5120 ]; then
-  echo "FAIL: tracked files exceed 5 MB — something large got committed"; exit 1
+  echo "FAIL: tracked files exceed 5 MB, something large got committed"; exit 1
 fi
 if git ls-files | grep -iqE 'AGENT-BRIEF|CLAUDE\.md|AGENTS\.md|^PLAN\.md|\.claude/'; then
   echo "FAIL: agent scaffolding is tracked"; git ls-files | grep -iE 'AGENT-BRIEF|CLAUDE\.md|AGENTS\.md|^PLAN\.md|\.claude/'; exit 1
@@ -36,7 +36,7 @@ python3 scripts/check_committed_data.py
 echo "==> Asserting every README structure-tree path exists"
 structure_paths="$WORK/structure-paths.txt"
 # NOT a bracket expression over the box-drawing characters. `[├└]` is matched byte-wise in the C
-# locale, so the previous pattern found 15 paths under zsh and zero under bash — and because the
+# locale, so the previous pattern found 15 paths under zsh and zero under bash, and because the
 # result was only checked for existence, the zero case had been silently passing as "all paths
 # exist". Anchoring on the literal "── " is byte-safe in either locale.
 sed -n -E 's/^[^A-Za-z0-9]*── ([A-Za-z0-9_./-]+).*/\1/p' README.md > "$structure_paths" || true
@@ -68,7 +68,7 @@ assert m['models']['roberta']['random_weights'] is True, 'smoke must not fetch p
 for name, block in m['models'].items():
     ci = block['accuracy_ci']
     assert ci['method'] == 'wilson' and ci['low'] <= block['accuracy'] <= ci['high'], name
-print(f'    smoke accuracy = {a:.4f}  (random weights — a plumbing check, not a result)')"
+print(f'    smoke accuracy = {a:.4f}  (random weights, a plumbing check, not a result)')"
 
 echo "==> Asserting the committed figures are present"
 expected_figures=(

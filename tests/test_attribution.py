@@ -1,4 +1,4 @@
-"""The D1 regression test — the most important test in this repo.
+"""The D1 regression test, the most important test in this repo.
 
 The source notebook computed gradient attributions like this::
 
@@ -59,7 +59,7 @@ def test_word_embeddings_path_reproduces_input_ids_logits(tiny_model, hash_token
         "D1: model.roberta.embeddings(...) is the FULL embedding module. Passing its output "
         "back as inputs_embeds re-applies position + token-type embeddings and LayerNorm, so "
         "the logits differ and every attribution taken this way is computed on a distorted "
-        "input. This xfail IS the bug report — if it ever starts passing, transformers changed "
+        "input. This xfail IS the bug report: if it ever starts passing, transformers changed "
         "and this test should be re-examined, not deleted."
     ),
 )

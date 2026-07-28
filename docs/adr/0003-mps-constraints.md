@@ -1,4 +1,4 @@
-# ADR 0003 — One device per process, and no `MultiheadAttention` on MPS
+# ADR 0003: One device per process, and no `MultiheadAttention` on MPS
 
 **Status:** accepted · **Date:** 2026-07-25
 
@@ -6,13 +6,13 @@
 
 This repo trains on Apple Silicon through PyTorch's Metal backend (`torch 2.13.0`, MPS available).
 Two failure modes on this exact build are known and reproduced, and both are the kind that present
-as a hang rather than an exception — so they cost hours before they cost a stack trace.
+as a hang rather than an exception, so they cost hours before they cost a stack trace.
 
 1. **Mixing CPU and MPS tensor workloads in one process can deadlock.** A CPU transformer loop was
    observed sitting at 0% CPU indefinitely after an MPS matmul had run earlier in the same process.
    No error, no traceback, no progress.
 2. **`torch.nn.MultiheadAttention` hangs outright on MPS.** HuggingFace's RoBERTa implements its own
-   attention and does not use it, so this repo is not currently exposed — but any hand-rolled
+   attention and does not use it, so this repo is not currently exposed, but any hand-rolled
    attention module would be.
 
 No committed script or raw log benchmarks MPS against CPU in this repository, so this ADR makes no

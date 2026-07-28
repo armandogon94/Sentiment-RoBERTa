@@ -90,7 +90,7 @@ def test_model_revision_is_explicitly_unset_until_an_online_run_resolves_it():
 
 
 def test_smoke_train_and_test_sources_are_different_files():
-    """A fixture with a train/test leak would still 'pass' — this repo does not ship one."""
+    """A fixture with a train/test leak would still 'pass'; this repo does not ship one."""
     cfg = load_config(CFG_DIR / "smoke.yaml")
     assert cfg.DATA.TRAIN_PATH != cfg.DATA.TEST_PATH
 
@@ -105,7 +105,7 @@ def test_default_config_reproduces_the_notebook_exactly():
 
 
 def test_small_config_matches_the_notebook_data_scale():
-    """The published run differs from the notebook in epochs only — nothing else."""
+    """The published run differs from the notebook in epochs only, nothing else."""
     small = load_config(CFG_DIR / "small.yaml")
     default = load_config(CFG_DIR / "default.yaml")
     assert (small.DATA.N_TRAIN, small.DATA.N_TEST) == (default.DATA.N_TRAIN, default.DATA.N_TEST)

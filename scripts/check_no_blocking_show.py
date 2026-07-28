@@ -14,7 +14,7 @@ unattended and is a hard CI blocker.
 
 Filtering those out with more grep flags means encoding "is this a call or prose?" in a regex.
 ``ast`` answers it exactly. So the rule has one implementation, in stdlib only, shared by the
-test suite, ``scripts/verify_fresh_clone.sh``, and the CI ``docs-drift`` job — rather than three
+test suite, ``scripts/verify_fresh_clone.sh``, and the CI ``docs-drift`` job, rather than three
 grep variants that drift apart.
 
 Usage
@@ -90,7 +90,7 @@ def main() -> int:
             print(f"  {o}", file=sys.stderr)
         print(
             "\nEvery figure must savefig and return its path. Interactive display belongs behind "
-            "an explicit `if show:` gate — see utils/plots.py::save_figure.",
+            "an explicit `if show:` gate; see utils/plots.py::save_figure.",
             file=sys.stderr,
         )
         return 1

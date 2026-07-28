@@ -8,7 +8,7 @@ ADR 0007, which may require a download on a cold machine.
 
 What it asserts is that the pipeline produces *artifacts*, not that the model is good. The
 accuracy of a random-weight model on 160 training rows is meaningless, and this file is
-careful never to imply otherwise — it checks the number is finite and in (0, 1), nothing more.
+careful never to imply otherwise: it checks the number is finite and in (0, 1), nothing more.
 """
 
 from __future__ import annotations
@@ -201,7 +201,7 @@ def test_seed_override_is_recorded_in_run_artifacts(seeded_smoke_run):
 
 
 def test_unseeded_run_still_uses_the_config_seed(smoke_run):
-    """The override must be inert when absent — no behaviour change without --seed."""
+    """The override must be inert when absent: no behaviour change without --seed."""
     run_dir, metrics, _ = smoke_run
     meta = json.loads((run_dir / "run_meta.json").read_text())
 
@@ -238,7 +238,7 @@ def test_smoke_run_used_random_weights_and_says_so(smoke_run):
 
 
 def test_figures_can_be_generated_only_into_requested_directory(smoke_run, tmp_path, monkeypatch):
-    """`make figures` must work on a fresh clone. Metric figures only — the smoke run's
+    """`make figures` must work on a fresh clone. Metric figures only, because the smoke run's
     interpretability plots would be pictures of random weights."""
     import scripts.export_figures as ef
 

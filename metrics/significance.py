@@ -2,7 +2,7 @@
 
 Two decisions here, both of which matter more than they look:
 
-**Wilson, not Wald.** The Wald interval ``p ± 1.96·sqrt(p(1-p)/n)`` misbehaves near 0 and 1 —
+**Wilson, not Wald.** The Wald interval ``p ± 1.96·sqrt(p(1-p)/n)`` misbehaves near 0 and 1:
 it can extend past 1.0 and its coverage degrades exactly where accuracy figures live. Wilson
 is the standard fix and is what ``statsmodels.stats.proportion.proportion_confint(method=
 "wilson")`` returns; ``tests/test_metrics.py`` asserts agreement with it.
@@ -11,7 +11,7 @@ is the standard fix and is what ``statsmodels.stats.proportion.proportion_confin
 1,000 examples, so the predictions are paired. A two-sample proportion test assumes
 independent samples, ignores the pairing, and therefore throws away the information that
 matters: how often the two models disagree. McNemar's exact test uses only the discordant
-pairs, which is the whole question — "when they differ, who is right more often?"
+pairs, which is the whole question: "when they differ, who is right more often?"
 
 Marginal Wilson intervals describe each accuracy separately; their overlap does not determine
 whether a paired difference is resolvable. This module therefore also provides a conditional
@@ -104,7 +104,7 @@ class McNemarResult:
 
     ``b`` = model A right, model B wrong. ``c`` = model A wrong, model B right. The exact test
     is a two-sided binomial test of ``b`` out of ``b + c`` against p = 0.5, so ``n_discordant``
-    is the effective sample size — not the 1,000 test examples.
+    is the effective sample size, not the 1,000 test examples.
     """
 
     a_both_correct: int

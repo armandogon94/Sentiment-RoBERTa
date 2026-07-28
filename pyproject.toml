@@ -17,7 +17,7 @@ dependencies = [
     "pandas>=2.2",
     "pyarrow>=17.0",          # amazon_polarity ships as parquet
     "nltk>=3.9",              # >=3.9 for the punkt_tab resource
-    # statistics — Wilson intervals + exact McNemar
+    # statistics: Wilson intervals + exact McNemar
     "statsmodels>=0.14",
     # figures
     "matplotlib>=3.9",
@@ -52,7 +52,7 @@ dev = [
 
 # Deliberately NOT an installable distribution. The house style is packages-at-root
 # invoked from the repo root (`python train.py`), and one of those packages is named
-# `datasets/` — installing it into site-packages would shadow HuggingFace `datasets`
+# `datasets/`, and installing it into site-packages would shadow HuggingFace `datasets`
 # for anything else sharing the environment. See docs/adr/0006-local-packages-not-installed.md
 [tool.uv]
 package = false
@@ -69,7 +69,7 @@ extend-exclude = ["notebooks"]
 [tool.ruff.lint]
 select = [
     "E", "W",    # pycodestyle
-    "F",         # pyflakes — F401 unused imports
+    "F",         # pyflakes: F401 unused imports
     "I",         # isort
     "B",         # bugbear
     "C4",        # comprehensions
@@ -78,7 +78,7 @@ select = [
     "ARG",       # unused arguments
     "PTH",       # use pathlib
     "NPY",       # numpy legacy random
-    "ERA",       # ERA001 — commented-out code
+    "ERA",       # ERA001: commented-out code
     "T20",       # no print() in library code
     "RUF",
 ]

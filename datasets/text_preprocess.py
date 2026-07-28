@@ -17,7 +17,7 @@ Two of those four lines delete negation:
   (``don't``, ``isn't``, ``wasn't``, ``couldn't``, …).
 
 With ``TfidfVectorizer``'s default ``ngram_range=(1, 1)`` no bigram can recover the lost
-structure, so ``"not good"`` and ``"good"`` become the same feature vector — on the one task
+structure, so ``"not good"`` and ``"good"`` become the same feature vector, on the one task
 where negation is the decisive signal. That is boilerplate copied from topic-classification
 tutorials, applied to sentiment, where it is actively harmful.
 
@@ -25,7 +25,7 @@ The flags make the cost measurable: ``cfg/baseline_ablation.json`` runs the 2×2
 ``reports/RESULTS.md`` publishes all four numbers.
 
 Performance note: the stopword set and the stemmer are built once at module level. The
-notebook rebuilt both inside the per-row function — 10,000 ``PorterStemmer()`` constructions
+notebook rebuilt both inside the per-row function: 10,000 ``PorterStemmer()`` constructions
 and 10,000 ``stopwords.words()`` list scans per run.
 """
 
@@ -43,7 +43,7 @@ from utils.nltk_data import ensure_nltk_data
 
 _ALNUM = re.compile(r"^\w+$")
 
-#: Built once. Rebuilt per row in the notebook — see the module docstring.
+#: Built once. Rebuilt per row in the notebook; see the module docstring.
 _STEMMER = PorterStemmer()
 
 
@@ -93,7 +93,7 @@ def preprocess_text(
 
     With all flags ``True`` this reproduces the notebook's preprocessing chain, including
     its negation-destroying behaviour. The downstream vectorizer's documented token-pattern
-    departure is separate. This chain is kept runnable on purpose — "the old way" has to be
+    departure is separate. This chain is kept runnable on purpose: "the old way" has to be
     measurable to be criticised.
     """
     tokens: Iterable[str] = tokenize(text.lower() if lowercase else text)

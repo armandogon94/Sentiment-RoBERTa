@@ -1,4 +1,4 @@
-# ADR 0006 — `[tool.uv] package = false`, because one of our packages is called `datasets`
+# ADR 0006: `[tool.uv] package = false`, because one of our packages is called `datasets`
 
 **Status:** accepted · **Date:** 2026-07-25
 
@@ -12,7 +12,7 @@ re-exports. Applied here that yields `datasets/`, `models/`, `metrics/`, `interp
 `datasets/` collides by name with HuggingFace's `datasets` library. If this project were built as an
 installable distribution and its packages copied into `site-packages`, then in that virtualenv
 `import datasets` would resolve to *our* five-module package. Anything that imports HuggingFace
-`datasets` — including several optional code paths inside `transformers` — would get a module with no
+`datasets`, including several optional code paths inside `transformers`, would get a module with no
 `load_dataset` and fail with an `AttributeError` far from the cause.
 
 Renaming the package to `data/` or `dataio/` would dodge the collision but break the house style the
@@ -27,7 +27,7 @@ Mark the project as not-a-package: `[tool.uv] package = false`, and delete the `
 Consequences that follow, and are relied on elsewhere:
 
 - Nothing from this repo is ever copied into `site-packages`. The collision cannot occur.
-- Everything runs from the repo root — `uv run python train.py -c cfg/small.yaml` — which is the
+- Everything runs from the repo root, as `uv run python train.py -c cfg/small.yaml`, which is the
   house style anyway (conventions 1–3), not a workaround.
 - `pytest` resolves the packages through `pythonpath = ["."]` in `[tool.pytest.ini_options]`.
 - `scripts/*.py` insert `REPO_ROOT` onto `sys.path` before importing, so they work when invoked by
@@ -45,7 +45,7 @@ reader might install this into.
 - No `pip install sentiment-roberta`. Correct for a research repo whose deliverable is a report and a
   figure set, not a library.
 - A future decision to publish reusable code would mean either renaming `datasets/` or moving the
-  library under a distribution name — a real cost, recorded here so it is a known one.
+  library under a distribution name, a real cost, recorded here so it is a known one.
 
 ## Alternatives considered
 

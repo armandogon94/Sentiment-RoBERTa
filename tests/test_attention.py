@@ -1,4 +1,4 @@
-"""Attention extraction — D8 in particular.
+"""Attention extraction, D8 in particular.
 
 The failure this guards against is silent: on ``transformers`` 5.x the default attention
 implementation is ``sdpa``, and asking it for ``output_attentions=True`` returns an **empty**

@@ -25,7 +25,7 @@ def resolve_device(requested: DeviceName = "auto") -> torch.device:
     """Resolve the configured device to a concrete one, degrading to CPU cleanly.
 
     CI runs on ``ubuntu-latest`` where MPS does not exist, so ``auto`` must not raise
-    there — ``tests/test_device.py`` covers exactly that path.
+    there; ``tests/test_device.py`` covers exactly that path.
     """
     if requested == "cpu":
         return torch.device("cpu")
@@ -41,7 +41,7 @@ def resolve_device(requested: DeviceName = "auto") -> torch.device:
 def low_power_mode() -> bool | None:
     """macOS Low Power Mode state, or ``None`` where it cannot be determined.
 
-    Recorded in ``run_meta.json`` because on this hardware it materially changes timings —
+    Recorded in ``run_meta.json`` because on this hardware it materially changes timings:
     every timing this repo publishes names the mode it was measured under.
     """
     if platform.system() != "Darwin":

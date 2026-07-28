@@ -1,4 +1,4 @@
-# Dev config — the quickstart run. Real pretrained roberta-base, small enough to finish
+# Dev config: the quickstart run. Real pretrained roberta-base, small enough to finish
 # in minutes so the timing can be measured before committing to a longer run.
 # 2,000 train / 500 test, 1 epoch, seq 128.
 NAME: dev

@@ -22,7 +22,7 @@ for split in ('train', 'test'):
 |---|---|
 | Dataset | Amazon Review Polarity |
 | Primary distribution | [`fancyzhx/amazon_polarity`](https://huggingface.co/datasets/fancyzhx/amazon_polarity) (Hugging Face, parquet) |
-| Gated | **no** — no login, no terms acceptance |
+| Gated | **no** (no login, no terms acceptance) |
 | Licence | Apache-2.0 |
 | Upstream size | 3,600,000 train / 400,000 test, ~1.15 GB |
 | Upstream columns | `label` (0 = negative, 1 = positive), `title`, `content` |
@@ -52,11 +52,11 @@ identical frames on the same 100 rows. Getting this wrong inverts every label.
 
 | Column | dtype | Units | Nullable | Description |
 |---|---|---|---|---|
-| `label` | `int8` | — | no | 0 = negative (upstream polarity 1), 1 = positive (upstream polarity 2) |
+| `label` | `int8` | n/a | no | 0 = negative (upstream polarity 1), 1 = positive (upstream polarity 2) |
 | `title` | `string` | characters | upstream: yes | Review headline. Rows with a null title are dropped. |
 | `text` | `string` | characters | upstream: yes | Review body (`content` upstream). Rows with a null body are dropped. |
 
-Derived at load time: `joined_text = title + ". " + text` — the exact field both published models
+Derived at load time: `joined_text = title + ". " + text`, the exact field both published models
 consumed. The source notebook and its data dictionary used a single-space separator. The added
 period is therefore a documented implementation departure: it becomes a RoBERTa token and survives
 the repo's widened TF-IDF token pattern.
@@ -69,7 +69,7 @@ in the results table's `Config` column and in `runs/run_N/run_meta.json`.**
 
 | Config | Rows read | Train | Val | Test | Epochs | `max_len` | Run? |
 |---|---|---|---|---|---|---|---|
-| `cfg/smoke.yaml` | 1,000 / 400 (committed samples) | 160 | 40 | 100 | 1 | 64 | ✅ CI only — random weights, publishes nothing |
+| `cfg/smoke.yaml` | 1,000 / 400 (committed samples) | 160 | 40 | 100 | 1 | 64 | ✅ CI only: random weights, publishes nothing |
 | `cfg/dev.yaml` | 200,000 / 20,000 | 1,800 | 200 | 500 | 1 | 128 | ✅ calibration |
 | `cfg/small.yaml` | 200,000 / 20,000 | 8,100 | 900 | 1,000 | 3 | 256 | ✅ **the published run** |
 | `cfg/default.yaml` | 200,000 / 20,000 | 8,100 | 900 | 1,000 | 5 | 256 | ✅ the notebook's full schedule |
@@ -94,8 +94,8 @@ Measured on 2026-07-25 against the files fetched by `make data`.
 | Rows read from test split | 20,000 (of 400,000) |
 | Rows surviving null/type filtering, train | 200,000 (0 dropped) |
 | Rows surviving null/type filtering, test | 20,000 (0 dropped) |
-| **Class balance, first 200,000 train rows** | **98,834 negative / 101,166 positive — 50.58% positive** |
-| **Class balance, first 20,000 test rows** | **9,786 negative / 10,214 positive — 51.07% positive** |
+| **Class balance, first 200,000 train rows** | **98,834 negative / 101,166 positive, 50.58% positive** |
+| **Class balance, first 20,000 test rows** | **9,786 negative / 10,214 positive, 51.07% positive** |
 | Committed train sample (1,000 rows, stratified) | 494 negative / 506 positive |
 | Committed test sample (400 rows, stratified) | 196 negative / 204 positive |
 
@@ -103,7 +103,7 @@ The class balance of the rows *read* was a real open question rather than a form
 takes the **first** N rows of the train split, and whether that prefix is class-balanced is a property
 of upstream file ordering, not something to assume from the corpus being balanced overall. It is
 within half a point of even, so the macro-averaged metrics this repo reports are not distorted by a
-prior — but that is now a measurement rather than a hope.
+prior. That is now a measurement rather than a hope.
 
 ### Sequence-length truncation, measured per run
 
@@ -145,11 +145,11 @@ Both stratified and seeded, produced by `scripts/make_sample.py --n 1000 --seed 
 README quickstart run against them, so `git clone && make test` works with no download at all.
 
 They come from different upstream splits deliberately. Drawing both from one file would give the
-smoke config a train/test overlap — harmless for a plumbing check, but this repository exists to
+smoke config a train/test overlap, harmless for a plumbing check, but this repository exists to
 correct a fabricated number and it does not ship a leak anywhere, not even in a fixture.
 
-The full dataset is not redistributed by this repository. Two small seeded, stratified subsets —
-1,000 train rows and 400 test rows — are committed as redacted offline fixtures under the upstream
+The full dataset is not redistributed by this repository. Two small seeded, stratified subsets,
+1,000 train rows and 400 test rows, are committed as redacted offline fixtures under the upstream
 licence, with attribution in [`../NOTICE`](../NOTICE). `git ls-files | xargs du -ch | tail -1` is
 under 5 MB and `scripts/verify_fresh_clone.sh` fails the build if that stops being true.
 

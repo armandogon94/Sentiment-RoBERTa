@@ -3,7 +3,7 @@
 Four things here are deliberate and not obvious:
 
 1. **``attn_implementation="eager"`` is passed to the MODEL, not the config.** The notebook
-   passed it to ``RobertaConfig.from_pretrained``, where ``transformers`` never reads it — it
+   passed it to ``RobertaConfig.from_pretrained``, where ``transformers`` never reads it; it
    reads the private ``config._attn_implementation``. On ``transformers`` 5.x the default is
    ``sdpa``, and ``sdpa`` returns an **empty** attentions tuple with only a warning, so the
    attention figures would have silently had nothing to plot.
@@ -158,7 +158,7 @@ class RobertaSentiment:
         return np.asarray(logits.argmax(axis=1), dtype=np.int64)
 
     def save(self, path: Path) -> Path:
-        """Save the fine-tuned weights. Gitignored — a run artifact."""
+        """Save the fine-tuned weights. Gitignored, a run artifact."""
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
         torch.save(self.model.state_dict(), path)
@@ -298,7 +298,7 @@ class RobertaSentiment:
             )
 
             # D4: select on validation loss. With no validation set, keep the last epoch and
-            # say so — there is nothing to select on, and using test loss would be leakage.
+            # say so: there is nothing to select on, and using test loss would be leakage.
             score = val_loss if val_loss == val_loss else float(epoch)
             if val_loader is None or score < best_val:
                 best_val = score

@@ -1,4 +1,4 @@
-"""``run_meta.json`` — everything needed to explain, or distrust, a number.
+"""``run_meta.json``: everything needed to explain, or distrust, a number.
 
 Written before training starts (so an interrupted run still says what it was trying to do)
 and updated with timings when it ends. The git SHA in here is what the README cites as the

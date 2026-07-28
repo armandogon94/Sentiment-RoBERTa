@@ -1,4 +1,4 @@
-# ADR 0001 — Keep the notebook, against the house convention
+# ADR 0001: Keep the notebook, against the house convention
 
 **Status:** accepted · **Date:** 2026-07-25
 
@@ -8,7 +8,7 @@ The portfolio style guide generally prefers a productionized path over notebooks
 preference literally here would mean deleting the artifact this repository was built from; no
 reference-repository count is repeated because the guide is outside this repository.
 
-That convention exists for a reason: in most repos a notebook is a *substitute* for a pipeline — the
+That convention exists for a reason: in most repos a notebook is a *substitute* for a pipeline. The
 analysis lives in cell order, nothing is importable, nothing is tested, and the notebook is the reason
 there is no `train.py`. Deleting it is usually right.
 
@@ -22,10 +22,10 @@ verifiable.
 
 Keep two notebooks in `notebooks/`, with distinct jobs:
 
-- **`sentiment_analysis_roberta_ORIGINAL.ipynb`** — the published Kaggle notebook, **unmodified,
+- **`sentiment_analysis_roberta_ORIGINAL.ipynb`**: the published Kaggle notebook, **unmodified,
   digest-pinned at HEAD**. It is evidence, not code. A custom notebook guard checks its fixed digest;
   there is deliberately no `nbstripout` hook.
-- **`sentiment_analysis_roberta.ipynb`** — a narrative walkthrough that **imports** the packages
+- **`sentiment_analysis_roberta.ipynb`**: a narrative walkthrough that **imports** the packages
   rather than redefining them, re-run with outputs saved, pointed at `cfg/dev.yaml` so it executes in
   minutes and its outputs honestly correspond to a cheap config.
 
@@ -46,7 +46,7 @@ stated reason* is a stronger signal than following it unexamined.
 stripper can silently rewrite the provenance artifact or erase saved re-run outputs, which is why
 the repository uses a purpose-built guard.
 
-**Rejected alternatives.** *Delete both* — breaks provenance for no gain. *Keep only the original* —
+**Rejected alternatives.** *Delete both* breaks provenance for no gain. *Keep only the original*:
 its cells reference module-level definitions that no longer exist in that form, so it would drift out
-of correspondence with the code. *Convert to a `.py` script* — loses the narrative form that is the
+of correspondence with the code. *Convert to a `.py` script* loses the narrative form that is the
 notebook's only advantage.

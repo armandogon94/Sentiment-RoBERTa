@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
 
 import numpy as np
@@ -115,12 +116,46 @@ def test_no_unguarded_plt_show_in_the_tree(repo_root: Path):
     Delegates to ``scripts/check_no_blocking_show.py`` so the rule has exactly one
     implementation, shared with the CI ``docs-drift`` job and the fresh-clone verifier. The
     checker parses with ``ast`` rather than grepping, because this repo's own docstrings discuss
-    ``plt.show()`` at length — precisely because it is banned — and a regex cannot tell prose
+    ``plt.show()`` at length, precisely because it is banned, and a regex cannot tell prose
     from a call.
     """
     import scripts.check_no_blocking_show as checker
 
     assert checker.main() == 0
+
+
+def test_tracked_text_contains_no_em_dash(repo_root: Path):
+    """House prose style, enforced rather than remembered.
+
+    An em dash is the most reliable machine-writing tell in a portfolio repository, and a
+    sweep that is not guarded comes back the next time a generator or a docstring is edited.
+    The check covers every tracked file, including the figure and report generators, so a
+    regenerated artifact cannot reintroduce one through its own source.
+    """
+    em_dash = chr(0x2014)
+    result = subprocess.run(
+        ["git", "ls-files", "-z"],
+        cwd=repo_root,
+        check=True,
+        capture_output=True,
+    )
+    tracked = [Path(path) for path in result.stdout.decode().split("\0") if path]
+    offenders: dict[str, int] = {}
+    for relative in tracked:
+        try:
+            text = (repo_root / relative).read_text()
+        except UnicodeDecodeError:
+            # PNGs and other binaries carry no reviewable prose.
+            continue
+        except FileNotFoundError:
+            # git still lists a deleted path until the deletion is staged. A file that is
+            # not on disk carries no text, so there is nothing here to check.
+            continue
+        count = text.count(em_dash)
+        if count:
+            offenders[str(relative)] = count
+
+    assert offenders == {}, f"tracked text contains U+2014: {offenders}"
 
 
 def test_published_figure_guard_regenerates_evidence_derived_payloads(repo_root: Path):
@@ -163,7 +198,7 @@ def test_original_notebook_is_byte_identical_to_the_kaggle_export(repo_root: Pat
 
     `ruff format` reflowed this file from Kaggle's minified single-line JSON into
     pretty-printed JSON before `notebooks/` was excluded from ruff. Every cell, id and source
-    string survived — but "unmodified copy of the published artifact" did not. Pinning the digest
+    string survived, but "unmodified copy of the published artifact" did not. Pinning the digest
     is the only check that catches a reformat that preserves meaning.
     """
     import hashlib
@@ -182,7 +217,7 @@ def test_rerun_notebook_keeps_its_outputs(repo_root: Path):
     notebook = json.loads(path.read_text())
     code = [c for c in notebook["cells"] if c["cell_type"] == "code"]
     with_outputs = [c for c in code if c.get("outputs")]
-    assert with_outputs, "the re-run notebook has no saved outputs — run `make notebook`"
+    assert with_outputs, "the re-run notebook has no saved outputs; run `make notebook`"
     assert len(with_outputs) == len(code)
 
 

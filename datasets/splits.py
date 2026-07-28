@@ -1,6 +1,6 @@
 """Stratified, seeded train/val/test construction.
 
-The source notebook had exactly two splits — 9,000 train and 1,000 test — and no validation
+The source notebook had exactly two splits, 9,000 train and 1,000 test, and no validation
 set. That makes "5 epochs" an unjustified constant: there is nothing to early-stop on, and
 picking the epoch by test accuracy would be test-set leakage dressed up as model selection.
 

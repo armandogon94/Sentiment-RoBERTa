@@ -1,7 +1,7 @@
 """Idempotent, quiet NLTK resource setup with explicit cold-machine downloads.
 
 The source notebook called bare ``nltk.download()``. With no arguments that opens an
-interactive Tk resource browser and blocks forever — it cannot run unattended and would
+interactive Tk resource browser and blocks forever: it cannot run unattended and would
 hang CI on the first job.
 
 ``punkt_tab`` is required in addition to ``punkt`` from NLTK 3.8.2 onward and is the single

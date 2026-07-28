@@ -124,9 +124,9 @@ def build_splits(cfg: Config) -> Any:
 
 
 def fit_baseline(cfg: Config, splits: Any, *, name: str = "tfidf_logreg") -> dict[str, Any]:
-    """Fit the control on train (not train+val — the transformer does not see val either)."""
+    """Fit the control on train (not train+val, since the transformer does not see val either)."""
     log = get_logger("baseline")
-    # The Protocol is deliberately minimal — it is the surface the results table compares
+    # The Protocol is deliberately minimal: it is the surface the results table compares
     # on. The entrypoint additionally reports the control's coefficients, so it narrows to
     # the concrete type here rather than widening the Protocol for one caller.
     model = cast(

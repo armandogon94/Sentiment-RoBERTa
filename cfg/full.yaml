@@ -1,4 +1,4 @@
-# Full config — 200,000 train / 20,000 test, 5 epochs, seq 256.
+# Full config: 200,000 train / 20,000 test, 5 epochs, seq 256.
 #
 # ⚠️  NOT RUN. No runtime is claimed: this repo has neither a full-scale run nor a
 # hardware-matched benchmark from which to support one. The file records experiment scope.

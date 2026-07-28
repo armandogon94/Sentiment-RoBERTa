@@ -64,7 +64,7 @@ def main(argv: list[str] | None = None) -> int:
     code_cells = sum(1 for c in notebook.cells if c.cell_type == "code")
     print(f"==> saved. {with_output}/{code_cells} code cells carry outputs.")
     if with_output == 0:
-        raise SystemExit("FAIL: no outputs were saved — the point of this script is the outputs")
+        raise SystemExit("FAIL: no outputs were saved; the point of this script is the outputs")
     return 0
 
 

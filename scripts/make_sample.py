@@ -3,7 +3,7 @@
 
 Two files, not one, and that is the point: the smoke config needs a train source and a test
 source that do not overlap. Drawing both from the same 1,000 rows would give the smoke run a
-train/test leak — harmless for a plumbing check, but this repo exists to correct a fabricated
+train/test leak, harmless for a plumbing check, but this repo exists to correct a fabricated
 number, so it does not ship a leak anywhere, not even in a fixture.
 
 * ``data/sample/reviews_sample.csv``      1,000 stratified rows from the upstream TRAIN split

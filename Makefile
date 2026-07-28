@@ -1,4 +1,4 @@
-# 33-sentiment-roberta — one command per pipeline stage.
+# 33-sentiment-roberta: one command per pipeline stage.
 # Every target below is exercised by scripts/verify_fresh_clone.sh or by CI.
 
 .DEFAULT_GOAL := help
@@ -34,10 +34,10 @@ sample:  ## Regenerate the committed 1,000-row stratified sample
 smoke:  ## Fastest end-to-end run: committed sample, random-weight model, <60s
 	$(PY) train.py -c cfg/smoke.yaml
 
-dev:  ## Quickstart run — 2,000 train / 500 test, 1 epoch, seq 128
+dev:  ## Quickstart run: 2,000 train / 500 test, 1 epoch, seq 128
 	$(PY) train.py -c cfg/dev.yaml
 
-small:  ## The published run — 9,000 / 1,000, seq 256, bounded by WALL_CLOCK_CAP_MIN
+small:  ## The published run: 9,000 / 1,000, seq 256, bounded by WALL_CLOCK_CAP_MIN
 	$(PY) train.py -c cfg/small.yaml
 
 train: small  ## Alias for `make small` (the config whose numbers are published)

@@ -17,13 +17,13 @@ notebooks/sentiment_analysis_roberta_ORIGINAL.ipynb. This repository is licensed
 Apache-2.0 to remain consistent with that prior release.
 
 --------------------------------------------------------------------------------
-Dataset — Amazon Review Polarity
+Dataset: Amazon Review Polarity
 --------------------------------------------------------------------------------
 
 Distributed as fancyzhx/amazon_polarity on the Hugging Face Hub under the
 Apache License 2.0. The full dataset is not redistributed by this repository.
-Two small seeded, stratified, redacted subsets — 1,000 train rows and 400 test
-rows — are committed as offline fixtures under the upstream licence.
+Two small seeded, stratified, redacted subsets, 1,000 train rows and 400 test
+rows, are committed as offline fixtures under the upstream licence.
 
     https://huggingface.co/datasets/fancyzhx/amazon_polarity
 
@@ -42,7 +42,7 @@ Derived from the Amazon review corpus of:
     pp. 165-172.
 
 --------------------------------------------------------------------------------
-Pretrained model — roberta-base
+Pretrained model: roberta-base
 --------------------------------------------------------------------------------
 
 Weights distributed on the Hugging Face Hub under the MIT License. Not

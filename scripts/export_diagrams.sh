@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Export every Mermaid block in docs/architecture.md to docs/diagrams/*.svg.
 #
-# The Mermaid source lives inline in the Markdown — GitHub renders it natively, it diffs as text,
+# The Mermaid source lives inline in the Markdown: GitHub renders it natively, it diffs as text,
 # and there is exactly one copy of the truth. This script is how that one copy also becomes an SVG
 # for readers outside a Markdown renderer, so the diagrams are never hand-drawn or hand-exported.
 #

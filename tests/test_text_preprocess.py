@@ -1,4 +1,4 @@
-r"""D3 regression — negation must survive when the destructive flags are off.
+r"""D3 regression: negation must survive when the destructive flags are off.
 
 This is the test that turns "the notebook's preprocessing was wrong" from an opinion into a
 property. Two assertions carry the weight:

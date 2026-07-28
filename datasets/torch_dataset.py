@@ -1,4 +1,4 @@
-"""``ReviewsDataset`` — tokenise once, index cheaply, and measure the truncation rate.
+"""``ReviewsDataset``: tokenise once, index cheaply, and measure the truncation rate.
 
 Lifted from the source notebook with one addition: the fraction of examples that hit
 ``max_len`` is measured rather than assumed. The README's limitations section claims a
@@ -21,7 +21,7 @@ class ReviewsDataset(Dataset[dict[str, torch.Tensor]]):
     truncation rate is known before the first epoch starts.
 
     Tensors are created on CPU and moved to the device by the training loop. Nothing here
-    touches a device — see ``docs/adr/0003-mps-constraints.md`` for why device handling is
+    touches a device; see ``docs/adr/0003-mps-constraints.md`` for why device handling is
     confined to one place.
     """
 

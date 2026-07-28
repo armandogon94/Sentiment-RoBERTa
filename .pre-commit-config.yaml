@@ -2,7 +2,7 @@
 #
 # nbstripout was tried first, scoped to the ORIGINAL notebook alone. It has nothing to strip
 # there (the file was published with zero outputs) but it DOES rewrite every cell id and reflow
-# every `source` string into a list — a 93-line diff on the one file whose entire value is being
+# every `source` string into a list, a 93-line diff on the one file whose entire value is being
 # unchanged. And the re-run notebook's saved outputs are a deliverable, so it must not be
 # stripped either.
 #

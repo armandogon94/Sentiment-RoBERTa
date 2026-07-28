@@ -1,4 +1,4 @@
-# ADR 0004 — Which config the published numbers come from, and why it is not the notebook's
+# ADR 0004: Which config the published numbers come from, and why it is not the notebook's
 
 **Status:** accepted · **Date:** 2026-07-25
 
@@ -16,18 +16,18 @@ df_train_sample = df_original_train.sample(9000, random_state=42)  # rows TRAINE
 df_test_sample = df_original_test.sample(1000, random_state=42)  # rows TESTED on
 ```
 
-200,000 is how much CSV was read into memory before sampling. The training set is 9,000 rows — about
+200,000 is how much CSV was read into memory before sampling. The training set is 9,000 rows, about
 0.25% of the 3.6M available.
 
 Two hard constraints then applied to this session:
 
 1. **A 45-minute wall-clock cap per training run.** Non-negotiable; the machine is shared.
 2. **A measured throughput, not an assumed one.** `cfg/dev.yaml` was run first for exactly this
-   purpose: 1,800 rows at `max_len=128`, 57 optimizer steps, **65.4 s** — 1.15 s/step on MPS.
+   purpose: 1,800 rows at `max_len=128`, 57 optimizer steps, **65.4 s**, or 1.15 s/step on MPS.
 
 Extrapolating: doubling the sequence length roughly doubles per-step cost, so 8,100 training rows at
 `max_len=256` is about 254 steps × ~2.4 s ≈ **10.2 min/epoch**. Five epochs is therefore around
-51–55 minutes of pure training — over the cap. Three epochs is around 31 minutes — inside it.
+51–55 minutes of pure training, over the cap. Three epochs is around 31 minutes, inside it.
 
 That extrapolation was then confirmed by the run itself: epoch 1 of `cfg/small.yaml` took **625.5 s**
 (10.4 min) and `train.py` logged a projected total of 31.3 min before starting epoch 2. The
@@ -46,10 +46,10 @@ its hyperparameters, with exactly two departures, both stated in the file itself
 | Epochs | 5 | **3** |
 | Validation split | **none** | **10%, stratified** |
 
-Departure 1 — **epochs 5 → 3** — is a compute bound, derived from a measurement, and disclosed
+Departure 1, **epochs 5 → 3**, is a compute bound, derived from a measurement, and disclosed
 everywhere the number appears.
 
-Departure 2 — **adding a validation split** — is a correctness fix, not a budget one. With no
+Departure 2, **adding a validation split**, is a correctness fix, not a budget one. With no
 validation set, "5 epochs" is an unjustifiable constant: there is nothing to early-stop on, and
 selecting an epoch by test accuracy would be leakage dressed up as model selection. The published run
 selects its epoch on validation loss and scores the test set exactly once.

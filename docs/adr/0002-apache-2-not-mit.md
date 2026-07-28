@@ -1,4 +1,4 @@
-# ADR 0002 — Apache-2.0, not the portfolio-default MIT
+# ADR 0002: Apache-2.0, not the portfolio-default MIT
 
 **Status:** accepted · **Date:** 2026-07-25
 
@@ -14,7 +14,7 @@ released under Apache-2.0** as a Kaggle notebook
 
 Relicensing your own prior public release is legally available to the copyright holder. It is also
 visible: anyone who opens both the Kaggle notebook and the repository sees Apache-2.0 on one and MIT
-on the other, with no explanation. That reads as careless provenance handling — a small signal, but
+on the other, with no explanation. That reads as careless provenance handling, a small signal, but
 this repository's entire premise is careful provenance handling.
 
 ## Decision

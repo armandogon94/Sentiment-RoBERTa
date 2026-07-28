@@ -6,7 +6,7 @@ block can be splatted straight into a callable.
 
 ``extra="forbid"`` everywhere is the point of the file. A misspelled ``EPOCH`` would
 otherwise be silently ignored and the run would quietly train for the default number of
-epochs while the config claimed otherwise — a reproducibility hole that looks like a
+epochs while the config claimed otherwise, a reproducibility hole that looks like a
 result.
 """
 
@@ -145,7 +145,7 @@ def apply_overrides(cfg: Config, overrides: dict[str, dict[str, object]]) -> Con
     """Return a copy of ``cfg`` with block-level overrides applied.
 
     Used by the ablation driver, which varies only ``PREPROCESSING`` keys. Because every
-    block is frozen, the override goes through ``model_validate`` again — so an ablation
+    block is frozen, the override goes through ``model_validate`` again, so an ablation
     cell that names a nonexistent key fails at cell-construction time, not silently.
     """
     payload = cfg.model_dump(mode="json")

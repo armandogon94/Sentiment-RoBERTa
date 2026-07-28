@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """Fetch a bounded subset of Amazon Review Polarity from Hugging Face.
 
-Primary source: ``fancyzhx/amazon_polarity`` — ungated, public, Apache-2.0, parquet.
+Primary source: ``fancyzhx/amazon_polarity``, ungated, public, Apache-2.0, parquet.
 No token, no click-through licence, no Kaggle credentials (CI has none).
 
 Only the shards needed to satisfy ``--rows`` are downloaded, and each is verified
@@ -9,8 +9,8 @@ against the SHA-256 recorded in :data:`SHARD_SHA256` (taken from the Hugging Fac
 LFS pointer) *before* it is parsed. A silently truncated download is the kind of
 failure that produces a plausible-looking wrong number, so it fails loudly here.
 
-Output is normalised to the repo's canonical schema — ``label`` in {0, 1},
-``title``, ``text`` — so the HF-parquet and Kaggle-CSV paths are interchangeable.
+Output is normalised to the repo's canonical schema (``label`` in {0, 1},
+``title``, ``text``) so the HF-parquet and Kaggle-CSV paths are interchangeable.
 See ``datasets/loading.py`` and ``tests/test_loading.py``.
 
 Usage
@@ -160,7 +160,7 @@ def main(argv: list[str] | None = None) -> int:
     normalised.to_parquet(out, index=False)
     balance = normalised["label"].value_counts().sort_index().to_dict()
     print(f"==> wrote {out}  rows={len(normalised):,}  label counts={balance}")
-    print("    (paste the balance into data/README.md — it must be measured, not assumed)")
+    print("    (paste the balance into data/README.md; it must be measured, not assumed)")
     return 0
 
 

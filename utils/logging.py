@@ -1,4 +1,4 @@
-"""Structured logging. No ``print`` in library code — ruff's T20 enforces it.
+"""Structured logging. No ``print`` in library code; ruff's T20 enforces it.
 
 Two renderers: a human-readable console one for interactive runs, and JSON lines written to
 ``runs/run_N/log.jsonl`` so a run's log is machine-readable after the fact. The reference

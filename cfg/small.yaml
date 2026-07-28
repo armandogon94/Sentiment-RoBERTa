@@ -1,4 +1,4 @@
-# Small config — THE PUBLISHED RUN. Every headline number in the README and in
+# Small config: THE PUBLISHED RUN. Every headline number in the README and in
 # reports/RESULTS.md was produced by this file.
 #
 # It is the source notebook's data scale (9,000 train / 1,000 test, seq 256, batch 32,
@@ -22,7 +22,7 @@ DATA:
   ROWS_READ_TEST: 20000
   N_TRAIN: 9000                  # rows actually used (split into train + val below)
   N_TEST: 1000
-  VAL_FRACTION: 0.1              # 8,100 train / 900 val — fixes the notebook's missing split
+  VAL_FRACTION: 0.1              # 8,100 train / 900 val, fixes the notebook's missing split
 
 PREPROCESSING:
   LOWERCASE: true

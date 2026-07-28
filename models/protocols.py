@@ -2,8 +2,8 @@
 
 ``typing.Protocol`` rather than an ABC: the two implementations wrap wildly different
 libraries (scikit-learn and PyTorch/HuggingFace) and neither should have to inherit from
-anything to be comparable. Structural typing means the *call sites* — ``train.py``,
-``evaluate.py``, ``scripts/export_figures.py`` — are written once against
+anything to be comparable. Structural typing means the *call sites* (``train.py``,
+``evaluate.py``, ``scripts/export_figures.py``) are written once against
 ``SentimentModel`` and neither knows which one it holds.
 
 This is the highest-leverage abstraction in the repo: it is the reason the TF-IDF control is
@@ -23,7 +23,7 @@ class SentimentModel(Protocol):
     """Fit on raw strings, predict labels for raw strings.
 
     Both models take *strings*, not features. Feature extraction is each model's own business
-    — TF-IDF vectorisation for the control, subword tokenisation for the transformer — which
+    (TF-IDF vectorisation for the control, subword tokenisation for the transformer), which
     keeps the vectorizer strictly inside the control. ``train.py`` passes training text only,
     and the leakage test proves a test-only marker never enters the learned vocabulary.
     """

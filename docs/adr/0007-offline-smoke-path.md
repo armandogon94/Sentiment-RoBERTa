@@ -1,4 +1,4 @@
-# ADR 0007 — CI avoids model/data fetches; NLTK remains a cold-machine prerequisite
+# ADR 0007: CI avoids model/data fetches; NLTK remains a cold-machine prerequisite
 
 **Status:** accepted · **Date:** 2026-07-25
 
@@ -11,25 +11,25 @@ weights. Two large external inputs stand in the way:
 - pretrained `roberta-base` weights live on the Hugging Face hub.
 
 Downloading either on every push is slow, flaky, and rude to the hub. Caching `roberta-base` with
-`actions/cache` would work but makes a green CI depend on a warm cache and on network reachability —
+`actions/cache` would work but makes a green CI depend on a warm cache and on network reachability:
 the first cold run, or a fork, would fail for a reason unrelated to the code.
 
 ## Decision
 
 **The smoke path is independent of the dataset host and Hugging Face hub, and what it tests is the
-architecture and plumbing—never pretrained quality. It is not cold-machine offline.**
+architecture and plumbing, never pretrained quality. It is not cold-machine offline.**
 
 Three pieces:
 
-1. **Data** — `data/sample/reviews_sample.csv` (1,000 rows, 434 KB) and
+1. **Data.** `data/sample/reviews_sample.csv` (1,000 rows, 434 KB) and
    `data/sample/reviews_sample_test.csv` (400 rows, 181 KB) are committed. Two files, not one: they
    are drawn from the upstream *train* and *test* splits respectively, so the smoke config has no
    train/test overlap. A leaky fixture would still go green, and this repo exists to correct a
-   fabricated number — it does not ship a leak anywhere.
-2. **Model** — `MODEL.RANDOM_WEIGHT_LAYERS: 2` builds a `RobertaForSequenceClassification` from a
+   fabricated number, so it does not ship a leak anywhere.
+2. **Model.** `MODEL.RANDOM_WEIGHT_LAYERS: 2` builds a `RobertaForSequenceClassification` from a
    local `RobertaConfig` (hidden 64, 2 heads, 2 layers) with `attn_implementation="eager"`. No
    `from_pretrained`, so no model-weight network request is made.
-3. **Tokenizer** — `models/hash_tokenizer.py`, a deterministic blake2b hashing tokenizer that
+3. **Tokenizer.** `models/hash_tokenizer.py`, a deterministic blake2b hashing tokenizer that
    implements the exact subset of the `transformers` tokenizer API this repo calls, with RoBERTa's
    reserved ids 0–3 (`<s>`, `<pad>`, `</s>`, `<unk>`) preserved so the special-token-stripping code
    in `interpretability/attention.py` runs unchanged.
@@ -47,8 +47,8 @@ reuse them. This task chose to correct the offline claim rather than add third-p
 ## Consequences
 
 - **The smoke run's accuracy is real and meaningless**, and every place it appears says so: a
-  2-layer randomly-initialised model trained on 160 rows. It is asserted to be finite and in (0, 1) —
-  that artifacts were produced — and it is published nowhere. The docstring of `tests/test_smoke.py`
+  2-layer randomly-initialised model trained on 160 rows. It is asserted to be finite and in (0, 1),
+  which shows that artifacts were produced, and it is published nowhere. The docstring of `tests/test_smoke.py`
   and the header of `cfg/smoke.yaml` both state this explicitly, because a number in a repo tends to
   escape into a README unless something is written down to stop it.
 - CI avoids fetching review data and model weights. A cold runner still needs dependency

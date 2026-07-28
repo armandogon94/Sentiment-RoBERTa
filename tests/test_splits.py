@@ -3,7 +3,7 @@
 Three properties, in decreasing order of how much damage their violation would do:
 
 1. train, val and test index sets are pairwise disjoint;
-2. no test *text* appears in train (belt and braces — indices could be right while the frames
+2. no test *text* appears in train (belt and braces: indices could be right while the frames
    were built wrong);
 3. the ``TfidfVectorizer`` is fit on training text only, so no test vocabulary or IDF
    statistic reaches the model.

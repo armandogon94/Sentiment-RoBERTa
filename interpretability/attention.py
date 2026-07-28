@@ -9,7 +9,7 @@ Two constraints that are easy to get wrong:
   attention sink and routinely absorbs a large share of the mass; leaving it in compresses
   every real token into the bottom of the colour scale and the figure says nothing.
   ``attention_mask`` padding is dropped for the same reason.
-* **Eager attention is mandatory.** Under ``sdpa`` — the default in ``transformers`` 5.x —
+* **Eager attention is mandatory.** Under ``sdpa``, the default in ``transformers`` 5.x,
   ``output_attentions=True`` returns an *empty* tuple with only a warning. This module raises
   instead of plotting nothing, which is how D8 would have been caught the first time.
 
@@ -84,7 +84,7 @@ def last_layer_attention(
     out = model(input_ids=input_ids, attention_mask=attention_mask, output_attentions=True)
     if not out.attentions:
         raise RuntimeError(
-            "output_attentions=True returned an empty tuple — the model is not using eager "
+            "output_attentions=True returned an empty tuple; the model is not using eager "
             "attention (D8)"
         )
 
@@ -113,7 +113,7 @@ def pick_source_token(amap: AttentionMap, preferred: tuple[str, ...] = ()) -> in
     """Choose the source token for the per-token bar chart.
 
     Prefers one of ``preferred`` (matched ignoring RoBERTa's ``Ġ`` word-boundary marker), and
-    otherwise falls back to the token with the highest outgoing attention entropy — the token
+    otherwise falls back to the token with the highest outgoing attention entropy, the token
     whose attention distribution is least trivial, and therefore the most informative to plot.
     """
     normalised = [t.lstrip("Ġ").lower() for t in amap.tokens]

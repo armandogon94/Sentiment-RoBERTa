@@ -1,4 +1,4 @@
-# PROGRESS — 33-sentiment-roberta
+# PROGRESS: 33-sentiment-roberta
 
 Resume point for a session with no memory of the previous one. On resume:
 `git log --oneline -20`, read `docs/AGENT-BRIEF.md` (gitignored, local only), then start from
@@ -110,7 +110,7 @@ control `5a40fa75e25f9c77929574db07a5408f52373d6beb22db22cf63a05a5ecac892`.
 tests/test_training_curves.py` failed because the old title was
 `RoBERTa fine-tuning [dash omitted] train vs validation`, not the required finding.
 
-## Batch 3 authoritative tracker — methodology honesty and reproducibility
+## Batch 3 authoritative tracker: methodology honesty and reproducibility
 
 **Status:** `IMPLEMENTED` and `VERIFIED` on an uncommitted worktree based on `70d96b3`.
 The owner prohibited commits, pushes, and RoBERTa retraining; none occurred.
@@ -147,12 +147,12 @@ also requires a self-contained HTML presentation opened in Chrome.
 **Verification (`IMPLEMENTED`, 2026-07-25):**
 
 - `uv run pytest`: `174 passed, 1 xfailed in 17.6s` (`175` collected);
-- coverage run — `174 passed, 1 xfailed`; `919` statements, `47` missed, `95%` total;
-- published-number guard — `PASS: 353 published/evidence values recomputed from prediction vectors`;
-- committed-data guard — exit `0`, no stdout;
-- notebook guard — original digest passed, original unchanged, `0/28` original code cells and
+- coverage run: `174 passed, 1 xfailed`; `919` statements, `47` missed, `95%` total;
+- published-number guard reported `PASS: 353 published/evidence values recomputed from prediction vectors`;
+- committed-data guard: exit `0`, no stdout;
+- notebook guard: original digest passed, original unchanged, `0/28` original code cells and
   `12/12` narrative code cells have the expected output state;
-- ruff check — `All checks passed!`; ruff format — `71 files already formatted`; mypy —
+- ruff check: `All checks passed!`; ruff format: `71 files already formatted`; mypy:
   `Success: no issues found in 55 source files`;
 - regenerated `reports/RESULTS.md` is byte-identical to the tracked report.
 
@@ -168,39 +168,39 @@ different split, and is explicitly labelled as a recipe reimplementation.
 
 ---
 
-## 1. Slices — done / in progress / not started
+## 1. Slices: done / in progress / not started
 
-- [x] **Slice 1 — Scaffold + repo legibility.** `.python-version`, `Makefile` (11 targets),
+- [x] **Slice 1, scaffold + repo legibility.** `.python-version`, `Makefile` (11 targets),
       `.pre-commit-config.yaml`, package skeletons, `uv.lock`. Dev deps moved to a PEP 735
       dependency group so a bare `uv sync` installs everything the quickstart needs. → `ee2fd9e`
-- [x] **Slice 2 — Data fetch.** `scripts/download_data.py` (HF `fancyzhx/amazon_polarity`, parquet,
+- [x] **Slice 2, data fetch.** `scripts/download_data.py` (HF `fancyzhx/amazon_polarity`, parquet,
       ungated, SHA-256 asserted per shard before parsing), `scripts/make_sample.py`, two committed
       samples, measured class balance in `data/README.md`. → `5afb500`
-- [x] **Slice 3 — Restructure into packages + first real number.** D1, D2, D3, D4, D5, D6, D7, D8,
+- [x] **Slice 3, restructure into packages + first real number.** D1, D2, D3, D4, D5, D6, D7, D8,
       D10, D11 all fixed while porting. `cfg/dev.yaml` run: **the first metric that has ever existed
       for this notebook.** → `878472c`, `412ac5f`, `69bdffb`, `dcf8b09`
-- [x] **Slice 4 — Metrics + significance.** Wilson (not Wald) CIs, exact McNemar on paired
+- [x] **Slice 4, metrics + significance.** Wilson (not Wald) CIs, exact McNemar on paired
       predictions, `predictions.parquet` persisted per run, `evaluate.py` generates
       `reports/RESULTS.md`. → `dcf8b09`
-- [x] **Slice 5 — Baseline ablation.** 4-cell `{preprocessing chain} × {n-gram range}` grid, all four
+- [x] **Slice 5, baseline ablation.** 4-cell `{preprocessing chain} × {n-gram range}` grid, all four
       cells measured and published. → §7
-- [x] **Slice 6 — Figures.** 8 PNGs from the committed `scripts/export_figures.py`. → §7
-- [x] **Slice 7 — Notebook re-run.** `notebooks/sentiment_analysis_roberta.ipynb`, a 20-cell
+- [x] **Slice 6, figures.** 8 PNGs from the committed `scripts/export_figures.py`. → §7
+- [x] **Slice 7, notebook re-run.** `notebooks/sentiment_analysis_roberta.ipynb`, a 20-cell
       narrative walkthrough that *imports the packages*, executed with outputs saved.
       `_ORIGINAL.ipynb` is correct and digest-pinned at HEAD; it was temporarily reformatted in
       history, then restored (see §5.0b). A custom guard replaces `nbstripout`. → `0ea44f8`, `b475c85`
-- [x] **Slice 8 — Tests + CI.** Current collection count is recorded in the batch-3 verification
+- [x] **Slice 8, tests + CI.** Current collection count is recorded in the batch-3 verification
       summary below; 95% historical core coverage, ruff + mypy clean, 3 CI jobs
       including `docs-drift` and a fresh-clone verify. → `53e75c7`, `bdcff54`, `b475c85`
-- [x] **Slice 9 — README + RESULTS.** This slice originally used a 34-decimal prose-duplication
+- [x] **Slice 9, README + RESULTS.** This slice originally used a 34-decimal prose-duplication
       audit. That was historically green but did not prove measurement provenance; slice 11
       supersedes it with prediction-vector recomputation. → `2075d3d`, `93bc7f8`, `bf73c0f`
-- [x] **Slice 10 — Self-verify + ADRs.** `scripts/verify_fresh_clone.sh` built, run, and fixed
+- [x] **Slice 10, self-verify + ADRs.** `scripts/verify_fresh_clone.sh` built, run, and fixed
       through three real defects until passing (§5.0). Seven ADRs. → `cc3989f`, `2f95d8c`, `70d8098`
-- [x] **Slice 11 — Auditable evidence and publication drift guards.** Deterministic, text-free
+- [x] **Slice 11, auditable evidence and publication drift guards.** Deterministic, text-free
       evidence for the published and ablation runs; numerical recomputation from raw vectors;
       exact figure-set/provenance checks; stale report figures regenerated. → `70d96b3`
-- [x] **Slice 12 — Batch-3 methodology honesty and reproducibility.** Weighted losses; paired
+- [x] **Slice 12, batch-3 methodology honesty and reproducibility.** Weighted losses; paired
       interval and conditional power; honest control, schedule, and input framing; in-epoch cap;
       requested model revision; content-overlap audit; stale/unsupported prose removed; all
       required gates green. Uncommitted by owner instruction.
@@ -223,21 +223,21 @@ stated in NEXT ACTION.
 | 1 | `ee2fd9e` | `Makefile`, `.pre-commit-config.yaml`, `.python-version`, `pyproject.toml`, `uv.lock`, `*/__init__.py`, `.gitignore` |
 | 2 | `5afb500` | `scripts/download_data.py`, `scripts/make_sample.py`, `datasets/loading.py`, `data/sample/*.csv` |
 | 3a | `878472c` | `datasets/{splits,text_preprocess,torch_dataset}.py`, `utils/*` (7 modules), `metrics/*`, `models/{protocols,registry,baselines}.py` |
-| 3b | `412ac5f` | `interpretability/{saliency,attention}.py` — the D1 fix and the D2 rename |
+| 3b | `412ac5f` | `interpretability/{saliency,attention}.py`: the D1 fix and the D2 rename |
 | 3c | `69bdffb` | `cfg/*.yaml` (5), `cfg/schema.py`, `cfg/baseline_ablation.json`, `models/roberta.py`, `models/hash_tokenizer.py`, `train.py` |
 | 3d / 4 | `dcf8b09` | `evaluate.py`, `scripts/export_figures.py`, `cfg/small.yaml` epoch count |
-| 8a | `53e75c7` | `tests/` — 9 files, 126 tests (130 after slice 7's provenance tests) |
+| 8a | `53e75c7` | `tests/`: 9 files, 126 tests (130 after slice 7's provenance tests) |
 | 8b | `bdcff54` | `.github/workflows/ci.yml`, `scripts/verify_fresh_clone.sh`, `scripts/export_diagrams.sh`, `docs/architecture.md`, `docs/diagrams/*.svg`, ADRs 0003 / 0004 / 0006 / 0007 |
 | 2 / 7 | `0ea44f8` | `data/README.md` (measured), `docs/interpretability.md`, `notebooks/sentiment_analysis_roberta.ipynb`, `scripts/run_notebook.py` |
 
 | 5 | `2075d3d` | `evaluate.py` (+ `ablation_significance`), `reports/RESULTS.md` |
 | 6 | `93bc7f8` | `scripts/export_figures.py`, `docs/images/*.png` (8), `reports/figures/*.png` (**5**, not 8; the two confusion matrices and training curve were absent from this commit) |
-| 9 | `bf73c0f` | `README.md` — full rewrite with measured numbers |
+| 9 | `bf73c0f` | `README.md`: full rewrite with measured numbers |
 | 7 | `b475c85` | `notebooks/sentiment_analysis_roberta.ipynb` (executed), `scripts/check_notebooks.py`, `.pre-commit-config.yaml`, 4 new tests |
 | 10 | `cc3989f`, `2f95d8c`, `70d8098` | `scripts/verify_fresh_clone.sh`, `scripts/check_no_blocking_show.py`, `.github/workflows/ci.yml` |
 | 12 | uncommitted | Batch-3 code, tests, reports, README, provenance, ADR, config, and CI/Makefile corrections documented in the tracker above |
-| 13 | `f290f31` | `README.md`, `reports/RESULTS.md`, `docs/PROGRESS.md`, `docs/adr/0004-*.md` — retracted the epoch-count counterfactual (see §5 item 9) |
-| 14 | `7e49204` | `train.py`, `tests/test_smoke.py` — `--seed` overrides the config seed for the sweep without editing the published YAML |
+| 13 | `f290f31` | `README.md`, `reports/RESULTS.md`, `docs/PROGRESS.md`, `docs/adr/0004-*.md`; retracted the epoch-count counterfactual (see §5 item 9) |
+| 14 | `7e49204` | `train.py`, `tests/test_smoke.py`; `--seed` overrides the config seed for the sweep without editing the published YAML |
 
 ---
 
@@ -253,23 +253,23 @@ stated in NEXT ACTION.
    epoch selection would leak the test set. → ADR 0004
 3. **Reconciling the owner's note with the brief.** The note asked for `cfg/small.yaml` at 20k/5k and
    `cfg/full.yaml` at 200k × 5. The brief's §2.4 supersedes the 20k/5k figure: reading the notebook
-   source shows it trains on **9,000** rows, not 200,000 — the 200,000 is `nrows` parsed *before*
+   source shows it trains on **9,000** rows, not 200,000; the 200,000 is `nrows` parsed *before*
    `.sample(9000)`. I kept the owner's **names** (`small.yaml` = the run config, `full.yaml` = the
    never-run one) and the brief's **scale** (9,000 / 1,000), so the published comparison is against
    the artifact this repo actually derives from. → ADR 0004
 4. **`[tool.uv] package = false`.** The house style puts packages at the repo root, and one of ours is
-   named `datasets/` — installing it into `site-packages` would shadow HuggingFace `datasets`. →
+   named `datasets/`, and installing it into `site-packages` would shadow HuggingFace `datasets`. →
    **ADR 0006**
 5. **CI avoids dataset and Hugging Face fetches, not every network dependency.**
    `cfg/smoke.yaml` builds a 2-layer random-weight model with a local hashing tokenizer, and CI sets
    `HF_HUB_OFFLINE=1`. The TF-IDF path still needs NLTK assets; a cold machine may download
    `punkt`, `punkt_tab`, and `stopwords` by mutable name. → **ADR 0007**
-6. **Two committed sample files, not one** — `reviews_sample.csv` from the upstream *train* split and
+6. **Two committed sample files, not one.** `reviews_sample.csv` from the upstream *train* split and
    `reviews_sample_test.csv` from the upstream *test* split. One file for both would give the smoke
    config a train/test overlap. Harmless for a plumbing check, but this repo exists to correct a
    fabricated number and does not ship a leak even in a fixture.
 7. **`TfidfVectorizer(token_pattern=r"(?u)\b\w[\w']*\b|[^\w\s]")`.** sklearn's default `\b\w\w+\b`
-   would delete `n't` a *second* time, after `text_preprocess` carefully preserved it — which would
+   would delete `n't` a *second* time, after `text_preprocess` carefully preserved it, which would
    have made the "negation preserved" ablation cells silently identical to the "notebook chain" ones
    and produced a fake null result. The published control therefore differs from the notebook's
    bare vectorizer in this one respect. Measured on the published split, the default pattern gives
@@ -286,7 +286,7 @@ stated in NEXT ACTION.
 11. **`nbstripout` was removed from pre-commit, against the brief's literal instruction.** The brief
     says to scope it to the `_ORIGINAL` notebook. Doing that revealed it has nothing to strip there
     (the file was published with zero outputs) but *does* rewrite every cell id and reflow every
-    `source` string — a 93-line diff on the one file whose entire value is being unchanged. It was
+    `source` string, a 93-line diff on the one file whose entire value is being unchanged. It was
     replaced by `scripts/check_notebooks.py`, which enforces the two actual invariants: the ORIGINAL
     has zero diff against HEAD and zero outputs, and the re-run notebook has outputs on every code
     cell. Wired into pre-commit, CI and four tests. This honours the brief's *intent* (protect the
@@ -304,13 +304,13 @@ stated in NEXT ACTION.
 
 ---
 
-## 4. BLOCKED — needs owner
+## 4. BLOCKED: needs owner
 
 ### The git history was rewritten. Read this before pushing anything.
 
 `data/sample/reviews_sample.csv` line 36 carried a third-party reviewer's full name and a direct
 email address, committed since `5afb500`. `data/README.md` stated the samples contained no personal
-data; that was false. The row is redacted at HEAD *and* in every historical commit — the whole
+data; that was false. The row is redacted at HEAD *and* in every historical commit: the whole
 history was rewritten with `git-filter-repo`, so the very first commit that introduced the CSV now
 contains `[email redacted]`. Verified afterwards: no blob anywhere in the object database contains
 an email address other than the synthetic `sample.person@example.com` in `tests/test_redaction.py`.
@@ -319,7 +319,7 @@ Consequences the owner has to handle:
 
 - **All 26 commit SHAs changed.** Any SHA written down outside this repository is stale.
 - **`git-filter-repo` removed the `origin` remote** as a deliberate safety measure. This repository
-  had no remote configured, so nothing was published and nothing needs retracting — this is the one
+  had no remote configured, so nothing was published and nothing needs retracting. This is the one
   repository of the three where the rewrite fully solves the problem rather than merely preparing
   the fix.
 - **A pre-rewrite backup bundle is at `~/Documents/repo-backups/33-sentiment-roberta-prerewrite-*.bundle`.** It still
@@ -353,7 +353,7 @@ make figures PUBLISHED_RUN="$PUBLISHED_RUN" ABLATION_RUN="$ABLATION_RUN"
 
 00. **`runs/run_N/log.jsonl` is neither JSON nor reliably written.** Two independent defects.
     `utils/logging.py` ends structlog's processor chain in `structlog.dev.ConsoleRenderer`, so
-    nothing JSON-encoded ever reaches the file handler — `head -1 runs/run_2/log.jsonl` is a
+    nothing JSON-encoded ever reaches the file handler: `head -1 runs/run_2/log.jsonl` is a
     stray httpx line, and `json.loads` on it raises. And `configure()` calls
     `logging.basicConfig`, a documented no-op once the root logger has handlers, so the second
     and later runs in one process never get a file handler at all: `wc -c runs/*/log.jsonl`
@@ -363,7 +363,7 @@ make figures PUBLISHED_RUN="$PUBLISHED_RUN" ABLATION_RUN="$ABLATION_RUN"
     docstring and deliberately asserts against `metrics.json` / `run_meta.json` instead. Nothing
     published depends on `log.jsonl`.
 
-0b. **Review items from `_reviews/33-sentiment-roberta-review.md` — verified already fixed.**
+0b. **Review items from `_reviews/33-sentiment-roberta-review.md`, verified already fixed.**
     That review was written against HEAD `43d6df5`, which no longer exists (the PII history
     rewrite in §4 replaced it), so `git log 43d6df5..HEAD` returns nothing and the line numbers
     it cites have moved. Re-checked at HEAD on 2026-07-26, all four of its remaining
@@ -372,11 +372,11 @@ make figures PUBLISHED_RUN="$PUBLISHED_RUN" ABLATION_RUN="$ABLATION_RUN"
       PNG `Description` payloads (`0.96` / CM `[[463,26],[14,497]]`; `0.848` / CM
       `[[409,80],[72,439]]`; the true 3-epoch history with `selected_epoch 1`), and all eight
       `reports/figures/*.png` are byte-identical to their `docs/images/` counterparts;
-    - "four orders of magnitude less compute" is gone — `grep -rn "orders of magnitude"` over
+    - "four orders of magnitude less compute" is gone: `grep -rn "orders of magnitude"` over
       `README.md`, `reports/`, `docs/` and `evaluate.py` returns nothing;
     - the honest 9.0 pp gap against the test-selected best cell is published with the selection
       disclosed, at `README.md:22,109` and `reports/RESULTS.md:33`;
-    - `scripts/export_figures.py` no longer always writes `reports/figures` — mirroring is an
+    - `scripts/export_figures.py` no longer always writes `reports/figures`; mirroring is an
       explicit `--publish` opt-in, and `-o` is honoured on its own.
 
 0. **Historical defects the old fresh-clone verifier found in itself.** Recorded because the
@@ -389,7 +389,7 @@ make figures PUBLISHED_RUN="$PUBLISHED_RUN" ABLATION_RUN="$ABLATION_RUN"
       `>>> plt.show()` lines in scipy/pandas docstrings.
    c. Narrowing that to `git ls-files '*.py'` then matched **this repo's own** docstrings, which
       discuss `plt.show()` at length precisely because it is banned. Replaced with
-      `scripts/check_no_blocking_show.py` — stdlib `ast`, one implementation shared by the test
+      `scripts/check_no_blocking_show.py`: stdlib `ast`, one implementation shared by the test
       suite, CI and the verifier.
    The old verifier also caught a genuine orphan: the README quoted the ablation p-value as `0.076`
    where the generator prints `0.0756`. This display rounding is why the check validates published
@@ -397,7 +397,7 @@ make figures PUBLISHED_RUN="$PUBLISHED_RUN" ABLATION_RUN="$ABLATION_RUN"
 0b. **`ruff format` silently reformatted the ORIGINAL notebook, and the first guard missed it.**
    Worth reading before touching anything in `notebooks/`. ruff formats `.ipynb` by default, so
    before `extend-exclude = ["notebooks"]` landed it reflowed the published Kaggle export from
-   minified single-line JSON into pretty-printed JSON — 857 lines — and the change rode along
+   minified single-line JSON into pretty-printed JSON, 857 lines, and the change rode along
    inside the unrelated test commit `53e75c7`. Cells, ids and sources all survived; "byte-identical
    to the published artifact" did not.
 
@@ -410,18 +410,18 @@ make figures PUBLISHED_RUN="$PUBLISHED_RUN" ABLATION_RUN="$ABLATION_RUN"
    provenance check. Anchor to a constant.
 1. **CI has never actually executed.** The CI badge in the README therefore renders as a 404 until
    the first push; that is expected, and the workflow file it points at exists and is committed. `.github/workflows/ci.yml` is committed but nothing has been
-   pushed (by instruction), so GitHub Actions has not run it. Every *step* was run locally — `ruff
+   pushed (by instruction), so GitHub Actions has not run it. Every *step* was run locally: `ruff
    check`, `ruff format --check`, `mypy`, `pytest --cov`, the smoke train, figure and report
-   regeneration, and the `docs-drift` shell checks — but the `astral-sh/setup-uv@v5` action itself and
+   regeneration, and the `docs-drift` shell checks, but the `astral-sh/setup-uv@v5` action itself and
    the **3.13 matrix leg** are unverified. The 3.13 leg is the most likely first failure; the local
    venv is 3.12.13.
 2. **The published timings were measured under contention.** Other agent sessions were running on this
    laptop; the 1-minute load average was between 9 and 20 during both runs (exact values in each
    `run_meta.json`). The timings are therefore **pessimistic upper bounds, not clean benchmarks**, and
-   the README says so. Low Power Mode was **OFF** for both runs — note this differs from the brief's
+   the README says so. Low Power Mode was **OFF** for both runs; note this differs from the brief's
    §2.6 reference measurements, which were taken with it ON, so those derived estimates are not
    directly comparable to what was measured here.
-3. **Single seed, single split — and run-to-run variance is now known to be non-zero.**
+3. **Single seed, single split, and run-to-run variance is now known to be non-zero.**
    `cfg/dev.yaml` was executed twice: once by `train.py` (`runs/run_1`) and once by the narrative
    notebook. The only difference is *where* `set_seed` sits relative to model construction, and
    therefore how much RNG state is consumed before the classifier head is initialised. Results:
@@ -432,7 +432,7 @@ make figures PUBLISHED_RUN="$PUBLISHED_RUN" ABLATION_RUN="$ABLATION_RUN"
    | `notebooks/sentiment_analysis_roberta.ipynb` | **0.9560** | [0.9343, 0.9708] | 1.81e-10 |
 
    A **1.0 percentage-point spread from RNG-consumption order alone**, on identical data with an
-   identical seed. This is not a bug — both are correct runs of the same config — but it means every
+   identical seed. This is not a bug, because both are correct runs of the same config, but it means every
    point estimate in this repo carries at least that much slop, and it is the concrete reason §8 is
    the next action. The style guide (§1.5) wants mean ± stdev; this is why.
 4. **The interpretability figures come from hand-picked reviews.** `scripts/export_figures.py` uses the
@@ -481,7 +481,7 @@ make figures PUBLISHED_RUN="$PUBLISHED_RUN" ABLATION_RUN="$ABLATION_RUN"
 | D3 | Preprocessing deletes negation | ✅ | config flags in `datasets/text_preprocess.py`; 4-cell ablation; `tests/test_text_preprocess.py` |
 | D4 | No validation split | ✅ | `datasets/splits.py`; epoch selected on val loss; test scored once |
 | D5 | `torch.manual_seed` never called | ✅ | `utils/seeding.py::set_seed` covers random / numpy / torch / mps; Makefile and CI set `PYTHONHASHSEED` before startup |
-| D6 | `nltk.download()` with no args opens a GUI | ✅ | `utils/nltk_data.py::ensure_nltk_data` — idempotent, quiet, includes `punkt_tab` |
+| D6 | `nltk.download()` with no args opens a GUI | ✅ | `utils/nltk_data.py::ensure_nltk_data`: idempotent, quiet, includes `punkt_tab` |
 | D7 | Five blocking `plt.show()` calls | ✅ | `utils/plots.py` forces Agg; `tests/test_utils.py` parses every file with `ast` to prove none remain |
 | D8 | `attn_implementation` set on the config, a silent no-op | ✅ | passed to the **model**, asserted post-construction; `tests/test_attention.py` |
 | D9 | `MultiheadAttention` stalls on MPS | ✅ n/a | never constructed; recorded in ADR 0003 |
@@ -498,21 +498,21 @@ a prose source of truth. The one deliberate exception is the `0.9560` notebook c
 only to document the measured `0.9460`/`0.9560` seed/RNG-consumption-order spread; ADR 0001 explains
 why the executed notebook is legitimate primary evidence for that limitation.
 
-### `cfg/dev.yaml` — `runs/run_1`, commit `69bdffb`, MPS, Low Power Mode OFF
+### `cfg/dev.yaml`: `runs/run_1`, commit `69bdffb`, MPS, Low Power Mode OFF
 
 1,800 train / 200 val / 500 test · 1 epoch · seq 128 · batch 32 · lr 2e-5 · seed 1337
 
 | Model | Accuracy (Wilson 95%) | P (macro) | R (macro) | F1 (macro) | Time |
 |---|---|---|---|---|---|
 | RoBERTa (fine-tuned) | **0.9460** [0.9226, 0.9626] | 0.9461 | 0.9463 | 0.9460 | 65.5 s |
-| TF-IDF + LogReg | **0.8480** [0.8139, 0.8768] | — | — | — | 0.71 s |
+| TF-IDF + LogReg | **0.8480** [0.8139, 0.8768] | n/a | n/a | n/a | 0.71 s |
 
-Exact McNemar **p = 8.40e-09** over 75 discordant pairs — RoBERTa alone right on 62, control alone
+Exact McNemar **p = 8.40e-09** over 75 discordant pairs: RoBERTa alone right on 62, control alone
 right on 13. Truncation at `max_len` 128: **29.2%** of test reviews (median 88 tokens, p95 203,
 max 244). Both accuracies sit inside the brief's 0.75–0.99 bug-detection band, so the `{1,2}→{0,1}`
 remap and the prediction alignment are not inverted.
 
-### `cfg/small.yaml` — THE PUBLISHED RUN — `runs/run_2`, commit `dcf8b09`, MPS, Low Power Mode OFF
+### `cfg/small.yaml`, THE PUBLISHED RUN: `runs/run_2`, commit `dcf8b09`, MPS, Low Power Mode OFF
 
 8,100 train / 900 val / 1,000 test · 3 epochs · seq 256 · batch 32 · lr 2e-5 · seed 1337 ·
 124,647,170 parameters · epoch 1 selected on validation loss · test set scored exactly once
@@ -525,7 +525,7 @@ remap and the prediction alignment are not inverted.
 Exact McNemar **p = 1.984e-21** over 152 discordant pairs. Discordance table: both right 828, both
 wrong 20, RoBERTa alone right 132, control alone right 20.
 
-Per-epoch history — and **this is the most useful thing the run produced**:
+Per-epoch history, and **this is the most useful thing the run produced**:
 
 | Epoch | Train loss | Val loss | Val accuracy | Wall clock |
 |---|---|---|---|---|
@@ -538,7 +538,7 @@ their recorded values are not per-example means. The bug is fixed for future run
 history would require retraining, so the values remain unchanged. Validation accuracy was correctly
 weighted and is unaffected: epoch 1 `0.9456`, epoch 2 `0.9389`, epoch 3 `0.9456`. Validation loss
 bottomed at epoch 1 (`0.1238`) and rose at epoch 2 (`0.1793`) while training loss kept falling
-(`0.2240` → `0.1001` → `0.0620`), and validation accuracy never improved on epoch 1 — that is the
+(`0.2240` → `0.1001` → `0.0620`), and validation accuracy never improved on epoch 1. That is the
 evidence epoch 1 was selected on. This run executed 3 epochs; the notebook's full 5-epoch schedule
 was measured separately as `runs/run_5` and is recorded below. The epoch-1 test accuracy `0.9600`
 is untouched. Truncation at `max_len` 256:
@@ -568,7 +568,7 @@ Evidence: `reports/evidence/run_5/`. The run's `run_meta.json` records a `-dirty
 the cap was raised in the working tree before launch; the same file stores the full resolved config,
 so what actually ran is checkable against the committed `cfg/default.yaml`.
 
-### `cfg/small.yaml --baselines-only -p cfg/baseline_ablation.json` — `runs/run_3`
+### `cfg/small.yaml --baselines-only -p cfg/baseline_ablation.json`: `runs/run_3`
 
 Same splits, same seed. All four cells published:
 
@@ -590,7 +590,7 @@ negation-preserving cells. Adding bigrams to the notebook's chain makes it **wor
 
 Full generated report: **[`reports/RESULTS.md`](../reports/RESULTS.md)**.
 
-### `cfg/smoke.yaml` — CI only, publishes nothing
+### `cfg/smoke.yaml`: CI only, publishes nothing
 
 Full pipeline in **6.3 s** on CPU with a 2-layer random-weight model. Its accuracy is asserted to be
 finite and in (0, 1) and is deliberately never reported as a result.
@@ -599,12 +599,12 @@ finite and in (0, 1) and is deliberately never reported as a result.
 
 | Measurement | Config | Value | Device / power mode |
 |---|---|---|---|
-| epoch 1 wall clock | `cfg/dev.yaml` | 65.4 s — 57 steps, 1.15 s/step | MPS, Low Power Mode OFF |
-| epoch 1 wall clock | `cfg/small.yaml` | 625.5 s — 254 steps, 2.46 s/step | MPS, Low Power Mode OFF |
+| epoch 1 wall clock | `cfg/dev.yaml` | 65.4 s over 57 steps, 1.15 s/step | MPS, Low Power Mode OFF |
+| epoch 1 wall clock | `cfg/small.yaml` | 625.5 s over 254 steps, 2.46 s/step | MPS, Low Power Mode OFF |
 | epoch 2 wall clock | `cfg/small.yaml` | 669.0 s | MPS, Low Power Mode OFF |
 | epoch 3 wall clock | `cfg/small.yaml` | 632.6 s | MPS, Low Power Mode OFF |
 | **total train** | `cfg/small.yaml` | **32m 08s** (3/3 epochs, not capped) | MPS, Low Power Mode OFF |
-| projected total, logged after epoch 1 | `cfg/small.yaml` | 31.3 min (cap 45) — actual 32.1 | MPS |
+| projected total, logged after epoch 1 | `cfg/small.yaml` | 31.3 min (cap 45), actual 32.1 | MPS |
 | 4-cell ablation, end to end | `cfg/small.yaml` | 19 s | CPU |
 | full pipeline | `cfg/smoke.yaml` | 6.3 s | CPU, random weights |
 | TF-IDF + LogReg fit | `cfg/dev.yaml` | 0.71 s, 9,538 features | CPU |
@@ -644,12 +644,12 @@ That `353` is the count as of 2026-07-25 and has since grown. Re-measured at HEA
 `PASS: 357 published/evidence values recomputed from prediction vectors`, alongside
 `scripts/check_committed_data.py` exit 0, both notebook guards ok, `check_published_figures.py`
 `PASS`, `uv run pytest` `179 passed, 1 xfailed`, ruff clean and mypy `Success: no issues found in
-55 source files`. The full cold-clone verifier was **not** re-run this session — the machine was
+55 source files`. The full cold-clone verifier was **not** re-run this session, because the machine was
 under load from other agent waves, and it is the expensive gate.
 
 **Seed count is still 1. No multi-seed number is published, because none was measured.**
 
-### Attempt log — 2026-07-26
+### Attempt log, 2026-07-26
 
 Two earlier attempts stopped at `train.py`'s own load-average refusal
 (`REFUSING TO START: 1-minute load average is 12.6 (> 12.0)`) while several other agent sessions
@@ -661,7 +661,7 @@ agent waves were resident (a `05-Portfolio-Data-Platform` Python process, plus s
 `powermetrics` samplers). The run was killed at epoch 2 step ~250 of 254. Free swap recovered to
 559 MB immediately afterwards, which is the evidence the stop was the right call.
 
-What that attempt did establish, all of it **measured but NOT published** — there is no
+What that attempt did establish, all of it **measured but NOT published**, because there is no
 `metrics.json` for an interrupted run, and §9 forbids publishing a number that cannot be
 recomputed from `reports/evidence/`:
 
@@ -678,7 +678,7 @@ Two things in that table matter for planning.
    most of the 29% slowdown, and it is why the run projected to 40.5 min against a 45-minute cap
    instead of run 2's 32m 08s. Check `pmset -g | grep lowpowermode` before rerunning; do not
    compare a Low-Power-ON timing against run 2's timings.
-2. **The control moved 2.9 pp on the seed alone** — `0.8770` at seed 7 against the published
+2. **The control moved 2.9 pp on the seed alone.** `0.8770` at seed 7 against the published
    `0.8480` at seed 1337. That is larger than the 2.2 pp ablation effect §7 already labels
    underpowered, and it is a single observation, not an estimate. If it holds up it means the
    repository's `11.2 pp` internal gap is a point estimate with several points of slop on the
@@ -687,7 +687,7 @@ Two things in that table matter for planning.
 ### Do the cheap half first
 
 `SEED` feeds `make_splits` as well as model init, so every seed redraws the 9,000/1,000 subsample
-*and* reinitialises the head. The control therefore has seed variance too — and measuring it costs
+*and* reinitialises the head. The control therefore has seed variance too, and measuring it costs
 CPU-seconds, not GPU-hours:
 
 ```bash
@@ -702,7 +702,7 @@ done
 ```
 
 Seed 1337 is included as a reproduction control: it must return `0.8480` with 20,938 features,
-matching `reports/evidence/run_2`. If it does not, stop — something else changed.
+matching `reports/evidence/run_2`. If it does not, stop: something else changed.
 
 ### Then the expensive half
 
@@ -723,7 +723,7 @@ applied before `set_seed`, `create_run` and `build_splits`, and lands in `metric
 ### Then aggregate
 
 No aggregator exists yet. Write `scripts/aggregate_seeds.py` to read the committed evidence
-directories — not `runs/` — and emit mean ± **sample** stdev (`ddof=1`) per model as an additional
+directories, not `runs/`, and emit mean ± **sample** stdev (`ddof=1`) per model as an additional
 table in `reports/RESULTS.md`, keeping the single-seed table labelled as the published run. It must:
 
 - refuse to aggregate two runs whose `run_meta.json["resolved_config"]` differ in anything other
@@ -747,14 +747,14 @@ baseline for a `small` seed sweep. Say so if you draw the comparison.
 `runs/run_5_ABORTED_seed7/` holds the interrupted run's `run_meta.json` and console log. It has no
 `metrics.json` on purpose. Do not aggregate it; delete it once the real seed-7 run exists.
 
-**Do not** run `cfg/full.yaml`. **Do not** push — the owner pushes.
+**Do not** run `cfg/full.yaml`. **Do not** push; the owner pushes.
 
 ---
 
 ## 9. Guard rails that must not be relaxed
 
 - One training process at a time. `train.py` refuses above loadavg 12 without `--force`.
-- Never mix CPU and MPS tensor work in one process (ADR 0003) — the failure mode is a silent hang,
+- Never mix CPU and MPS tensor work in one process (ADR 0003): the failure mode is a silent hang,
   not an exception.
 - Never publish a headline number that cannot be recomputed from `reports/evidence/`.
   `scripts/check_published_numbers.py` recomputes rather than accepting duplicated prose.

@@ -8,8 +8,8 @@ Two invariants, and ``nbstripout`` serves neither:
 2. **`sentiment_analysis_roberta.ipynb` must keep its saved outputs.** They are the deliverable
    of the notebook re-run: the point is that the metrics now exist.
 
-``nbstripout`` was tried first, scoped to the ORIGINAL alone. It has nothing to strip there —
-the file already has zero outputs — but it *does* rewrite every cell id (`1de4c31e` → `0`) and
+``nbstripout`` was tried first, scoped to the ORIGINAL alone. It has nothing to strip there:
+the file already has zero outputs, but it *does* rewrite every cell id (`1de4c31e` → `0`) and
 reflow every `source` string into a list. A 93-line diff on a file whose whole value is being
 unchanged. So the hook was replaced with this check, which enforces the actual invariants
 instead of approximating them.
@@ -33,7 +33,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 ORIGINAL = Path("notebooks/sentiment_analysis_roberta_ORIGINAL.ipynb")
 RERUN = Path("notebooks/sentiment_analysis_roberta.ipynb")
 
-#: SHA-256 of the ORIGINAL notebook exactly as exported from Kaggle — minified single-line JSON.
+#: SHA-256 of the ORIGINAL notebook exactly as exported from Kaggle: minified single-line JSON.
 #: Pinned because a diff-against-HEAD check is not enough: it only catches a change that has not
 #: been committed yet. `ruff format` silently reflowed this file into pretty-printed JSON before
 #: `notebooks/` was excluded from ruff, and the change rode along in an unrelated commit. Cells,
@@ -78,7 +78,7 @@ def main() -> int:
 
     actual = sha256_of(ORIGINAL)
     ok = actual == ORIGINAL_SHA256
-    print(f"{'ok  ' if ok else 'FAIL'} {ORIGINAL} — sha256 {actual[:16]}…")
+    print(f"{'ok  ' if ok else 'FAIL'} {ORIGINAL}: sha256 {actual[:16]}…")
     if not ok:
         failures.append(
             f"{ORIGINAL} no longer matches the published Kaggle export byte for byte.\n"
@@ -88,7 +88,7 @@ def main() -> int:
         )
 
     ok, detail = original_is_unmodified()
-    print(f"{'ok  ' if ok else 'FAIL'} {ORIGINAL} — {detail}")
+    print(f"{'ok  ' if ok else 'FAIL'} {ORIGINAL}: {detail}")
     if not ok:
         failures.append(
             f"{ORIGINAL} has been modified. It is provenance for a published Kaggle kernel and "
@@ -97,7 +97,7 @@ def main() -> int:
         )
 
     with_outputs, total = code_cells_with_outputs(ORIGINAL)
-    print(f"ok   {ORIGINAL} — {with_outputs}/{total} code cells carry outputs (expected 0)")
+    print(f"ok   {ORIGINAL}: {with_outputs}/{total} code cells carry outputs (expected 0)")
     if with_outputs:
         failures.append(
             f"{ORIGINAL} has acquired outputs. The historical fact that it was published "
@@ -108,7 +108,7 @@ def main() -> int:
         with_outputs, total = code_cells_with_outputs(RERUN)
         ok = with_outputs > 0
         print(
-            f"{'ok  ' if ok else 'FAIL'} {RERUN} — {with_outputs}/{total} code cells carry outputs"
+            f"{'ok  ' if ok else 'FAIL'} {RERUN}: {with_outputs}/{total} code cells carry outputs"
         )
         if not ok:
             failures.append(

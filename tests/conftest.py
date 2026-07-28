@@ -35,7 +35,7 @@ def sample_csv(repo_root: Path) -> Path:
     """The committed 1,000-row train sample. Present in every clone."""
     path = repo_root / "data" / "sample" / "reviews_sample.csv"
     if not path.exists():  # pragma: no cover
-        pytest.skip(f"{path} missing — run `make sample`")
+        pytest.skip(f"{path} missing; run `make sample`")
     return path
 
 
@@ -43,7 +43,7 @@ def sample_csv(repo_root: Path) -> Path:
 def sample_test_csv(repo_root: Path) -> Path:
     path = repo_root / "data" / "sample" / "reviews_sample_test.csv"
     if not path.exists():  # pragma: no cover
-        pytest.skip(f"{path} missing — run `make sample`")
+        pytest.skip(f"{path} missing; run `make sample`")
     return path
 
 

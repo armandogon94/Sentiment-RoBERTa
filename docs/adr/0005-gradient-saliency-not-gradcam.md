@@ -1,4 +1,4 @@
-# ADR 0005 — Rename "Grad-CAM" to gradient-norm saliency, and fix the embedding path
+# ADR 0005: Rename "Grad-CAM" to gradient-norm saliency, and fix the embedding path
 
 **Status:** accepted · **Date:** 2026-07-25
 
@@ -16,8 +16,8 @@ the L2 norm of the gradient of the target logit with respect to each token's inp
 That is not Grad-CAM. Grad-CAM pools gradients per channel to form weights, applies those weights to
 the **activations** of a chosen layer, and passes the result through ReLU. The notebook's function
 uses no activations, no channel pooling, and no ReLU. It is vanilla gradient (saliency) attribution.
-The docstring already acknowledged the deviation — "using gradients w.r.t. the input embeddings rather
-than the final hidden state" — so the mislabelling was known at the time of writing.
+The docstring already acknowledged the deviation, "using gradients w.r.t. the input embeddings rather
+than the final hidden state", so the mislabelling was known at the time of writing.
 
 Separately, the implementation contained a real bug:
 
@@ -63,7 +63,7 @@ not a substitute for the rename.
 ## Consequences
 
 **Positive.** The method name matches the method. An interviewer who knows Grad-CAM will not find a
-misused term in the repo's most distinctive section — which would cost more credibility than the
+misused term in the repo's most distinctive section, which would cost more credibility than the
 figure earns. The double-embedding fix means the attribution figures are actually attributions of the
 model's real behaviour, so they are now worth publishing. The `allclose` test is the strongest test in
 the repository: it is short, it fails loudly against the old code, and it demonstrates understanding
@@ -71,11 +71,11 @@ of what `inputs_embeds` actually consumes.
 
 **Negative.** "Grad-CAM" is the more recognisable term and appears in the published Kaggle notebook,
 so the repo and the notebook now use different names for the same function. This is addressed by
-naming the correction explicitly in `docs/interpretability.md` rather than silently diverging —
+naming the correction explicitly in `docs/interpretability.md` rather than silently diverging:
 correcting your own earlier work in public is a better signal than either hiding it or preserving it.
 
-**Rejected alternatives.** *Keep the name for continuity with the Kaggle notebook* — propagates an
+**Rejected alternatives.** *Keep the name for continuity with the Kaggle notebook* propagates an
 error into the repo's headline section. *Implement real Grad-CAM over a hidden layer to justify the
-name* — solves a naming problem with unnecessary code, and layer-activation Grad-CAM on a text encoder
+name* solves a naming problem with unnecessary code, and layer-activation Grad-CAM on a text encoder
 is harder to interpret than input-embedding saliency, so it would be a worse figure with a more
 impressive label.

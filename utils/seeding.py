@@ -34,7 +34,7 @@ def set_seed(seed: int) -> None:
 
 
 def seed_worker(worker_id: int) -> None:
-    """``DataLoader(worker_init_fn=...)`` — derives each worker's seed from torch's."""
+    """``DataLoader(worker_init_fn=...)`` hook: derives each worker's seed from torch's."""
     worker_seed = (torch.initial_seed() + worker_id) % 2**32
     np.random.seed(worker_seed)
     random.seed(worker_seed)

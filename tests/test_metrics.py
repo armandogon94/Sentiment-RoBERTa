@@ -48,7 +48,7 @@ def test_confusion_matrix_orientation_is_true_by_predicted():
 
 
 def test_metrics_dict_shape_is_stable():
-    """metrics.json keys must not drift — evaluate.py and the figure script index into them."""
+    """metrics.json keys must not drift; evaluate.py and the figure script index into them."""
     m = classification_metrics(Y_TRUE, Y_PRED)
     assert set(m) == {
         "n",
