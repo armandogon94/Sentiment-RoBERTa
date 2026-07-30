@@ -114,42 +114,17 @@ echo "==> Running the documented quickstart, verbatim from the README"
 make smoke
 cp reports/evidence/quality.json "$WORK/quality.json"
 make quality-evidence
-# Byte comparison was too strict here. Statement coverage is platform dependent:
-# utils/device.py takes a different branch depending on whether MPS exists, so a
-# machine with Metal covers one more line than a machine without, and the exact
-# covered_lines count legitimately differs between two correct runs. The claim in
-# the README is the displayed percent, so that is what has to hold exactly, along
-# with the statement total and the suite counts. The raw line counts are allowed
-# to move by the small amount platform branching can explain.
-uv run python - "$WORK/quality.json" reports/evidence/quality.json <<'PY' || {
+# Statement coverage is platform dependent, so a byte comparison was too strict:
+# utils/device.py branches on whether MPS exists. scripts/check_quality_drift.py
+# holds the displayed percent, the statement total and the suite counts exactly,
+# and allows only the raw line counts to move.
+uv run python scripts/check_quality_drift.py \
+  "$WORK/quality.json" reports/evidence/quality.json || {
   echo "FAIL: regenerated quality evidence differs from the committed artifact"
   diff -u "$WORK/quality.json" reports/evidence/quality.json || true
   uv run coverage report -m || true
   exit 1
 }
-import json
-import sys
-
-committed = json.loads(open(sys.argv[1]).read())
-regenerated = json.loads(open(sys.argv[2]).read())
-
-tolerant = {"covered_lines", "missing_lines", "percent_covered"}
-for section in sorted(set(committed) | set(regenerated)):
-    left, right = committed.get(section), regenerated.get(section)
-    if isinstance(left, dict) and isinstance(right, dict):
-        for key in sorted(set(left) | set(right)):
-            if key not in tolerant and left.get(key) != right.get(key):
-                raise SystemExit(f"{section}.{key}: {left.get(key)} then {right.get(key)}")
-    elif left != right:
-        raise SystemExit(f"{section}: {left} then {right}")
-
-drift = abs(
-    float(committed["coverage"]["percent_covered"])
-    - float(regenerated["coverage"]["percent_covered"])
-)
-if drift > 0.5:
-    raise SystemExit(f"coverage moved {drift:.4f} points, beyond platform branching")
-PY
 
 echo "==> Recomputing every published headline number from committed source arrays"
 uv run python scripts/check_published_numbers.py
