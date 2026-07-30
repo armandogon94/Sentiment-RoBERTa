@@ -125,6 +125,10 @@ uv run python scripts/check_quality_drift.py \
   uv run coverage report -m || true
   exit 1
 }
+# The comparison above is the point of regenerating; the published artifact is the
+# committed one. Restore its exact bytes so the evidence digests in SHA256SUMS,
+# which cover every file in reports/evidence, still describe what is committed.
+cp "$WORK/quality.json" reports/evidence/quality.json
 
 echo "==> Recomputing every published headline number from committed source arrays"
 uv run python scripts/check_published_numbers.py
