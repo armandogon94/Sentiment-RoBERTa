@@ -1,14 +1,11 @@
 #!/usr/bin/env python
-"""Regenerate evidence-derived figures and verify all eleven tracked publication PNGs.
+"""Regenerate all eleven evidence-derived publication figures.
 
 PNG raster bytes are not compared across CI platforms: Matplotlib delegates font rendering to the
 host, so the same data and code produce different antialiasing bytes on macOS and Linux. Instead,
-each PNG embeds a canonical, text-free JSON provenance payload. The four metric figures are
-regenerated from committed evidence and those payloads must match exactly. The seven
-model-dependent figures cannot be regenerated in a clone because the 476 MB checkpoint and review
-text are deliberately excluded; their embedded config/method/checkpoint provenance is checked
-against the committed digest, and all eleven docs/report copies must be byte-identical to one
-another.
+each PNG embeds a canonical, review-text-free JSON data payload. All eleven figures are regenerated
+from committed evidence, every payload must match exactly, and docs/report copies must be
+byte-identical to one another.
 """
 
 from __future__ import annotations
@@ -20,6 +17,8 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
+import numpy as np
+import pandas as pd
 from PIL import Image
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -28,22 +27,7 @@ if str(REPO_ROOT) not in sys.path:
 
 from scripts.export_figures import EXPECTED_FIGURES  # noqa: E402
 from scripts.export_figures import main as export_figures  # noqa: E402
-
-METRIC_FIGURES = {
-    "baseline_ablation.png",
-    "confusion_matrix_baseline.png",
-    "confusion_matrix_roberta.png",
-    "training_curves.png",
-}
-MODEL_FIGURE_METHODS = {
-    "attention_entropy_atlas.png": "attention_entropy_atlas",
-    "attention_from_token.png": "last_layer_head_mean_attention",
-    "attention_heatmap.png": "last_layer_head_mean_attention",
-    "embedding_space_3d.png": "final_layer_cls_tsne_3d",
-    "layer_probe_accuracy.png": "layerwise_linear_probe",
-    "saliency_negative.png": "gradient_norm_saliency",
-    "saliency_positive.png": "gradient_norm_saliency",
-}
+from scripts.model_figure_evidence import load_model_figure_evidence  # noqa: E402
 
 
 class FigureDriftError(RuntimeError):
@@ -107,6 +91,24 @@ def validate_published_figures(repo_root: Path = REPO_ROOT) -> list[str]:
         raise FigureDriftError("run_2/checkpoint.sha256 does not list model_roberta.pt")
     run_2_metrics = json.loads((evidence / "run_2" / "metrics.json").read_text(encoding="utf-8"))
     expected_git_sha = run_2_metrics.get("git_sha")
+    model_evidence_path = evidence / "model_figures.json"
+    model_evidence = load_model_figure_evidence(model_evidence_path)
+    provenance = model_evidence.metadata["provenance"]
+    if provenance.get("checkpoint_sha256") != expected_checkpoint:
+        raise FigureDriftError("model figure evidence checkpoint digest is stale")
+    if provenance.get("run_git_sha") != expected_git_sha:
+        raise FigureDriftError("model figure evidence run_git_sha is stale")
+    predictions = pd.read_csv(evidence / "run_2" / "predictions.csv")
+    labels = model_evidence.arrays["labels"].astype(np.int64)
+    if not np.array_equal(labels, predictions["label"].to_numpy(dtype=np.int64)):
+        raise FigureDriftError("model figure evidence labels differ from run_2 predictions")
+    logits = model_evidence.arrays["embedding_logits"]
+    if not np.array_equal(
+        logits.argmax(axis=1),
+        predictions["roberta"].to_numpy(dtype=np.int64),
+    ):
+        raise FigureDriftError("model figure evidence logits differ from run_2 predictions")
+
     temp_parent = repo_root / ".pytest_cache"
     temp_parent.mkdir(exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="figure-drift-", dir=temp_parent) as temp_name:
@@ -119,28 +121,18 @@ def validate_published_figures(repo_root: Path = REPO_ROOT) -> list[str]:
                 str(evidence / "run_3"),
                 "-o",
                 str(regenerated),
-                "--skip-model-figures",
+                "--model-evidence",
+                str(model_evidence_path),
             ]
         )
         if code != 0:
-            raise FigureDriftError(f"metric figure regeneration exited {code}")
-        if {path.name for path in regenerated.glob("*.png")} != METRIC_FIGURES:
-            raise FigureDriftError("evidence regeneration did not produce the four metric figures")
-        for name in sorted(METRIC_FIGURES):
+            raise FigureDriftError(f"figure regeneration exited {code}")
+        if {path.name for path in regenerated.glob("*.png")} != EXPECTED_FIGURES:
+            raise FigureDriftError("evidence regeneration did not produce all eleven figures")
+        for name in sorted(EXPECTED_FIGURES):
             if _payload(regenerated / name) != tracked_payloads[name]:
                 raise FigureDriftError(f"{name}: embedded data differs from committed evidence")
             messages.append(f"{name}: regenerated metadata matches committed evidence")
-
-    for name, method in MODEL_FIGURE_METHODS.items():
-        if tracked_payloads[name].get("method") != method:
-            raise FigureDriftError(f"{name}: expected method={method!r}")
-        if tracked_payloads[name].get("checkpoint_sha256") != expected_checkpoint:
-            raise FigureDriftError(
-                f"{name}: checkpoint digest does not match run_2/checkpoint.sha256"
-            )
-        if tracked_payloads[name].get("run_git_sha") != expected_git_sha:
-            raise FigureDriftError(f"{name}: run_git_sha does not match run_2/metrics.json")
-        messages.append(f"{name}: checkpoint and run Git provenance match committed evidence")
     return messages
 
 
@@ -157,8 +149,8 @@ def main(argv: list[str] | None = None) -> int:
     for message in messages:
         print(f"    {message}")
     print(
-        "PASS: four metric figures regenerated from evidence; all eleven tracked pairs and "
-        "provenance payloads verified"
+        "PASS: all eleven figures regenerated from committed evidence; tracked pairs and "
+        "data payloads verified"
     )
     return 0
 

@@ -184,10 +184,6 @@ def test_run_meta_records_provenance(smoke_run):
 def test_seed_override_is_recorded_in_run_artifacts(seeded_smoke_run):
     """The effective seed must reach every artifact a later audit reads.
 
-    Deliberately not asserted against ``log.jsonl``: that file is currently written by
-    ``logging.basicConfig``, which is a no-op once the root logger has handlers, so a
-    second run in the same process leaves it empty. Tracked separately.
-
     Also not asserted against ``run_meta["argv"]``: that field records ``sys.argv``, which
     in-process is pytest's own argv. The seed provenance an auditor actually reads is
     ``metrics.json`` and the resolved config, and those are checked here.
@@ -198,6 +194,12 @@ def test_seed_override_is_recorded_in_run_artifacts(seeded_smoke_run):
     assert metrics["seed"] == 7
     assert meta["seed"] == 7
     assert meta["resolved_config"]["SEED"] == 7
+    events = [
+        json.loads(line)
+        for line in (run_dir / "log.jsonl").read_text(encoding="utf-8").splitlines()
+    ]
+    assert events
+    assert all(isinstance(event, dict) for event in events)
 
 
 def test_unseeded_run_still_uses_the_config_seed(smoke_run):

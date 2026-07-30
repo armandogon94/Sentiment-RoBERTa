@@ -333,6 +333,11 @@ def test_scientific_notation_precision_controls_numeric_tolerance(printed: str, 
         ("32m 07.9s (MPS", "32m 08.9s (MPS", r"roberta\.train_seconds"),
         ("| 4.0s (CPU", "| 5.0s (CPU", r"tfidf_logreg\.train_seconds"),
         (
+            "8,100 training rows: 0.225%",
+            "8,100 training rows: 0.224%",
+            r"subset_fraction",
+        ),
+        (
             "conditional exact\n95% CI for the paired accuracy difference is **[-0.22, 4.52] pp**",
             "conditional exact\n95% CI for the paired accuracy difference is **[-0.21, 4.52] pp**",
             r"ablation\.paired_ci\.low_pp",

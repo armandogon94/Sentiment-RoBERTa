@@ -14,6 +14,7 @@ Palette: Okabe–Ito, which is colourblind-safe and stays legible at README widt
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import Iterable
 from pathlib import Path
 from typing import Any, cast
@@ -78,7 +79,9 @@ def enable_interactive() -> None:
 
 
 def caption(ax: plt.Axes, text: str) -> None:
-    """Attach a provenance caption naming the model and config that produced the figure."""
+    """Attach a provenance caption with an explicit limit on the supported inference."""
+    if re.search(r"\b(?:does|do) not support\b", text.casefold()) is None:
+        raise ValueError("every figure caption must say what the figure does not support")
     ax.figure.text(0.0, -0.045, text, ha="left", va="top", fontsize=8, color="#444444", wrap=True)
 
 

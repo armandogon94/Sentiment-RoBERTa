@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
-import subprocess
+import json
 from pathlib import Path
 
 import numpy as np
 import pytest
+import structlog
 import torch
 
+from utils.logging import configure
 from utils.plots import apply_style, save_figure
 from utils.runs import create_run, next_run_dir, point_latest_at, read_json, write_json
 from utils.seeding import seed_worker, set_seed, torch_generator
@@ -133,23 +135,13 @@ def test_tracked_text_contains_no_em_dash(repo_root: Path):
     regenerated artifact cannot reintroduce one through its own source.
     """
     em_dash = chr(0x2014)
-    result = subprocess.run(
-        ["git", "ls-files", "-z"],
-        cwd=repo_root,
-        check=True,
-        capture_output=True,
-    )
-    tracked = [Path(path) for path in result.stdout.decode().split("\0") if path]
+    from scripts.check_committed_data import public_text_files
+
     offenders: dict[str, int] = {}
-    for relative in tracked:
+    for relative in public_text_files():
         try:
             text = (repo_root / relative).read_text()
-        except UnicodeDecodeError:
-            # PNGs and other binaries carry no reviewable prose.
-            continue
-        except FileNotFoundError:
-            # git still lists a deleted path until the deletion is staged. A file that is
-            # not on disk carries no text, so there is nothing here to check.
+        except UnicodeDecodeError:  # pragma: no cover - suffix allowlist is text only
             continue
         count = text.count(em_dash)
         if count:
@@ -158,11 +150,34 @@ def test_tracked_text_contains_no_em_dash(repo_root: Path):
     assert offenders == {}, f"tracked text contains U+2014: {offenders}"
 
 
+def test_public_markdown_local_links_resolve(repo_root: Path) -> None:
+    from scripts.check_markdown_links import validate_local_links
+
+    assert validate_local_links(repo_root) == []
+
+
+def test_markdown_link_checker_rejects_a_missing_target(tmp_path: Path) -> None:
+    from scripts.check_markdown_links import validate_local_links
+
+    document = tmp_path / "README.md"
+    document.write_text("[missing](docs/absent.md)\n", encoding="utf-8")
+
+    assert validate_local_links(tmp_path, [document]) == [
+        "README.md: missing local target docs/absent.md"
+    ]
+
+
 def test_published_figure_guard_regenerates_evidence_derived_payloads(repo_root: Path):
     import scripts.check_published_figures as checker
+    from scripts.export_figures import EXPECTED_FIGURES
 
     messages = checker.validate_published_figures(repo_root)
-    assert any("regenerated metadata matches committed evidence" in message for message in messages)
+    regenerated = {
+        message.split(":", maxsplit=1)[0]
+        for message in messages
+        if "regenerated metadata matches committed evidence" in message
+    }
+    assert regenerated == EXPECTED_FIGURES
 
 
 def test_palette_is_colourblind_safe_okabe_ito():
@@ -170,6 +185,61 @@ def test_palette_is_colourblind_safe_okabe_ito():
 
     assert OKABE_ITO[0] == "#0072B2"
     assert len(set(OKABE_ITO)) == len(OKABE_ITO)
+
+
+# ── logging ──────────────────────────────────────────────────────────────────────────
+
+
+def test_jsonl_log_is_valid_json_and_reconfiguration_moves_the_file(tmp_path: Path):
+    first = tmp_path / "first.jsonl"
+    second = tmp_path / "second.jsonl"
+
+    configure(jsonl_path=first)
+    structlog.get_logger("test").info("first_event", answer=1)
+    configure(jsonl_path=second)
+    structlog.get_logger("test").info("second_event", answer=2)
+
+    first_events = [json.loads(line) for line in first.read_text().splitlines()]
+    second_events = [json.loads(line) for line in second.read_text().splitlines()]
+    assert len(first_events) == 1
+    assert len(second_events) == 1
+    assert (
+        first_events[0]
+        | {
+            "answer": 1,
+            "event": "first_event",
+            "level": "info",
+            "logger": "test",
+        }
+        == first_events[0]
+    )
+    assert (
+        second_events[0]
+        | {
+            "answer": 2,
+            "event": "second_event",
+            "level": "info",
+            "logger": "test",
+        }
+        == second_events[0]
+    )
+    assert "timestamp" in first_events[0]
+    assert "timestamp" in second_events[0]
+
+
+def test_git_sha_marks_a_dirty_tree_without_relying_on_the_test_checkout(monkeypatch):
+    from types import SimpleNamespace
+
+    import utils.run_meta as run_meta
+
+    outputs = iter(("abc123\n", " M README.md\n"))
+
+    def fake_run(*args, **kwargs):
+        return SimpleNamespace(stdout=next(outputs))
+
+    monkeypatch.setattr(run_meta.subprocess, "run", fake_run)
+
+    assert run_meta.git_sha() == "abc123-dirty"
 
 
 # ── notebook provenance ──────────────────────────────────────────────────────────────

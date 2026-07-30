@@ -18,7 +18,6 @@ Usage
 from __future__ import annotations
 
 import argparse
-import json
 import re
 import sys
 from pathlib import Path
@@ -247,32 +246,16 @@ def negation_evidence(source: dict[str, Any]) -> str:
     )
 
 
-def figure_provenance(name: str, figures_dir: Path | None = None) -> dict[str, Any]:
-    """Read a published figure's embedded, text-free JSON provenance payload.
-
-    The three representation figures cannot be regenerated from the committed evidence
-    bundle: they need the 476 MB checkpoint and the review text, neither of which is
-    published. Their measured values are therefore read back out of the tracked PNG, which
-    ``scripts/check_published_figures.py`` verifies against the checkpoint digest and the
-    run's Git SHA. That keeps this report generated from an artifact rather than typed.
-    """
-    from PIL import Image
-
-    directory = figures_dir if figures_dir is not None else REPO_ROOT / "reports" / "figures"
-    path = directory / f"{name}.png"
-    with Image.open(path) as image:
-        description = image.info.get("Description")
-    if not isinstance(description, str):
-        raise ValueError(f"{path}: missing the JSON provenance payload this report reads")
-    payload: dict[str, Any] = json.loads(description)
-    return payload
-
-
-def representation_figure_notes(figures_dir: Path | None = None) -> str:
+def representation_figure_notes(evidence_dir: Path | None = None) -> str:
     """What the three representation figures show, and what they do not support."""
-    embedding = figure_provenance("embedding_space_3d", figures_dir)
-    probe = figure_provenance("layer_probe_accuracy", figures_dir)
-    atlas = figure_provenance("attention_entropy_atlas", figures_dir)
+    from scripts.check_published_numbers import _figure_payloads
+
+    payloads = _figure_payloads(
+        evidence_dir if evidence_dir is not None else REPO_ROOT / "reports" / "evidence"
+    )
+    embedding = payloads["embedding_space_3d"]
+    probe = payloads["layer_probe_accuracy"]
+    atlas = payloads["attention_entropy_atlas"]
     accuracies = [float(value) for value in probe["accuracies"]]
     best = max(accuracies)
 
@@ -283,14 +266,23 @@ def representation_figure_notes(figures_dir: Path | None = None) -> str:
             "under a 3-component t-SNE, coloured by true label, with the "
             f"{embedding['n_incorrect']} misclassified reviews marked. Those errors carry a mean "
             f"predicted-probability margin of {embedding['probability_margin_incorrect']:.4f} "
-            f"where the {embedding['n_correct']} correct rows average "
-            f"{embedding['probability_margin_correct']:.4f}, and on the raw logits the two means "
+            f"on errors, 95% t CI [{embedding['probability_margin_incorrect_ci'][0]:.4f}, "
+            f"{embedding['probability_margin_incorrect_ci'][1]:.4f}], where the "
+            f"{embedding['n_correct']} correct rows average "
+            f"{embedding['probability_margin_correct']:.4f}, 95% t CI "
+            f"[{embedding['probability_margin_correct_ci'][0]:.4f}, "
+            f"{embedding['probability_margin_correct_ci'][1]:.4f}]. On the raw logits the two means "
             f"are {embedding['logit_margin_incorrect']:.4f} and "
             f"{embedding['logit_margin_correct']:.4f}. Measured in the raw 768-dimensional "
             f"`[CLS]` space rather than in the projection, "
             f"{100 * embedding['opposite_neighbours_incorrect']:.1f}% of an error's "
             f"{embedding['n_neighbours']} nearest neighbours carry the opposite true label, "
-            f"where correct rows sit at {100 * embedding['opposite_neighbours_correct']:.1f}%. "
+            f"errors, 95% t CI "
+            f"[{100 * embedding['opposite_neighbours_incorrect_ci'][0]:.1f}%, "
+            f"{100 * embedding['opposite_neighbours_incorrect_ci'][1]:.1f}%], where correct rows "
+            f"sit at {100 * embedding['opposite_neighbours_correct']:.1f}%, correct rows, 95% t CI "
+            f"[{100 * embedding['opposite_neighbours_correct_ci'][0]:.1f}%, "
+            f"{100 * embedding['opposite_neighbours_correct_ci'][1]:.1f}%]. "
             "*It does not support* any reading of the picture's distances: t-SNE distances and "
             "cluster sizes are not metrically meaningful, and the claim rests on the two "
             "statistics above, both computed before the projection.\n",
@@ -300,7 +292,8 @@ def representation_figure_notes(figures_dir: Path | None = None) -> str:
             f"for every review, so its probe returns the majority class at {accuracies[0]:.4f}; "
             f"one encoder block lifts that to {accuracies[1]:.4f}; the probe peaks at "
             f"{best:.4f} and is within one accuracy point of that peak from block "
-            f"{probe['saturation_layer']} onward. *It does not support* the claim that the model "
+            f"{probe['saturation_layer']} onward. The plotted points carry Wilson 95% intervals. "
+            "*It does not support* the claim that the model "
             "uses what the probe reads: a linear probe measures decodability, and the probe is a "
             "second model fitted on these activations rather than a read-out of the network's "
             "own computation.\n",
@@ -310,9 +303,12 @@ def representation_figure_notes(figures_dir: Path | None = None) -> str:
             f"attainable ceiling is log(inner tokens), mean {atlas['mean_max_entropy']:.4f} nats "
             f"at {atlas['mean_inner_tokens']:.1f} inner tokens; the median head sits at "
             f"{atlas['median_entropy']:.4f} nats and {atlas['n_sharply_focused']} of the 144 "
-            f"fall below 1 nat. The extremes are {atlas['most_focused']} at "
-            f"{atlas['min_entropy']:.4f} nats and {atlas['most_diffuse']} at "
-            f"{atlas['max_entropy']:.4f} nats, and neither is a sink artifact: they send "
+            "upper 95% bounds fall below 1 nat. The extremes are "
+            f"{atlas['most_focused']} at {atlas['min_entropy']:.4f} nats, focused head, 95% t CI "
+            f"[{atlas['min_entropy_ci'][0]:.4f}, {atlas['min_entropy_ci'][1]:.4f}], and "
+            f"{atlas['most_diffuse']} at {atlas['max_entropy']:.4f} nats, diffuse head, 95% t CI "
+            f"[{atlas['max_entropy_ci'][0]:.4f}, {atlas['max_entropy_ci'][1]:.4f}]. "
+            "Neither is a sink artifact: they send "
             f"{100 * atlas['most_focused_sink_share']:.1f}% and "
             f"{100 * atlas['most_diffuse_sink_share']:.1f}% of their raw mass to the excluded "
             "tokens. *It does not support* any claim about importance: attention weight is not "
@@ -558,8 +554,8 @@ def build_report(
 
     parts.append("## Figures\n")
     parts.append(
-        "All regenerable with `make figures`, which defaults explicitly to `runs/run_2` plus "
-        "`runs/run_3` for the ablation. None hand-exported.\n"
+        "All regenerable with `make figures` from committed metric and model-figure evidence. "
+        "None hand-exported.\n"
     )
     for name, alt in (
         ("confusion_matrix_roberta", "RoBERTa confusion matrix"),

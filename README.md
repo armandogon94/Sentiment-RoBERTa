@@ -1,58 +1,28 @@
 # Sentiment Polarity on Amazon Reviews: RoBERTa Fine-Tuning vs. a TF-IDF Control
 
 [![CI](https://github.com/armandogon94/Sentiment-RoBERTa/actions/workflows/ci.yml/badge.svg)](https://github.com/armandogon94/Sentiment-RoBERTa/actions/workflows/ci.yml)
-[![Coverage](https://img.shields.io/badge/coverage-96%25-brightgreen)](#testing)
-[![Tests](https://img.shields.io/badge/tests-225-brightgreen)](#testing)
+[![Coverage](https://img.shields.io/badge/coverage-95%25-brightgreen)](#testing)
+[![Tests](https://img.shields.io/badge/tests-237-brightgreen)](#testing)
 [![Python](https://img.shields.io/badge/python-3.12-blue)](pyproject.toml)
 [![License: Apache 2.0](https://img.shields.io/badge/license-Apache--2.0-green)](LICENSE)
 
-A reproducible fine-tuning study that reruns a published coursework notebook end to end and reports
-the measured results. The tension: Amazon polarity is close to linearly separable in bag-of-words
-space, while the notebook's own TF-IDF control used destructive preprocessing, unigrams, `C=1`, and
-no validation tuning.
+A reproducible fine-tuning study that reimplements a published coursework notebook and reports the
+measured results. The tension: Amazon polarity is close to linearly separable in bag-of-words space,
+while the notebook's own TF-IDF control used destructive preprocessing, unigrams, `C=1`, and no
+validation tuning.
 
 **Does fine-tuning `roberta-base` on 9,000 reviews beat TF-IDF + logistic regression by a margin that
 survives a 1,000-example test set?**
 
-## Original notebook comparison
+## Reproducible repository comparison
 
-<!-- original-notebook:start -->
-On the original notebook's own 1,000-example test split, fine-tuned RoBERTa scored 0.952 versus
-TF-IDF + logistic regression at 0.861, a 9.1 point gap, with both models evaluated on the same
-512 negative / 488 positive rows.
+The preserved source notebook has no saved outputs or per-example predictions. Its aggregate
+scores therefore cannot be recomputed from this repository and are not published here. Every
+result below comes from the repository's committed evidence bundle and can be regenerated from
+committed source arrays.
 
-| Model or class | Accuracy | Precision | Recall | F1 | Support | Confusion matrix |
-|---|---:|---:|---:|---:|---:|---|
-| Logistic regression | 0.861 | | | | 1,000 | [[451, 61], [78, 410]] |
-| Logistic regression: Negative | | 0.85 | 0.88 | 0.87 | 512 | |
-| Logistic regression: Positive | | 0.87 | 0.84 | 0.86 | 488 | |
-| RoBERTa | 0.952 | | | | 1,000 | [[487, 25], [23, 465]] |
-| RoBERTa: Negative | | 0.95 | 0.95 | 0.95 | 512 | |
-| RoBERTa: Positive | | 0.95 | 0.95 | 0.95 | 488 | |
-
-The notebook ran the full five epochs, used training loss only, and landed at 0.952. It had no
-validation split and no validation tracking.
-
-| Epoch | Training loss |
-|---:|---:|
-| 1 | 0.2364 |
-| 2 | 0.1144 |
-| 3 | 0.0706 |
-| 4 | 0.0477 |
-| 5 | 0.0397 |
-
-Per-example predictions were not preserved, so no paired McNemar test, Wilson interval, or
-discordance count is available for the notebook's comparison.
-<!-- original-notebook:end -->
-
-These values are transcribed from the owner's saved rendered Kaggle page and figures, with the
-source notes in
-[`reports/evidence/original_notebook/`](reports/evidence/original_notebook/).
-
-This repository separately implements the notebook's logistic-regression recipe on its own
-1,000-example split, which has 489 negative / 511 positive rows. On those different rows, RoBERTa
-scores `0.9600` against the recipe implementation at `0.8480`, an internal 11.2 point gap. The
-`0.8480` value is this repository's measurement, not the notebook's reported result.
+On this repository's 1,000-example split, which has 489 negative and 511 positive rows, RoBERTa
+scores `0.9600` against the notebook-recipe implementation at `0.8480`, an 11.2 point gap.
 
 Selecting on validation loss reaches `0.9600` in this repository. More epochs did not help: the
 separate five-epoch repository run did not improve that selected-checkpoint result.
@@ -66,7 +36,7 @@ selected by maximum test accuracy, so it is descriptive rather than confirmatory
   (Zhang, Zhao & LeCun, NeurIPS 2015) · 3.6M train / 400K test available, public and ungated,
   Apache-2.0 · a documented 9,000-row subset is used, see [`data/README.md`](data/README.md)
 - **Stack:** Python 3.12 · PyTorch 2.13 (MPS) · `transformers` 5.14 · scikit-learn · NLTK · statsmodels
-- **Hardware:** Apple Silicon, 32 GB, **MPS fp32, no CUDA**. No cloud spend.
+- **Hardware:** Apple Silicon, **MPS fp32, no CUDA**. No cloud spend.
 - **Output:** a measured leaderboard with Wilson intervals and a paired McNemar test, a four-cell
   preprocessing ablation, and eleven committed figures
 
@@ -81,9 +51,8 @@ to Kaggle as
 [`notebooks/sentiment_analysis_roberta_ORIGINAL.ipynb`](notebooks/sentiment_analysis_roberta_ORIGINAL.ipynb).
 
 All 28 code cells in the preserved `.ipynb` were saved with `outputs: []` and
-`execution_count: null`. The owner's saved rendered Kaggle page and figures retain the original
-aggregate results transcribed above. The repository measurements below come from separate local
-reruns on Apple Silicon. Provenance details are in [`docs/PROVENANCE.md`](docs/PROVENANCE.md).
+`execution_count: null`. The repository measurements below come from separate local reruns on
+Apple Silicon. Provenance details are in [`docs/PROVENANCE.md`](docs/PROVENANCE.md).
 
 ---
 
@@ -339,11 +308,13 @@ weights, with no retraining: forward passes only.
 **What it shows.** The final-layer `[CLS]` vector of all 1,000 test reviews, reduced to three
 components with t-SNE and coloured by *true* label. The `40` misclassified reviews are drawn as
 crosses, and they are not scattered at random: they carry a mean predicted-probability margin of
-`0.3933` where the `960` correct rows average `0.9112`, and on the raw logits the two means are
+`0.3933` on errors, 95% t CI [`0.2919`, `0.4948`], where the `960` correct rows average
+`0.9112`, correct rows, 95% t CI [`0.8998`, `0.9226`]. On the raw logits the two means are
 `1.1728` and `4.2794`. Measured in the raw 768-dimensional `[CLS]` space rather than in the
 projection, `77.5%` of an error's `10` nearest neighbours by cosine distance carry the opposite
-true label, where correct rows sit at `3.4%`. The errors are not merely near the frontier; they are
-on the far side of it.
+true label, errors, 95% t CI [`72.0%`, `83.0%`], where correct rows sit at `3.4%`, correct rows,
+95% t CI [`2.8%`, `4.0%`]. The errors are not merely near the frontier; they are on the far side
+of it.
 
 **What it does not support.** t-SNE distances and cluster sizes are not metrically meaningful. The
 method preserves neighbourhoods, not distances, and a cluster's diameter is an artifact of the
@@ -351,7 +322,7 @@ perplexity rather than a property of the data. The claim above rests on the marg
 statistics, both measured in the original space. The projection is there to be looked at, not to be
 measured.
 
-<img src="docs/images/layer_probe_accuracy.png" alt="Line chart of linear-probe test accuracy against hidden-state index, rising from 0.5110 at the embedding output to 0.8220 after block 1, climbing steadily through the middle blocks, and flattening in a narrow band from block 9 to block 12" width="900">
+<img src="docs/images/layer_probe_accuracy.png" alt="Line chart with Wilson 95% intervals for linear-probe test accuracy against hidden-state index, rising from 0.5110 at the embedding output to 0.8220 after block 1 and flattening near the final blocks" width="900">
 
 **What it shows.** One logistic regression per hidden state, fitted on the run's 8,100 train rows
 and scored on its 1,000 test rows, never on the same rows. `roberta-base` exposes 13 hidden states:
@@ -359,14 +330,13 @@ the embedding output plus 12 encoder blocks.
 
 | Hidden state | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| Probe accuracy | 0.5110 | 0.8220 | 0.8420 | 0.8540 | 0.8630 | 0.8960 | 0.9270 | 0.9280 | 0.9410 | 0.9560 | 0.9580 | 0.9530 | 0.9630 |
+| Probe accuracy | 0.5110 | 0.8220 | 0.8420 | 0.8540 | 0.8620 | 0.8950 | 0.9270 | 0.9280 | 0.9410 | 0.9570 | 0.9570 | 0.9540 | 0.9630 |
 
 Hidden state 0 is the embedding of `<s>` at position 0, the same vector for every review, so its
 probe can only return the majority class at `0.5110`, which is exactly the positive rate of this
 test split. One block of self-attention lifts that to `0.8220`. The curve then climbs steadily: the
 probe peaks at `0.9630`, and from block `9` onward it stays within one accuracy point of that peak.
-Blocks 9 through 12 span a single accuracy point, which is inside the noise of a 1,000-row test
-set.
+The plotted points carry Wilson 95% intervals over the 1,000 test rows.
 
 **What it does not support.** A linear probe measures whether the label is *decodable* from a
 representation, not that the model uses that information downstream. The probe is a second model
@@ -380,10 +350,11 @@ over the same 1,000 test reviews. `<s>`, `</s>` and padding are dropped from bot
 surviving rows renormalised, for the reason the attention module already gives: `<s>` is an
 attention sink, and leaving it in flattens the scale. Low entropy is a focused head, high entropy a
 diffuse one. The attainable ceiling is `log(inner tokens)`, mean `4.4413` nats at `99.4` inner
-tokens per review. The median head sits at `2.6385` nats, and only `4` of the 144 fall below 1 nat,
-so a sharply focused head is the exception rather than the rule. The extremes are `L2H3` at
-`0.0039` nats and `L1H11` at `4.3160` nats: effectively a delta and effectively uniform. Neither is
-a sink artifact, because they send `1.4%` and `4.1%` of their raw mass to the excluded tokens.
+tokens per review. The median head sits at `2.6385` nats, and only `4` of the 144 upper 95% bounds
+fall below 1 nat, so a sharply focused head is the exception rather than the rule. The extremes are
+`L2H3` at `0.0039` nats, focused head, 95% t CI [`0.0036`, `0.0041`], and `L1H11` at `4.3160`
+nats, diffuse head, 95% t CI [`4.2799`, `4.3520`]. Neither is a sink artifact, because they send
+`1.4%` and `4.1%` of their raw mass to the excluded tokens.
 
 **What it does not support.** Entropy describes how a head spreads its weight and nothing more.
 Attention weight is not causal importance, so a focused head is not thereby an important one, and
@@ -403,8 +374,8 @@ rather than use. Full treatment in
 %%{init: {'htmlLabels': false, 'fontFamily': 'arial, helvetica, sans-serif', 'flowchart': {'htmlLabels': false, 'padding': 16, 'nodeSpacing': 60, 'rankSpacing': 70, 'useMaxWidth': true}}}%%
 flowchart LR
     HF[("fancyzhx/amazon_polarity<br/>parquet · 3.6M / 400k · Apache-2.0")]
-    HF -->|"scripts/download_data.py<br/>SHA-256 asserted per shard"| RAW["data/raw/*.parquet<br/>gitignored, 377 MB"]
-    RAW -->|"scripts/make_sample.py<br/>stratified, seed 1337"| SAMPLE["data/sample/*.csv<br/>1,400 rows · COMMITTED"]
+    HF -->|"scripts/download_data.py<br/>SHA-256 asserted per shard"| RAW["data/raw/*.parquet<br/>gitignored"]
+    SYNTH["scripts/make_sample.py<br/>seeded text templates"] --> SAMPLE["data/sample/*.csv<br/>synthetic · COMMITTED"]
 
     RAW --> LOAD["datasets/loading.py<br/>label∈{0,1} / title / text"]
     SAMPLE --> LOAD
@@ -445,7 +416,7 @@ Sentiment-RoBERTa/
 ├── utils/                    # seeding, device, run dirs, run metadata, logging, plots, NLTK
 ├── notebooks/                # the ORIGINAL Kaggle notebook + a re-run narrative walkthrough
 ├── scripts/                  # data export | evidence export/check | figure/report drift guards
-├── tests/                    # 225 tests: leakage, metrics, evidence, probes, D1, D3, D8, smoke
+├── tests/                    # 237 tests: leakage, metrics, evidence, probes, D1, D3, D8, smoke
 ├── reports/                  # RESULTS.md + text-free evidence/ + mirrored publication figures/
 ├── docs/                     # PROVENANCE · architecture · interpretability · adr/ (7 ADRs)
 ├── train.py                  # THE entrypoint: train.py -c cfg/small.yaml
@@ -461,27 +432,28 @@ Sentiment-RoBERTa/
 git clone https://github.com/armandogon94/Sentiment-RoBERTa.git
 cd Sentiment-RoBERTa
 make setup          # uv sync + pre-commit hooks
-make smoke          # full pipeline on data/sample/, CPU, ~6 s
+make smoke          # full pipeline on data/sample/, CPU
 make test           # test suite; exact collected count is stated under Testing
 ```
 
-`make smoke` runs the full pipeline with random weights on the committed sample. It verifies the
+`make smoke` runs the full pipeline with random weights on committed synthetic fixtures. It verifies the
 pipeline wiring; the random-weight accuracy is excluded from reported results.
 It does not fetch review data or Hugging Face weights. It does require NLTK `punkt`, `punkt_tab`, and
 `stopwords`; on a cold machine, `ensure_nltk_data()` downloads them by mutable package name.
 
-To reproduce the published numbers (~377 MB download, ~35 min on Apple Silicon):
+To reproduce the published numbers:
 
 ```bash
 make data
 make dev
 make small
-PUBLISHED_RUN="$(python3 -c 'from pathlib import Path; print(Path("runs/latest").resolve())')"
+PUBLISHED_RUN="$(uv run python -c 'from pathlib import Path; print(Path("runs/latest").resolve())')"
 make ablation
-ABLATION_RUN="$(python3 -c 'from pathlib import Path; print(Path("runs/latest").resolve())')"
+ABLATION_RUN="$(uv run python -c 'from pathlib import Path; print(Path("runs/latest").resolve())')"
 make evidence PUBLISHED_RUN="$PUBLISHED_RUN" ABLATION_RUN="$ABLATION_RUN"
+make model-evidence PUBLISHED_RUN="$PUBLISHED_RUN" ABLATION_RUN="$ABLATION_RUN"
 make report   PUBLISHED_RUN="$PUBLISHED_RUN" ABLATION_RUN="$ABLATION_RUN"
-make figures  PUBLISHED_RUN="$PUBLISHED_RUN" ABLATION_RUN="$ABLATION_RUN"
+make figures
 ```
 
 The two variables capture the actual directories before `runs/latest` advances. The evidence export
@@ -489,7 +461,7 @@ requires the published and ablation runs; calibration and smoke runs are not sub
 evidence exporter maps the two exact, allowlisted prediction schemas to the published `run_2` and
 ablation `run_3` bundle slots.
 
-**Requires** Python 3.12+ and [uv](https://docs.astral.sh/uv/). No CUDA, no Docker, no cloud account.
+**Requires** Python 3.12 or 3.13 and [uv](https://docs.astral.sh/uv/). No CUDA, no Docker, no cloud account.
 
 ---
 
@@ -500,7 +472,7 @@ measurements come only from completed runs.
 
 | File | Scale (train / val / test) | Epochs | Ran? | Purpose |
 |---|---|---|---|---|
-| `cfg/smoke.yaml` | committed sample, random weights, CPU | 1 | ✅ | CI + fresh clone pipeline check; excluded from reported results. |
+| `cfg/smoke.yaml` | synthetic fixtures, random weights, CPU | 1 | ✅ | CI + fresh clone pipeline check; excluded from reported results. |
 | `cfg/dev.yaml` | 1,800 / 200 / 500, seq 128 | 1 | ✅ | Calibration. Its numbers are labelled `dev` wherever they appear. |
 | `cfg/small.yaml` | 8,100 / 900 / 1,000, seq 256 | 3 | ✅ | **Every headline number above.** |
 | `cfg/default.yaml` | 8,100 / 900 / 1,000, seq 256 | 5 | ✅ | The notebook's untruncated schedule. Ran 57m 19.1s under a 90-minute cap; it is the evidence that more epochs do not help. |
@@ -567,14 +539,14 @@ RUNTIME:
   recomputed without re-training.
 - **A primary-evidence bundle is committed** at
   [`reports/evidence/`](reports/evidence/): source JSON copied verbatim plus labels, prediction
-  vectors, and SHA-256 review identifiers, never review text. `scripts/check_published_numbers.py`
+  vectors, SHA-256 review identifiers, and compact model-figure arrays, never review text.
+  `scripts/check_published_numbers.py`
   recomputes the accuracies, confusion/discordance tables, Wilson intervals, and exact McNemar p,
-  then checks the published comparison, ablation, training-history, truncation, and parameter
-  headline claims numerically at their displayed precision.
+  then checks the published comparison, ablation, representation summaries, training history,
+  truncation, and parameter headline claims numerically at their displayed precision.
 - **The numbers above were produced by commit `dcf8b09`**, on MPS with Low Power Mode OFF. That is
   the SHA `run_meta.json` recorded at run time, and it does not resolve in the published history: a
-  third-party reviewer's contact detail was later redacted from `data/sample/reviews_sample.csv`
-  with `git-filter-repo`, which renumbered every commit from that file's introduction onward.
+  prior history rewrite changed commit identities.
   Reproduction is checked against the committed evidence bundle, not against the SHA.
 - **Timing conditions are recorded.** Both runs happened with other work on the machine
   (1-minute load average 9.5 at the launch of the published run). They are pessimistic upper bounds,
@@ -583,12 +555,15 @@ RUNTIME:
 ## Testing
 
 ```bash
-make test           # 225 tests, coverage on the pure-logic core
+make test           # 237 tests, coverage on the pure-logic core
 make lint           # ruff check + ruff format --check + mypy
 make verify         # clone committed HEAD to a temp dir and run the documented quickstart
 ```
 
-**225 tests (one expected `xfail`), 96% coverage** on
+Before committing, `scripts/verify_fresh_clone.sh --working-tree` exercises the prospective public
+tree without writing Git state.
+
+**237 tests (one expected `xfail`), 95% coverage** on
 `datasets/ models/ metrics/ interpretability/ utils/`. No test fetches review data or Hugging Face
 weights; preprocessing tests still require the mutable-name NLTK assets and can download them on a
 cold machine. Selected tests:
@@ -607,16 +582,16 @@ cold machine. Selected tests:
 | `test_utils.py` | parses every `.py` with `ast` to prove no unguarded `plt.show()` survives |
 
 CI runs lint → types → tests → a smoke train on Python 3.12 and 3.13, plus independent documentation
-and published-evidence jobs. The smoke job has local review data, random weights, and a local
+and published-evidence jobs. The smoke job has synthetic data, random weights, and a local
 tokenizer, but its TF-IDF path still requires NLTK assets and is not a cold-machine offline
-guarantee. The evidence job recomputes headline statistics from committed prediction vectors,
-regenerates figure provenance, and requires `reports/RESULTS.md` to be byte-reproducible.
+guarantee. The evidence job recomputes headline statistics from committed source arrays,
+regenerates all eleven figure payloads, and requires `reports/RESULTS.md` to be byte-reproducible.
 
 ---
 
 ## Limitations
 
-1. **8,100 training rows: 0.22% of the 3.6M available.** Laptop-scale by choice. These results do not
+1. **8,100 training rows: 0.225% of the 3.6M available.** Laptop-scale by choice. These results do not
    transfer to full-data training, where the literature reports single-digit error rates for both
    model families.
 2. **The 2.2 pp ablation comparison is underpowered.** Its conditional exact paired 95% CI is
@@ -664,8 +639,8 @@ regenerates figure provenance, and requires `reports/RESULTS.md` to be byte-repr
 400K test, Apache-2.0, public and ungated, constructed for
 [Zhang, Zhao & LeCun, *Character-level Convolutional Networks for Text Classification*, NeurIPS 2015](https://papers.nips.cc/paper_files/paper/2015/hash/250cf8b51c773f3f8dc8b4be867a9a02-Abstract.html).
 
-Not committed. Two small stratified samples are (1,400 rows, 615 KB total), so tests and the
-quickstart need no review-data download. Measured class balance of the rows actually read is 50.58% positive
+Not committed. Two deterministic synthetic fixtures are committed, so tests and the quickstart
+need no review-data download. Measured class balance of the rows actually read is 50.58% positive
 in the first 200,000 train rows and 51.07% in the first 20,000 test rows. The schema, both
 provenance URLs, and the shard checksums are in [`data/README.md`](data/README.md).
 
@@ -676,11 +651,10 @@ this repo was built from. Third-party attributions (`roberta-base` weights, MIT;
 Apache-2.0 *as asserted by its upstream card*) are in [NOTICE](NOTICE).
 
 **Scope of that claim.** Those licences are recorded as upstream assertions, not as an independently
-verified rights chain. This repository commits 1,400 verbatim third-party review texts, and it does
-**not** establish the rights position for that underlying text. Amazon's terms, reviewer rights, and
-the original McAuley-Leskovec collection terms are all unaddressed here. See
-[`docs/PROVENANCE.md`](docs/PROVENANCE.md#scope-of-the-licence-evidence) for the full scoping. The
-committed sample illustrates the pipeline and is not licence-cleared redistribution.
+verified rights chain. The current tree does not redistribute source-dataset review text. Amazon's
+terms, reviewer rights, and the original McAuley-Leskovec collection terms remain unaddressed for
+anyone who downloads the source data. See
+[`docs/PROVENANCE.md`](docs/PROVENANCE.md#scope-of-the-licence-evidence) for the full scoping.
 
 ## Author
 

@@ -1,0 +1,18 @@
+{
+  "coverage": {
+    "covered_lines": 1134,
+    "display_percent": 95,
+    "missing_lines": 58,
+    "num_statements": 1192,
+    "percent_covered": 95.13422818791946
+  },
+  "schema_version": 1,
+  "suite": {
+    "errors": 0,
+    "failures": 0,
+    "passed": 236,
+    "skipped": 1,
+    "tests": 237,
+    "xfailed": 1
+  }
+}

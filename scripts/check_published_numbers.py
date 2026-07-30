@@ -26,9 +26,12 @@ from metrics.significance import (  # noqa: E402
     mcnemar_test,
     paired_accuracy_difference_interval,
 )
+from scripts.download_data import UPSTREAM_ROWS  # noqa: E402
 
 NUMBER = r"[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?"
 MARKDOWN_NUMBER = re.compile(r"[-+]?(?:\d{1,3}(?:,\d{3})+|\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?")
+# Legacy parsing helpers below are retained for compatibility with older local callers. The
+# publication path no longer invokes them or loads a notebook transcription artifact.
 ORIGINAL_NOTEBOOK_START = "<!-- original-notebook:start -->"
 ORIGINAL_NOTEBOOK_END = "<!-- original-notebook:end -->"
 ORIGINAL_NOTEBOOK_SPAN = re.compile(
@@ -46,15 +49,6 @@ ABLATION_MODELS = (
     "tfidf_logreg[negation preserved, uni+bigram]",
 )
 RUN_3_COLUMNS = ["index", "label", "tfidf_logreg", *ABLATION_MODELS, "text_sha256"]
-
-#: The three figures whose measured values cannot be recomputed from the evidence bundle,
-#: because they need the unpublished checkpoint. Their numbers are read back out of the
-#: tracked PNG provenance instead. See ``_figure_payloads``.
-REPRESENTATION_FIGURES = (
-    "embedding_space_3d",
-    "layer_probe_accuracy",
-    "attention_entropy_atlas",
-)
 
 
 class EvidenceMismatch(RuntimeError):
@@ -1288,6 +1282,79 @@ def _check_split_claims(
         )
 
 
+def _check_source_scope_claims(
+    checked: list[CheckedNumber],
+    source: Path,
+    text: str,
+    metrics: dict[str, Any],
+) -> None:
+    """Check source-corpus and subset-size claims against code and run evidence."""
+    upstream_pattern = re.compile(
+        rf"(?P<train>{NUMBER})[Mm](?:\s+train)?\s*/\s*"
+        rf"(?P<test>{NUMBER})[Kk](?:\s+test)?"
+    )
+    for index, match in enumerate(upstream_pattern.finditer(text), start=1):
+        _check_printed(
+            checked,
+            source,
+            f"upstream_rows[{index}].train_millions",
+            match.group("train"),
+            UPSTREAM_ROWS["train"] / 1_000_000,
+        )
+        _check_printed(
+            checked,
+            source,
+            f"upstream_rows[{index}].test_thousands",
+            match.group("test"),
+            UPSTREAM_ROWS["test"] / 1_000,
+        )
+
+    subset_pattern = re.compile(
+        rf"(?P<rows>\d[\d,]*)\s+training rows:\s*(?P<percent>{NUMBER})%"
+        rf"\s+of the\s+(?P<upstream>{NUMBER})M available"
+    )
+    subset_matches = list(subset_pattern.finditer(text))
+    if source.name == "README.md" and not subset_matches:
+        raise EvidenceMismatch(f"{source}: published subset fraction is missing")
+    for index, match in enumerate(subset_matches, start=1):
+        n_train = int(metrics["splits"]["n_train"])
+        for group, expected in (
+            ("rows", n_train),
+            ("percent", 100.0 * n_train / UPSTREAM_ROWS["train"]),
+            ("upstream", UPSTREAM_ROWS["train"] / 1_000_000),
+        ):
+            _check_printed(
+                checked,
+                source,
+                f"subset_fraction[{index}].{group}",
+                match.group(group).replace(",", ""),
+                expected,
+            )
+
+    balance_pattern = re.compile(
+        rf"class balance.*?is\s+(?P<train>{NUMBER})%\s+positive\s+in the first\s+"
+        rf"(?P<train_n>\d[\d,]*)\s+train rows and\s+(?P<test>{NUMBER})%\s+positive\s+"
+        rf"in the first\s+(?P<test_n>\d[\d,]*)\s+test rows",
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+    for index, match in enumerate(balance_pattern.finditer(text), start=1):
+        train_balance = metrics["source_class_balance"]["train_source"]
+        test_balance = metrics["source_class_balance"]["test_source"]
+        for group, expected in (
+            ("train", 100.0 * train_balance["frac_positive"]),
+            ("train_n", train_balance["n"]),
+            ("test", 100.0 * test_balance["frac_positive"]),
+            ("test_n", test_balance["n"]),
+        ):
+            _check_printed(
+                checked,
+                source,
+                f"source_class_balance[{index}].{group}",
+                match.group(group).replace(",", ""),
+                expected,
+            )
+
+
 def _check_test_set_sizes(
     checked: list[CheckedNumber],
     source: Path,
@@ -1315,29 +1382,112 @@ def _check_test_set_sizes(
         )
 
 
-def _figure_payloads(figures_dir: Path) -> dict[str, dict[str, Any]]:
-    """The embedded JSON provenance of the three representation figures.
+def _figure_payloads(evidence_dir: Path) -> dict[str, dict[str, Any]]:
+    """Recompute representation summaries from committed review-level arrays."""
+    import numpy as np
+    from statsmodels.stats.proportion import proportion_confint
 
-    Those figures cannot be regenerated from the committed evidence bundle: they need the
-    476 MB checkpoint and the review text, neither of which is published. Their measured
-    values live in the tracked PNG instead, and ``scripts/check_published_figures.py`` ties
-    that payload to the checkpoint digest and the run's Git SHA. This function reads it back
-    so the prose quoting those values is checked rather than trusted.
-    """
-    from PIL import Image
+    from interpretability.representations import (
+        AttentionAtlas,
+        LayerProbe,
+        boundary_summary_from_observations,
+        saturation_layer,
+    )
+    from scripts.model_figure_evidence import load_model_figure_evidence
 
-    payloads: dict[str, dict[str, Any]] = {}
-    for name in REPRESENTATION_FIGURES:
-        path = figures_dir / f"{name}.png"
-        with Image.open(path) as image:
-            description = image.info.get("Description")
-        if not isinstance(description, str):
-            raise EvidenceMismatch(f"{path}: missing the JSON provenance payload")
-        payload = json.loads(description)
-        if not isinstance(payload, dict):
-            raise EvidenceMismatch(f"{path}: provenance payload is not a JSON object")
-        payloads[name] = payload
-    return payloads
+    evidence = load_model_figure_evidence(evidence_dir / "model_figures.json")
+    arrays = evidence.arrays
+    labels = arrays["labels"].astype(np.int64)
+    logits = arrays["embedding_logits"]
+    summary = boundary_summary_from_observations(
+        labels,
+        logits.argmax(axis=1),
+        arrays["embedding_probability_margin"],
+        arrays["embedding_logit_margin"],
+        arrays["embedding_opposite_neighbours"],
+        n_neighbours=int(evidence.metadata["embedding"]["n_neighbours"]),
+    )
+    probe_predictions = arrays["probe_predictions"].astype(np.int64)
+    probes: list[LayerProbe] = []
+    for layer, predicted in enumerate(probe_predictions):
+        correct = int((predicted == labels).sum())
+        low, high = proportion_confint(correct, len(labels), method="wilson")
+        probes.append(
+            LayerProbe(
+                layer=layer,
+                accuracy=correct / len(labels),
+                n_train=int(evidence.metadata["probe"]["n_train"]),
+                n_test=len(labels),
+                accuracy_ci=(float(low), float(high)),
+            )
+        )
+
+    entropy_sum = arrays["atlas_entropy_sum"]
+    entropy_sum_squares = arrays["atlas_entropy_sum_squares"]
+    sink_sum = arrays["atlas_sink_sum"]
+    inner_token_counts = arrays["atlas_inner_tokens"]
+    n_examples = len(inner_token_counts)
+    atlas = AttentionAtlas(
+        entropy=entropy_sum / n_examples,
+        sink_share=sink_sum / n_examples,
+        n_examples=n_examples,
+        mean_inner_tokens=float(inner_token_counts.mean()),
+        mean_max_entropy=float(np.log(inner_token_counts.astype(np.float64)).mean()),
+        inner_token_counts=inner_token_counts,
+        entropy_sum_squares=entropy_sum_squares,
+    )
+    intervals = atlas.entropy_confidence_intervals()
+    if intervals is None:
+        raise EvidenceMismatch("attention atlas has no review-level uncertainty evidence")
+    _, interval_high = intervals
+    interval_low, _ = intervals
+    focused = atlas.most_focused()
+    diffuse = atlas.most_diffuse()
+    return {
+        "attention_entropy_atlas": {
+            "max_entropy": float(atlas.entropy.max()),
+            "max_entropy_ci": [
+                float(interval_low[diffuse.layer - 1, diffuse.head - 1]),
+                float(interval_high[diffuse.layer - 1, diffuse.head - 1]),
+            ],
+            "mean_inner_tokens": atlas.mean_inner_tokens,
+            "mean_max_entropy": atlas.mean_max_entropy,
+            "median_entropy": float(np.median(atlas.entropy)),
+            "min_entropy": float(atlas.entropy.min()),
+            "min_entropy_ci": [
+                float(interval_low[focused.layer - 1, focused.head - 1]),
+                float(interval_high[focused.layer - 1, focused.head - 1]),
+            ],
+            "most_diffuse": diffuse.label(),
+            "most_diffuse_sink_share": diffuse.sink_share,
+            "most_focused": focused.label(),
+            "most_focused_sink_share": focused.sink_share,
+            "n_examples": atlas.n_examples,
+            "n_sharply_focused": int((interval_high < 1.0).sum()),
+        },
+        "embedding_space_3d": {
+            "logit_margin_correct": summary.logit_margin_correct,
+            "logit_margin_incorrect": summary.logit_margin_incorrect,
+            "n_correct": summary.n_correct,
+            "n_incorrect": summary.n_incorrect,
+            "n_neighbours": summary.n_neighbours,
+            "opposite_neighbours_correct": summary.opposite_neighbours_correct,
+            "opposite_neighbours_correct_ci": summary.opposite_neighbours_correct_ci,
+            "opposite_neighbours_incorrect": summary.opposite_neighbours_incorrect,
+            "opposite_neighbours_incorrect_ci": summary.opposite_neighbours_incorrect_ci,
+            "probability_margin_correct": summary.probability_margin_correct,
+            "probability_margin_correct_ci": summary.probability_margin_correct_ci,
+            "probability_margin_incorrect": summary.probability_margin_incorrect,
+            "probability_margin_incorrect_ci": summary.probability_margin_incorrect_ci,
+        },
+        "layer_probe_accuracy": {
+            "accuracies": [probe.accuracy for probe in probes],
+            "accuracy_ci": [probe.accuracy_ci for probe in probes],
+            "n_test": probes[0].n_test,
+            "n_train": probes[0].n_train,
+            "saturation_layer": saturation_layer(probes),
+        },
+    }
 
 
 def _check_probe_table(
@@ -1414,11 +1564,40 @@ def _representation_claims(
             embedding["probability_margin_incorrect"],
             ("mean predicted-probability margin of <N>",),
         ),
+        (
+            "embedding.probability_margin_incorrect_ci_low",
+            embedding["probability_margin_incorrect_ci"][0],
+            ("errors, 95% t CI [<N>,",),
+        ),
+        (
+            "embedding.probability_margin_incorrect_ci_high",
+            embedding["probability_margin_incorrect_ci"][1],
+            (f"errors, 95% t CI [{embedding['probability_margin_incorrect_ci'][0]:.4f}, <N>]",),
+        ),
         ("embedding.n_correct", embedding["n_correct"], ("where the <N> correct rows average",)),
         (
             "embedding.probability_margin_correct",
             embedding["probability_margin_correct"],
             ("correct rows average <N>",),
+        ),
+        (
+            "embedding.probability_margin_correct_ci_low",
+            embedding["probability_margin_correct_ci"][0],
+            (
+                "correct rows, 95% t CI [<N>,",
+                f"correct rows average {embedding['probability_margin_correct']:.4f}, "
+                "95% t CI [<N>,",
+            ),
+        ),
+        (
+            "embedding.probability_margin_correct_ci_high",
+            embedding["probability_margin_correct_ci"][1],
+            (
+                f"correct rows, 95% t CI "
+                f"[{embedding['probability_margin_correct_ci'][0]:.4f}, <N>]",
+                f"correct rows average {embedding['probability_margin_correct']:.4f}, "
+                f"95% t CI [{embedding['probability_margin_correct_ci'][0]:.4f}, <N>]",
+            ),
         ),
         (
             "embedding.logit_margin_incorrect",
@@ -1435,11 +1614,37 @@ def _representation_claims(
             100 * embedding["opposite_neighbours_incorrect"],
             ("<N>% of an error's",),
         ),
+        (
+            "embedding.opposite_neighbours_incorrect_ci_low",
+            100 * embedding["opposite_neighbours_incorrect_ci"][0],
+            ("errors, 95% t CI [<N>%,",),
+        ),
+        (
+            "embedding.opposite_neighbours_incorrect_ci_high",
+            100 * embedding["opposite_neighbours_incorrect_ci"][1],
+            (
+                f"errors, 95% t CI "
+                f"[{100 * embedding['opposite_neighbours_incorrect_ci'][0]:.1f}%, <N>%]",
+            ),
+        ),
         ("embedding.n_neighbours", embedding["n_neighbours"], ("of an error's <N> nearest",)),
         (
             "embedding.opposite_neighbours_correct",
             100 * embedding["opposite_neighbours_correct"],
             ("where correct rows sit at <N>%",),
+        ),
+        (
+            "embedding.opposite_neighbours_correct_ci_low",
+            100 * embedding["opposite_neighbours_correct_ci"][0],
+            ("correct rows, 95% t CI [<N>%,",),
+        ),
+        (
+            "embedding.opposite_neighbours_correct_ci_high",
+            100 * embedding["opposite_neighbours_correct_ci"][1],
+            (
+                f"correct rows, 95% t CI "
+                f"[{100 * embedding['opposite_neighbours_correct_ci'][0]:.1f}%, <N>%]",
+            ),
         ),
         (
             "probe.n_train",
@@ -1458,10 +1663,30 @@ def _representation_claims(
         (
             "atlas.n_sharply_focused",
             atlas["n_sharply_focused"],
-            ("<N> of the 144 fall below 1 nat",),
+            ("<N> of the 144 upper 95% bounds fall below 1 nat",),
         ),
         ("atlas.min_entropy", atlas["min_entropy"], (f"{focused} at <N> nats",)),
+        (
+            "atlas.min_entropy_ci_low",
+            atlas["min_entropy_ci"][0],
+            ("focused head, 95% t CI [<N>,",),
+        ),
+        (
+            "atlas.min_entropy_ci_high",
+            atlas["min_entropy_ci"][1],
+            (f"focused head, 95% t CI [{atlas['min_entropy_ci'][0]:.4f}, <N>]",),
+        ),
         ("atlas.max_entropy", atlas["max_entropy"], (f"{diffuse} at <N> nats",)),
+        (
+            "atlas.max_entropy_ci_low",
+            atlas["max_entropy_ci"][0],
+            ("diffuse head, 95% t CI [<N>,",),
+        ),
+        (
+            "atlas.max_entropy_ci_high",
+            atlas["max_entropy_ci"][1],
+            (f"diffuse head, 95% t CI [{atlas['max_entropy_ci'][0]:.4f}, <N>]",),
+        ),
         (
             "atlas.most_focused_sink_share",
             100 * atlas["most_focused_sink_share"],
@@ -1827,6 +2052,7 @@ def _check_document_claims(
     _check_training_claims(checked, source, text, metrics)
     _check_recorded_claims(checked, source, text, metrics)
     _check_split_claims(checked, source, text, metrics)
+    _check_source_scope_claims(checked, source, text, metrics)
     _check_test_set_sizes(
         checked,
         source,
@@ -2013,16 +2239,12 @@ def validate_published_documents(
     stored_ablation_cells = run_3_metrics["ablation"]
     run_5_dir = evidence_dir / "run_5"
     schedule_metrics = _load_json(run_5_dir / "metrics.json") if run_5_dir.is_dir() else None
-    original_notebook = _load_json(evidence_dir / "original_notebook" / "results.json")
-    figure_payloads = _figure_payloads(
-        figures_dir if figures_dir is not None else REPO_ROOT / "reports" / "figures"
-    )
+    del figures_dir
+    figure_payloads = _figure_payloads(evidence_dir)
 
     checked: list[CheckedNumber] = []
     for document in (readme, results):
-        raw_text = document.read_text(encoding="utf-8")
-        checked.extend(_check_original_notebook_claims(document, raw_text, original_notebook))
-        repo_text = _blank_original_notebook_spans(document, raw_text)
+        repo_text = document.read_text(encoding="utf-8")
         _check_representation_claims(checked, document, repo_text, figure_payloads)
         _check_document_claims(
             checked,
@@ -2084,7 +2306,7 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     checked = [*evidence_checks, *published_checks]
     _print_table(checked)
-    print(f"PASS: {len(checked)} published/evidence values recomputed from prediction vectors")
+    print(f"PASS: {len(checked)} published/evidence values recomputed from committed source arrays")
     return 0
 
 

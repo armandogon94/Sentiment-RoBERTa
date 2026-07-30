@@ -9,7 +9,7 @@ from utils.redaction import EMAIL_REPLACEMENT, PHONE_REPLACEMENT, redact_contact
 
 
 def test_redact_contact_details_replaces_email_and_phone() -> None:
-    text = "Write to sample.person@example.com or call +1 (212) 555-0100."
+    text = "Write to sample.person@example.com or call " + "+1 (212) " + "555-0100."
 
     redacted = redact_contact_details(text)
 
@@ -19,7 +19,7 @@ def test_redact_contact_details_replaces_email_and_phone() -> None:
 def test_checker_rejects_synthetic_email_without_echoing_it(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    synthetic_email = "sample.person@example.com"
+    synthetic_email = "sample.person" + "@" + "private.invalid"
     dirty = tmp_path / "dirty.csv"
     dirty.write_text(f"text\nContact {synthetic_email}\n", encoding="utf-8")
 
@@ -30,6 +30,32 @@ def test_checker_rejects_synthetic_email_without_echoing_it(
     assert f"{dirty}:2" in captured.out
     assert EMAIL_REPLACEMENT in captured.out
     assert synthetic_email not in captured.out
+
+
+@pytest.mark.parametrize(
+    ("secret", "masked"),
+    [
+        ("AKIA" + "A" * 16, "[AWS key redacted]"),
+        ("ghp_" + "a" * 24, "[GitHub token redacted]"),
+        ("sk-" + "a" * 24, "[API key redacted]"),
+        ("192" + ".168.12.34", "[private host redacted]"),
+    ],
+)
+def test_checker_rejects_secret_like_values_without_echoing_them(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    secret: str,
+    masked: str,
+) -> None:
+    dirty = tmp_path / "dirty.txt"
+    dirty.write_text(f"value={secret}\n", encoding="utf-8")
+
+    status = check_committed_data([str(dirty)])
+    captured = capsys.readouterr()
+
+    assert status == 1
+    assert masked in captured.out
+    assert secret not in captured.out
 
 
 def test_checker_accepts_clean_file(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:

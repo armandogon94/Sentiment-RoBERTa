@@ -1,0 +1,371 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Published Repository Adversarial Audit</title>
+  <style>
+    :root {
+      --ink: #17202a;
+      --muted: #52606d;
+      --paper: #f5f1e8;
+      --card: #fffdf8;
+      --line: #d6cdbd;
+      --red: #b42318;
+      --amber: #b54708;
+      --green: #16794b;
+      --blue: #175cd3;
+      --shadow: 0 18px 50px rgb(35 31 25 / 14%);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 12% 9%, rgb(23 92 211 / 9%), transparent 33%),
+        radial-gradient(circle at 90% 84%, rgb(22 121 75 / 9%), transparent 35%),
+        var(--paper);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      overflow: hidden;
+    }
+
+    main {
+      width: min(1180px, calc(100vw - 48px));
+      height: calc(100vh - 88px);
+      margin: 22px auto 0;
+      position: relative;
+    }
+
+    .slide {
+      position: absolute;
+      inset: 0;
+      display: none;
+      padding: clamp(28px, 5vw, 72px);
+      border: 1px solid rgb(23 32 42 / 10%);
+      border-radius: 28px;
+      background: rgb(255 253 248 / 91%);
+      box-shadow: var(--shadow);
+      overflow: auto;
+    }
+
+    .slide.active {
+      display: grid;
+      align-content: center;
+      animation: enter 220ms ease-out;
+    }
+
+    @keyframes enter {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .eyebrow {
+      margin: 0 0 12px;
+      color: var(--blue);
+      font-size: 0.84rem;
+      font-weight: 800;
+      letter-spacing: 0.13em;
+      text-transform: uppercase;
+    }
+
+    h1, h2 {
+      max-width: 920px;
+      margin: 0;
+      letter-spacing: -0.035em;
+      line-height: 1.02;
+    }
+
+    h1 { font-size: clamp(2.8rem, 7vw, 6.3rem); }
+    h2 { font-size: clamp(2.2rem, 5vw, 4.5rem); }
+
+    .lede {
+      max-width: 850px;
+      margin: 26px 0 0;
+      color: var(--muted);
+      font-size: clamp(1.1rem, 2vw, 1.55rem);
+      line-height: 1.5;
+    }
+
+    .chips, .metrics, .grid {
+      display: grid;
+      gap: 16px;
+      margin-top: 34px;
+    }
+
+    .chips { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .metrics { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+    .chip, .metric, .card {
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: var(--card);
+    }
+
+    .chip, .metric { padding: 18px; }
+    .card { padding: 24px; }
+
+    .chip strong, .metric strong {
+      display: block;
+      font-size: clamp(1.45rem, 3vw, 2.5rem);
+      line-height: 1;
+    }
+
+    .chip span, .metric span {
+      display: block;
+      margin-top: 8px;
+      color: var(--muted);
+      line-height: 1.35;
+    }
+
+    .card h3 {
+      margin: 0 0 10px;
+      font-size: 1.18rem;
+    }
+
+    .card p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .critical { border-top: 5px solid var(--red); }
+    .high { border-top: 5px solid var(--amber); }
+    .fixed { border-top: 5px solid var(--green); }
+    .verified { border-top: 5px solid var(--blue); }
+
+    .status {
+      display: inline-flex;
+      gap: 8px;
+      align-items: center;
+      margin-top: 28px;
+      padding: 10px 14px;
+      border-radius: 999px;
+      background: rgb(22 121 75 / 10%);
+      color: var(--green);
+      font-weight: 800;
+    }
+
+    .status::before {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: currentColor;
+      content: "";
+    }
+
+    code {
+      padding: 0.12em 0.35em;
+      border-radius: 5px;
+      background: #ede8de;
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-size: 0.88em;
+    }
+
+    footer {
+      width: min(1180px, calc(100vw - 48px));
+      height: 54px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: var(--muted);
+    }
+
+    .controls { display: flex; gap: 8px; }
+
+    button {
+      min-width: 44px;
+      min-height: 44px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      color: var(--ink);
+      background: var(--card);
+      font: inherit;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    button:hover, button:focus-visible {
+      border-color: var(--blue);
+      outline: 3px solid rgb(23 92 211 / 16%);
+    }
+
+    button:disabled { cursor: default; opacity: 0.38; }
+
+    @media (max-width: 760px) {
+      main { width: calc(100vw - 24px); height: calc(100vh - 82px); margin-top: 12px; }
+      .slide { padding: 28px 22px; border-radius: 20px; }
+      .chips, .metrics, .grid { grid-template-columns: 1fr; }
+      footer { width: calc(100vw - 24px); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .slide.active { animation: none; }
+    }
+  </style>
+</head>
+<body>
+  <main aria-live="polite">
+    <section class="slide active" aria-labelledby="s1-title">
+      <p class="eyebrow">Published repository adversarial audit</p>
+      <h1 id="s1-title">The evidence chain is repaired.</h1>
+      <p class="lede">
+        Unsupported claims were removed, false gates were made real, public fixtures were replaced,
+        and a no-Git copy reproduced the documented path. One owner-only history cleanup remains.
+      </p>
+      <div class="chips">
+        <div class="chip fixed"><strong>550</strong><span>published and evidence values recomputed</span></div>
+        <div class="chip fixed"><strong>11</strong><span>figures regenerated from source evidence</span></div>
+        <div class="chip critical"><strong>1</strong><span>Git-history risk still requires owner action</span></div>
+      </div>
+    </section>
+
+    <section class="slide" aria-labelledby="s2-title">
+      <p class="eyebrow">Severity, worst first</p>
+      <h2 id="s2-title">Current tree clean, public history not yet clean.</h2>
+      <div class="grid">
+        <article class="card critical">
+          <h3>Critical, unresolved in history</h3>
+          <p>Prior commits still contain third-party review text. The prospective tree no longer does, but removal requires prohibited Git writes and a force update.</p>
+        </article>
+        <article class="card high">
+          <h3>Critical, repaired in tree</h3>
+          <p>A notebook headline depended on a manual transcription from an unexecuted notebook. The claim and transcription were deleted.</p>
+        </article>
+        <article class="card high">
+          <h3>High, repaired</h3>
+          <p>Seven model-dependent figures were outside the regeneration gate, and three claims were circularly checked against PNG metadata.</p>
+        </article>
+        <article class="card high">
+          <h3>High, repaired</h3>
+          <p>The JSONL logger used a console renderer and could silently retain stale handlers after reconfiguration.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="slide" aria-labelledby="s3-title">
+      <p class="eyebrow">Claim integrity</p>
+      <h2 id="s3-title">Every published result now starts from inspectable evidence.</h2>
+      <div class="grid">
+        <article class="card fixed">
+          <h3>Notebook claim removed</h3>
+          <p>Tests now assert that the source notebook has no saved outputs and that its unsupported numerical headline stays absent.</p>
+        </article>
+        <article class="card fixed">
+          <h3>Figure evidence added</h3>
+          <p><code>model_figures.json</code> and <code>model_figures.npz</code> hold compact arrays and sufficient statistics used by renderers and claim checks.</p>
+        </article>
+        <article class="card fixed">
+          <h3>Captions made falsifiable</h3>
+          <p>All figure captions state what the figure does not support. The plotting helper rejects captions that omit that limit.</p>
+        </article>
+        <article class="card verified">
+          <h3>Uncertainty shown</h3>
+          <p>Embedding, probe, and attention-atlas figures now expose uncertainty from the committed evidence rather than a bare point estimate.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="slide" aria-labelledby="s4-title">
+      <p class="eyebrow">Real bugs and public-data hygiene</p>
+      <h2 id="s4-title">The fixes change behavior, not just documentation.</h2>
+      <div class="grid">
+        <article class="card fixed">
+          <h3>Parseable structured logs</h3>
+          <p>Console and file handlers now use separate formatters. Tests parse the JSONL sink and verify repeated configuration.</p>
+        </article>
+        <article class="card fixed">
+          <h3>Deterministic synthetic fixtures</h3>
+          <p>The public smoke path now uses a committed generator and balanced synthetic samples, with no dependency on redistributed review text.</p>
+        </article>
+        <article class="card fixed">
+          <h3>Prospective-tree scanner</h3>
+          <p>The data gate checks the whole prospective public tree for emails, phone numbers, key patterns, and private network addresses.</p>
+        </article>
+        <article class="card fixed">
+          <h3>First-five-minutes repairs</h3>
+          <p>Exact dependency pins, uv-only commands, a local-link checker, corrected data flow, and measured-only quickstart prose replace stale guidance.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="slide" aria-labelledby="s5-title">
+      <p class="eyebrow">Final measured gate</p>
+      <h2 id="s5-title">The prospective public tree passes end to end.</h2>
+      <div class="metrics">
+        <div class="metric verified"><strong>237</strong><span>tests collected</span></div>
+        <div class="metric verified"><strong>236</strong><span>tests passed</span></div>
+        <div class="metric verified"><strong>1</strong><span>expected failure, classified as skipped</span></div>
+        <div class="metric verified"><strong>95%</strong><span>displayed statement coverage</span></div>
+      </div>
+      <div class="metrics">
+        <div class="metric fixed"><strong>1,134</strong><span>covered statements</span></div>
+        <div class="metric fixed"><strong>1,192</strong><span>total statements</span></div>
+        <div class="metric fixed"><strong>4,492 KB</strong><span>prospective public tree before this deck</span></div>
+        <div class="metric fixed"><strong>0</strong><span>failures and errors in quality evidence</span></div>
+      </div>
+      <p class="lede">Ruff, format checking, mypy, lock validation, local links, public-data scanning, numerical claims, all figures, and the isolated fresh-clone workflow passed.</p>
+    </section>
+
+    <section class="slide" aria-labelledby="s6-title">
+      <p class="eyebrow">Owner handoff</p>
+      <h2 id="s6-title">Review the diff, then remove the historical blobs.</h2>
+      <p class="lede">
+        No Git write command was run. Before the next push, rewrite the public repository history
+        to remove the prior real-review fixtures. Then run the default committed-mode verifier and
+        commit the repair slices with the owner’s configured identity.
+      </p>
+      <div class="status">Prospective tree verified</div>
+      <div class="grid">
+        <article class="card verified">
+          <h3>Audit handoff</h3>
+          <p><code>docs/PROGRESS.md</code> records defects, RED evidence, fixes, verification, the blocker, and the precise next action.</p>
+        </article>
+        <article class="card critical">
+          <h3>Do not publish yet</h3>
+          <p>The current working tree is repaired, but public-history cleanup is a prerequisite for the next remote update.</p>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <span id="counter" aria-live="off">1 / 6</span>
+    <div class="controls">
+      <button id="prev" type="button" aria-label="Previous slide">←</button>
+      <button id="next" type="button" aria-label="Next slide">→</button>
+    </div>
+  </footer>
+
+  <script>
+    const slides = Array.from(document.querySelectorAll(".slide"));
+    const counter = document.querySelector("#counter");
+    const previousButton = document.querySelector("#prev");
+    const nextButton = document.querySelector("#next");
+    let current = 0;
+
+    function show(index) {
+      current = Math.max(0, Math.min(index, slides.length - 1));
+      slides.forEach((slide, position) => slide.classList.toggle("active", position === current));
+      counter.textContent = `${current + 1} / ${slides.length}`;
+      previousButton.disabled = current === 0;
+      nextButton.disabled = current === slides.length - 1;
+      slides[current].focus({ preventScroll: true });
+    }
+
+    previousButton.addEventListener("click", () => show(current - 1));
+    nextButton.addEventListener("click", () => show(current + 1));
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "ArrowLeft") show(current - 1);
+      if (event.key === "ArrowRight" || event.key === " ") show(current + 1);
+      if (event.key === "Home") show(0);
+      if (event.key === "End") show(slides.length - 1);
+    });
+    show(0);
+  </script>
+</body>
+</html>

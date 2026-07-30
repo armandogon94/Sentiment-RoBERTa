@@ -1,9 +1,4 @@
-"""Redact contact details before redistributing review excerpts.
-
-The upstream corpus contains real user-written reviews, and some reviews contain contact
-details. Any excerpt committed to this repository must therefore be scrubbed before it is
-redistributed.
-"""
+"""Redact contact details from text selected for local inspection or export."""
 
 from __future__ import annotations
 

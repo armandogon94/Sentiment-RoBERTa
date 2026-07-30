@@ -40,6 +40,13 @@ repos:
         files: ^notebooks/.*\.ipynb$
         pass_filenames: false
 
+      - id: published-quality-claims
+        name: published test and coverage claim guard
+        entry: uv run python scripts/check_quality_claims.py
+        language: system
+        pass_filenames: false
+        always_run: true
+
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
     hooks:

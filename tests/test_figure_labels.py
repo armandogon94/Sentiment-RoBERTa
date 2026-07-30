@@ -14,6 +14,15 @@ def _caption_text(figure: Any) -> str:
     return " ".join(text.get_text() for text in figure.texts)
 
 
+def test_caption_rejects_a_figure_without_an_inference_limit() -> None:
+    from utils.plots import caption
+
+    figure, axis = plt.subplots()
+    with pytest.raises(ValueError, match="must say what the figure does not support"):
+        caption(axis, "provenance only")
+    plt.close(figure)
+
+
 def test_ablation_value_labels_clear_upper_whiskers_and_axes(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
@@ -213,7 +222,7 @@ def test_layer_probe_figure_labels_every_hidden_state_and_disclaims_causality(
     caption = _caption_text(figure)
     assert "8100 TRAIN rows and scored on 1000 TEST rows, never the same rows" in caption
     assert "DECODABLE" in caption
-    assert "not that the model uses that information downstream" in caption
+    assert "does not support a claim that the model uses that information downstream" in caption
     plt.close(figure)
 
 
@@ -241,13 +250,13 @@ def test_entropy_atlas_labels_both_extremes_and_keeps_the_attention_caveat(
     axis = figure.axes[0]
     assert axis.get_xlabel() == "attention head"
     assert axis.get_ylabel() == "encoder layer"
-    assert "1 of 144 heads are sharply focused" in axis.get_title()
+    assert "Upper 95% interval is below one nat for 1 of 144 heads" in axis.get_title()
     annotations = " | ".join(text.get_text() for text in axis.texts)
     assert "most focused\nL2H3 · 0.004 nats" in annotations
     assert "most diffuse\nL1H11 · 4.316 nats" in annotations
 
     caption = _caption_text(figure)
-    assert "attention is not causal explanation" in caption
+    assert "does not support a causal explanation" in caption
     assert "<s>, </s> and padding excluded" in caption
     plt.close(figure)
 

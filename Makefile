@@ -2,8 +2,8 @@
 # Every target below is exercised by scripts/verify_fresh_clone.sh or by CI.
 
 .DEFAULT_GOAL := help
-.PHONY: help setup data sample smoke dev small train ablation evidence figures diagrams \
-        diagrams-check report test lint format notebook verify clean all
+.PHONY: help setup data sample smoke dev small train ablation evidence model-evidence figures diagrams \
+        diagrams-check report test quality-evidence lint format notebook verify clean all
 
 UV ?= uv
 PY := $(UV) run python
@@ -15,6 +15,7 @@ MLFLOW_PORT ?= 9330
 PUBLISHED_RUN ?= runs/run_2
 ABLATION_RUN ?= runs/run_3
 SCHEDULE_RUN ?= runs/run_5
+MODEL_EVIDENCE ?= reports/evidence/model_figures.json
 
 help:  ## Show this help
 	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -22,16 +23,16 @@ help:  ## Show this help
 
 setup:  ## Create .venv and install pinned deps + pre-commit hooks
 	$(UV) sync
-	-$(UV) run pre-commit install
+	@if [ -d .git ]; then $(UV) run pre-commit install; fi
 
-data:  ## Download the amazon_polarity subset used by cfg/default.yaml (~377 MB, ungated)
+data:  ## Download the ungated amazon_polarity subset used by cfg/default.yaml
 	$(PY) scripts/download_data.py --split train --rows 200000
 	$(PY) scripts/download_data.py --split test  --rows 20000
 
-sample:  ## Regenerate the committed 1,000-row stratified sample
-	$(PY) scripts/make_sample.py --n 1000 --seed 1337
+sample:  ## Regenerate the committed synthetic smoke fixtures
+	$(PY) scripts/make_sample.py --n 1000 --n-test 400 --seed 1337
 
-smoke:  ## Fastest end-to-end run: committed sample, random-weight model, <60s
+smoke:  ## End-to-end run: committed synthetic fixtures, random-weight model
 	$(PY) train.py -c cfg/smoke.yaml
 
 dev:  ## Quickstart run: 2,000 train / 500 test, 1 epoch, seq 128
@@ -49,9 +50,13 @@ evidence:  ## Export tracked, review-text-free evidence for the published runs
 	$(PY) scripts/export_evidence.py $(PUBLISHED_RUN) $(ABLATION_RUN) \
 	  run_5=$(SCHEDULE_RUN) -o reports/evidence
 
-figures:  ## Regenerate and publish all eleven PNGs from the explicit published runs
+model-evidence:  ## Measure live weights into compact, review-text-free figure evidence
 	$(PY) scripts/export_figures.py -i $(PUBLISHED_RUN) -a $(ABLATION_RUN) \
-	  -o docs/images --publish
+	  --write-model-evidence $(MODEL_EVIDENCE) -o docs/images --publish
+
+figures:  ## Regenerate and publish all eleven PNGs from committed evidence
+	$(PY) scripts/export_figures.py -i reports/evidence/run_2 -a reports/evidence/run_3 \
+	  --model-evidence $(MODEL_EVIDENCE) -o docs/images --publish
 
 diagrams:  ## Regenerate the committed SVG diagrams from their Markdown sources
 	./scripts/export_diagrams.sh
@@ -68,6 +73,12 @@ notebook:  ## Execute the narrative notebook and SAVE its outputs
 
 test:  ## pytest with coverage on the pure-logic core
 	$(UV) run pytest --cov --cov-report=term-missing
+
+quality-evidence:  ## Measure and write README test-count and coverage evidence
+	$(UV) run pytest -q --cov --cov-report=json:.pytest_cache/coverage.json \
+	  --junitxml=.pytest_cache/junit.xml
+	$(PY) scripts/check_quality_claims.py --write \
+	  --coverage-json .pytest_cache/coverage.json --junit-xml .pytest_cache/junit.xml
 
 lint:  ## ruff check + ruff format --check + mypy
 	$(UV) run ruff check .

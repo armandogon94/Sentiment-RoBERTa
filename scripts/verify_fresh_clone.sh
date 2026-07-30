@@ -10,27 +10,85 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+MODE="${1:-committed}"
 WORK="$(mktemp -d)"
 cleanup() { cd /; rm -rf "$WORK"; }
 trap cleanup EXIT INT TERM
 
-echo "==> Cloning committed HEAD into $WORK"
-git clone --quiet "$REPO_ROOT" "$WORK/clone"
+if [ "$MODE" = "committed" ]; then
+  echo "==> Cloning committed HEAD into $WORK"
+  git clone --quiet "$REPO_ROOT" "$WORK/clone"
+elif [ "$MODE" = "--working-tree" ]; then
+  echo "==> Copying the prospective public working tree into $WORK"
+  uv run --project "$REPO_ROOT" --no-sync python - "$REPO_ROOT" "$WORK/clone" <<'PY'
+import os
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+source = Path(sys.argv[1])
+destination = Path(sys.argv[2])
+destination.mkdir()
+result = subprocess.run(
+    ["git", "ls-files", "--cached", "--others", "--exclude-standard", "-z"],
+    cwd=source,
+    check=True,
+    capture_output=True,
+)
+paths = sorted(
+    Path(os.fsdecode(value))
+    for value in result.stdout.split(b"\0")
+    if value and (source / os.fsdecode(value)).exists()
+)
+for relative in paths:
+    source_path = source / relative
+    target_path = destination / relative
+    target_path.parent.mkdir(parents=True, exist_ok=True)
+    if source_path.is_symlink():
+        target_path.symlink_to(os.readlink(source_path))
+    else:
+        shutil.copy2(source_path, target_path)
+(destination / ".public-files").write_text(
+    "".join(f"{path.as_posix()}\n" for path in paths),
+    encoding="utf-8",
+)
+PY
+  export PUBLIC_FILE_MANIFEST="$WORK/clone/.public-files"
+else
+  echo "usage: $0 [--working-tree]"
+  exit 2
+fi
 cd "$WORK/clone"
-echo "    HEAD $(git rev-parse --short HEAD)  $(git log -1 --pretty=%s)"
+if [ "$MODE" = "committed" ]; then
+  echo "    HEAD $(git rev-parse --short HEAD)  $(git log -1 --pretty=%s)"
+else
+  echo "    prospective tree copied without .git"
+fi
 
 echo "==> Asserting the clone carries no unwanted weight"
-tracked_kb="$(git ls-files -z | xargs -0 du -ck 2>/dev/null | tail -1 | cut -f1)"
+if [ "$MODE" = "committed" ]; then
+  tracked_kb="$(git ls-files -z | xargs -0 du -ck 2>/dev/null | tail -1 | cut -f1)"
+  scaffolding="$(git ls-files)"
+else
+  tracked_kb="$(tr '\n' '\0' < .public-files | xargs -0 du -ck 2>/dev/null | tail -1 | cut -f1)"
+  scaffolding="$(cat .public-files)"
+fi
 echo "    tracked size: ${tracked_kb} KB"
 if [ "$tracked_kb" -gt 5120 ]; then
   echo "FAIL: tracked files exceed 5 MB, something large got committed"; exit 1
 fi
-if git ls-files | grep -iqE 'AGENT-BRIEF|CLAUDE\.md|AGENTS\.md|^PLAN\.md|PROGRESS\.md|\.claude/'; then
-  echo "FAIL: agent scaffolding is tracked"; git ls-files | grep -iE 'AGENT-BRIEF|CLAUDE\.md|AGENTS\.md|^PLAN\.md|PROGRESS\.md|\.claude/'; exit 1
+if printf '%s\n' "$scaffolding" | grep -iqE 'AGENT-BRIEF|CLAUDE\.md|AGENTS\.md|^PLAN\.md|PROGRESS\.md|\.claude/'; then
+  echo "FAIL: agent scaffolding is public"
+  printf '%s\n' "$scaffolding" | grep -iE 'AGENT-BRIEF|CLAUDE\.md|AGENTS\.md|^PLAN\.md|PROGRESS\.md|\.claude/'
+  exit 1
 fi
 
+echo "==> Installing the exact locked environment"
+make setup
+
 echo "==> Asserting tracked data contains no contact details"
-python3 scripts/check_committed_data.py
+uv run python scripts/check_committed_data.py
 
 # This check reads only committed state, before any generator can change the clone.
 echo "==> Asserting every README structure-tree path exists"
@@ -49,19 +107,29 @@ while read -r p; do
 done < "$structure_paths"
 [ "$missing" -eq 0 ] || { echo "FAIL: README structure tree does not match reality"; exit 1; }
 
-echo "==> Running the documented quickstart, verbatim from the README"
-make setup
-make smoke
-make test
+echo "==> Asserting local Markdown links and image sources resolve"
+uv run python scripts/check_markdown_links.py
 
-echo "==> Recomputing every published headline number from committed prediction vectors"
+echo "==> Running the documented quickstart, verbatim from the README"
+make smoke
+cp reports/evidence/quality.json "$WORK/quality.json"
+make quality-evidence
+cmp reports/evidence/quality.json "$WORK/quality.json" || {
+  echo "FAIL: regenerated quality evidence differs from the committed artifact"
+  diff -u "$WORK/quality.json" reports/evidence/quality.json || true
+  uv run coverage report -m || true
+  exit 1
+}
+
+echo "==> Recomputing every published headline number from committed source arrays"
 uv run python scripts/check_published_numbers.py
 
 echo "==> Asserting the smoke run produced real artifacts"
 test -f runs/latest/metrics.json || { echo "FAIL: no metrics.json"; exit 1; }
 uv run python -c "
-import json,sys
-m=json.load(open('runs/latest/metrics.json'))
+import json
+from pathlib import Path
+m=json.loads(Path('runs/latest/metrics.json').read_text(encoding='utf-8'))
 a=m.get('accuracy')
 assert isinstance(a,(int,float)) and 0.0 < a < 1.0, f'bad accuracy: {a!r}'
 assert m['models']['roberta']['random_weights'] is True, 'smoke must not fetch pretrained weights'
@@ -110,7 +178,7 @@ echo "    reports/RESULTS.md is byte-identical"
 echo '==> Asserting no blocking plt.show() outside an explicit --show gate'
 # One implementation of the rule, shared with CI and with the test suite. A grep here cannot
 # tell a call from a docstring, and both this repo and scipy discuss plt.show() in prose.
-python3 scripts/check_no_blocking_show.py
+uv run python scripts/check_no_blocking_show.py
 
 echo "==> Lint + types as documented"
 uv run ruff check .

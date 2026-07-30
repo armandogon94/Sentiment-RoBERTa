@@ -1,13 +1,14 @@
 # Data
 
-**Every number on this page was measured on the downloaded files**, not copied from the upstream
-dataset card. `data/` is gitignored except the two committed sample files described below.
+Downloaded-data measurements on this page come from repository audit code, not from the upstream
+dataset card. The committed smoke-fixture values come from `scripts/make_sample.py`. `data/` is
+gitignored except the two generated synthetic files described below.
 
 Reproduce the fetch and the measurements:
 
 ```bash
-make data                     # ~377 MB, SHA-256 asserted per shard
-make sample                   # regenerates the committed samples
+make data                     # SHA-256 asserted per shard
+make sample                   # regenerates the committed synthetic fixtures
 uv run python -c "
 import sys; sys.path.insert(0, '.')
 from pathlib import Path
@@ -24,7 +25,7 @@ for split in ('train', 'test'):
 | Primary distribution | [`fancyzhx/amazon_polarity`](https://huggingface.co/datasets/fancyzhx/amazon_polarity) (Hugging Face, parquet) |
 | Gated | **no** (no login, no terms acceptance) |
 | Licence | Apache-2.0 |
-| Upstream size | 3,600,000 train / 400,000 test, ~1.15 GB |
+| Upstream rows | 3,600,000 train / 400,000 test |
 | Upstream columns | `label` (0 = negative, 1 = positive), `title`, `content` |
 | Constructing paper | [Zhang, Zhao & LeCun, *Character-level Convolutional Networks for Text Classification*, NeurIPS 2015](https://papers.nips.cc/paper_files/paper/2015/hash/250cf8b51c773f3f8dc8b4be867a9a02-Abstract.html) |
 | Underlying corpus | McAuley & Leskovec, RecSys 2013 |
@@ -69,7 +70,7 @@ in the results table's `Config` column and in `runs/run_N/run_meta.json`.**
 
 | Config | Rows read | Train | Val | Test | Epochs | `max_len` | Run? |
 |---|---|---|---|---|---|---|---|
-| `cfg/smoke.yaml` | 1,000 / 400 (committed samples) | 160 | 40 | 100 | 1 | 64 | ✅ CI only: random weights, publishes nothing |
+| `cfg/smoke.yaml` | 1,000 / 400 (synthetic fixtures) | 160 | 40 | 100 | 1 | 64 | ✅ CI only: random weights, publishes nothing |
 | `cfg/dev.yaml` | 200,000 / 20,000 | 1,800 | 200 | 500 | 1 | 128 | ✅ calibration |
 | `cfg/small.yaml` | 200,000 / 20,000 | 8,100 | 900 | 1,000 | 3 | 256 | ✅ **the published run** |
 | `cfg/default.yaml` | 200,000 / 20,000 | 8,100 | 900 | 1,000 | 5 | 256 | ✅ the notebook's full schedule |
@@ -96,8 +97,8 @@ Measured on 2026-07-25 against the files fetched by `make data`.
 | Rows surviving null/type filtering, test | 20,000 (0 dropped) |
 | **Class balance, first 200,000 train rows** | **98,834 negative / 101,166 positive, 50.58% positive** |
 | **Class balance, first 20,000 test rows** | **9,786 negative / 10,214 positive, 51.07% positive** |
-| Committed train sample (1,000 rows, stratified) | 494 negative / 506 positive |
-| Committed test sample (400 rows, stratified) | 196 negative / 204 positive |
+| Synthetic train fixture (1,000 rows) | 500 negative / 500 positive |
+| Synthetic test fixture (400 rows) | 200 negative / 200 positive |
 
 The class balance of the rows *read* was a real open question rather than a formality: the loader
 takes the **first** N rows of the train split, and whether that prefix is class-balanced is a property
@@ -132,32 +133,30 @@ plausible-looking wrong number.
 The remaining three train shards are listed in `scripts/download_data.py::SHARD_SHA256`; only one is
 needed for `--rows 200000`.
 
-## Committed samples
+## Committed smoke fixtures
 
 Two files, not one:
 
-| File | Rows | Size | Drawn from |
+| File | Rows | Size | Source |
 |---|---|---|---|
-| `data/sample/reviews_sample.csv` | 1,000 | 443,925 B (434 KiB) | the upstream **train** split |
-| `data/sample/reviews_sample_test.csv` | 400 | 185,237 B (181 KiB) | the upstream **test** split |
+| `data/sample/reviews_sample.csv` | 1,000 | 224,558 bytes | deterministic generator, train namespace |
+| `data/sample/reviews_sample_test.csv` | 400 | 90,004 bytes | deterministic generator, test namespace |
 
-Both stratified and seeded, produced by `scripts/make_sample.py --n 1000 --seed 1337`. CI and the
-README quickstart run against them, so `git clone && make test` works with no download at all.
+Both are balanced and seeded, produced by
+`scripts/make_sample.py --n 1000 --n-test 400 --seed 1337`. CI and the README quickstart run
+against them, so `git clone && make test` works with no review-data download.
 
-They come from different upstream splits deliberately. Drawing both from one file would give the
-smoke config a train/test overlap, harmless for a plumbing check, but this repository exists to
-correct a fabricated number and it does not ship a leak anywhere, not even in a fixture.
+The train and test namespaces have distinct generated row identifiers. A test regenerates both
+files and requires their texts to be disjoint. These fixtures test pipeline plumbing only and are
+excluded from published model results.
 
-The full dataset is not redistributed by this repository. Two small seeded, stratified subsets,
-1,000 train rows and 400 test rows, are committed as redacted offline fixtures under the upstream
-licence, with attribution in [`../NOTICE`](../NOTICE). `git ls-files | xargs du -ch | tail -1` is
-under 5 MB and `scripts/verify_fresh_clone.sh` fails the build if that stops being true.
+The full dataset and derived review text are not redistributed by the current tree.
+`git ls-files | xargs du -ch | tail -1` is under 5 MB and
+`scripts/verify_fresh_clone.sh` fails the build if that stops being true.
 
 ## Licence and redistribution
 
-The upstream corpus contains real user-written reviews; at least one review selected for the
-committed fixtures contained a contact email address. After sampling and before writing either CSV,
-`scripts/make_sample.py` replaces email addresses with `[email redacted]` and common North-American
-phone-number forms with `[phone redacted]` in both `title` and `text`. It does not remove names,
-perform general named-entity anonymisation, or otherwise rewrite the review content.
-`scripts/check_committed_data.py` enforces the email/phone rule across tracked data-like files in CI.
+The upstream corpus contains real user-written reviews whose underlying rights chain is not
+independently established here. The current committed fixtures contain only text assembled by the
+repository's deterministic generator. `scripts/check_committed_data.py` scans the public tree for
+contact details and secret-like values in CI.

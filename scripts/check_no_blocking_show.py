@@ -19,7 +19,7 @@ grep variants that drift apart.
 
 Usage
 -----
-    python3 scripts/check_no_blocking_show.py
+    uv run python scripts/check_no_blocking_show.py
 """
 
 from __future__ import annotations

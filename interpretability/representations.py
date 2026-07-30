@@ -179,6 +179,8 @@ class LayerProbe:
     accuracy: float
     n_train: int
     n_test: int
+    predictions: tuple[int, ...] = ()
+    accuracy_ci: tuple[float, float] | None = None
 
 
 def layer_probe_curve(
@@ -200,6 +202,7 @@ def layer_probe_curve(
     from sklearn.linear_model import LogisticRegression
     from sklearn.pipeline import make_pipeline
     from sklearn.preprocessing import StandardScaler
+    from statsmodels.stats.proportion import proportion_confint
 
     if train_hidden.shape[0] != test_hidden.shape[0]:
         raise ValueError(
@@ -224,12 +227,16 @@ def layer_probe_curve(
         )
         probe.fit(train_hidden[layer], y_train)
         predicted = probe.predict(test_hidden[layer])
+        correct = int((predicted == y_test).sum())
+        ci_low, ci_high = proportion_confint(correct, len(y_test), method="wilson")
         probes.append(
             LayerProbe(
                 layer=layer,
                 accuracy=float((predicted == y_test).mean()),
                 n_train=int(train_hidden.shape[1]),
                 n_test=int(test_hidden.shape[1]),
+                predictions=tuple(int(value) for value in predicted),
+                accuracy_ci=(float(ci_low), float(ci_high)),
             )
         )
     return probes
@@ -274,6 +281,10 @@ class BoundarySummary:
     opposite_neighbours_correct: float
     opposite_neighbours_incorrect: float
     n_neighbours: int
+    probability_margin_correct_ci: tuple[float, float] | None = None
+    probability_margin_incorrect_ci: tuple[float, float] | None = None
+    opposite_neighbours_correct_ci: tuple[float, float] | None = None
+    opposite_neighbours_incorrect_ci: tuple[float, float] | None = None
 
     @property
     def errors_sit_nearer_the_boundary(self) -> bool:
@@ -284,7 +295,7 @@ class BoundarySummary:
         )
 
 
-def _opposite_label_neighbour_fraction(
+def opposite_label_neighbour_fraction(
     features: np.ndarray, labels: np.ndarray, *, n_neighbours: int
 ) -> np.ndarray:
     """Fraction of each point's ``k`` nearest neighbours carrying the other true label.
@@ -304,6 +315,51 @@ def _opposite_label_neighbour_fraction(
     return fraction
 
 
+def _mean_ci(values: np.ndarray) -> tuple[float, float]:
+    if len(values) < 2:
+        value = float(values[0])
+        return value, value
+    from statsmodels.stats.weightstats import DescrStatsW
+
+    low, high = DescrStatsW(values).tconfint_mean()
+    return float(low), float(high)
+
+
+def boundary_summary_from_observations(
+    labels: Labels,
+    predictions: Labels,
+    probability_margin: np.ndarray,
+    logit_margin: np.ndarray,
+    opposite_neighbour_fraction: np.ndarray,
+    *,
+    n_neighbours: int,
+) -> BoundarySummary:
+    """Summarize committed per-review boundary observations with 95% t intervals."""
+    y_true = np.asarray(labels, dtype=np.int64)
+    predicted = np.asarray(predictions, dtype=np.int64)
+    arrays = (predicted, probability_margin, logit_margin, opposite_neighbour_fraction)
+    if any(len(values) != len(y_true) for values in arrays):
+        raise ValueError("boundary observation vectors disagree on the row count")
+    correct = predicted == y_true
+    if not correct.any() or correct.all():
+        raise ValueError("boundary summary needs both correct and incorrect predictions to compare")
+    return BoundarySummary(
+        n_correct=int(correct.sum()),
+        n_incorrect=int((~correct).sum()),
+        probability_margin_correct=float(probability_margin[correct].mean()),
+        probability_margin_incorrect=float(probability_margin[~correct].mean()),
+        logit_margin_correct=float(logit_margin[correct].mean()),
+        logit_margin_incorrect=float(logit_margin[~correct].mean()),
+        opposite_neighbours_correct=float(opposite_neighbour_fraction[correct].mean()),
+        opposite_neighbours_incorrect=float(opposite_neighbour_fraction[~correct].mean()),
+        n_neighbours=n_neighbours,
+        probability_margin_correct_ci=_mean_ci(probability_margin[correct]),
+        probability_margin_incorrect_ci=_mean_ci(probability_margin[~correct]),
+        opposite_neighbours_correct_ci=_mean_ci(opposite_neighbour_fraction[correct]),
+        opposite_neighbours_incorrect_ci=_mean_ci(opposite_neighbour_fraction[~correct]),
+    )
+
+
 def boundary_summary(
     representations: ClsRepresentations,
     labels: Labels,
@@ -315,24 +371,17 @@ def boundary_summary(
     if y_true.shape[0] != representations.n_examples:
         raise ValueError("label vector and representation matrix disagree on the row count")
     predicted = representations.predictions()
-    correct = predicted == y_true
-    if not correct.any() or correct.all():
-        raise ValueError("boundary_summary needs both correct and incorrect predictions to compare")
-
     probability = representations.probability_margin()
     logit = representations.logit_margin()
-    opposite = _opposite_label_neighbour_fraction(
+    opposite = opposite_label_neighbour_fraction(
         representations.final, y_true, n_neighbours=n_neighbours
     )
-    return BoundarySummary(
-        n_correct=int(correct.sum()),
-        n_incorrect=int((~correct).sum()),
-        probability_margin_correct=float(probability[correct].mean()),
-        probability_margin_incorrect=float(probability[~correct].mean()),
-        logit_margin_correct=float(logit[correct].mean()),
-        logit_margin_incorrect=float(logit[~correct].mean()),
-        opposite_neighbours_correct=float(opposite[correct].mean()),
-        opposite_neighbours_incorrect=float(opposite[~correct].mean()),
+    return boundary_summary_from_observations(
+        y_true,
+        predicted,
+        probability,
+        logit,
+        opposite,
         n_neighbours=int(min(n_neighbours, representations.n_examples - 1)),
     )
 
@@ -375,6 +424,10 @@ class AttentionAtlas:
     n_examples: int
     mean_inner_tokens: float
     mean_max_entropy: float
+    entropy_observations: np.ndarray | None = None
+    sink_observations: np.ndarray | None = None
+    inner_token_counts: np.ndarray | None = None
+    entropy_sum_squares: np.ndarray | None = None
 
     @property
     def n_layers(self) -> int:
@@ -398,6 +451,41 @@ class AttentionAtlas:
 
     def most_diffuse(self) -> HeadCoordinate:
         return self._coordinate(int(np.argmax(self.entropy)))
+
+    def entropy_confidence_intervals(self) -> tuple[np.ndarray, np.ndarray] | None:
+        """Per-head 95% t intervals over review-level mean entropies."""
+        if self.entropy_observations is not None:
+            from statsmodels.stats.weightstats import DescrStatsW
+
+            low = np.empty_like(self.entropy, dtype=np.float64)
+            high = np.empty_like(self.entropy, dtype=np.float64)
+            for layer in range(self.n_layers):
+                for head in range(self.n_heads):
+                    bounds = DescrStatsW(
+                        self.entropy_observations[:, layer, head].astype(np.float64)
+                    ).tconfint_mean()
+                    low[layer, head], high[layer, head] = bounds
+            return low, high
+        if self.entropy_sum_squares is None or self.n_examples < 2:
+            return None
+        from statsmodels.stats.weightstats import DescrStatsW
+
+        low = np.empty_like(self.entropy, dtype=np.float64)
+        high = np.empty_like(self.entropy, dtype=np.float64)
+        for layer in range(self.n_layers):
+            for head in range(self.n_heads):
+                mean = float(self.entropy[layer, head])
+                sum_squares = float(self.entropy_sum_squares[layer, head])
+                sample_variance = max(
+                    (sum_squares - self.n_examples * mean**2) / (self.n_examples - 1),
+                    0.0,
+                )
+                deviation = np.sqrt((self.n_examples - 1) * sample_variance / 2.0)
+                equivalent = np.full(self.n_examples, mean, dtype=np.float64)
+                equivalent[0] += deviation
+                equivalent[1] -= deviation
+                low[layer, head], high[layer, head] = DescrStatsW(equivalent).tconfint_mean()
+        return low, high
 
 
 @torch.no_grad()
@@ -426,6 +514,8 @@ def attention_entropy_atlas(
 
     total: torch.Tensor | None = None
     sink_total: torch.Tensor | None = None
+    entropy_observations: list[np.ndarray] = []
+    sink_observations: list[np.ndarray] = []
     inner_token_counts: list[int] = []
     n_scored = 0
     for batch in _batches(list(texts), batch_size):
@@ -473,6 +563,8 @@ def attention_entropy_atlas(
             entropy = -(inner * inner.clamp_min(_EPS).log()).sum(dim=-1).mean(dim=-1)
             total = entropy if total is None else total + entropy
             sink_total = sink if sink_total is None else sink_total + sink
+            entropy_observations.append(entropy.detach().to("cpu").float().numpy())
+            sink_observations.append(sink.detach().to("cpu").float().numpy())
             inner_token_counts.append(len(keep))
             n_scored += 1
 
@@ -486,4 +578,7 @@ def attention_entropy_atlas(
         n_examples=n_scored,
         mean_inner_tokens=float(counts.mean()),
         mean_max_entropy=float(np.log(counts).mean()),
+        entropy_observations=np.stack(entropy_observations),
+        sink_observations=np.stack(sink_observations),
+        inner_token_counts=np.asarray(inner_token_counts, dtype=np.int16),
     )

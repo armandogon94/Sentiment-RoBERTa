@@ -16,29 +16,63 @@ from typing import Any
 import structlog
 
 _CONFIGURED = False
+_MANAGED_HANDLERS: list[logging.Handler] = []
 
 
 def configure(level: str = "INFO", jsonl_path: Path | None = None) -> None:
-    """Configure structlog once per process. Idempotent."""
-    global _CONFIGURED
-    handlers: list[logging.Handler] = [logging.StreamHandler(sys.stdout)]
+    """Configure console and JSONL renderers, replacing this module's prior handlers."""
+    global _CONFIGURED, _MANAGED_HANDLERS
+    numeric_level = getattr(logging, level.upper())
+    root = logging.getLogger()
+    for handler in _MANAGED_HANDLERS:
+        root.removeHandler(handler)
+        handler.close()
+
+    shared_processors: list[Any] = [
+        structlog.contextvars.merge_contextvars,
+        structlog.stdlib.add_logger_name,
+        structlog.processors.add_log_level,
+        structlog.processors.TimeStamper(fmt="iso", utc=True),
+    ]
+    console = logging.StreamHandler(sys.stdout)
+    console.setFormatter(
+        structlog.stdlib.ProcessorFormatter(
+            processors=[
+                structlog.stdlib.ProcessorFormatter.remove_processors_meta,
+                structlog.dev.ConsoleRenderer(colors=sys.stdout.isatty()),
+            ],
+            foreign_pre_chain=shared_processors,
+        )
+    )
+    handlers: list[logging.Handler] = [console]
     if jsonl_path is not None:
         jsonl_path.parent.mkdir(parents=True, exist_ok=True)
-        handlers.append(logging.FileHandler(jsonl_path, encoding="utf-8"))
+        json_handler = logging.FileHandler(jsonl_path, encoding="utf-8")
+        json_handler.setFormatter(
+            structlog.stdlib.ProcessorFormatter(
+                processors=[
+                    structlog.stdlib.ProcessorFormatter.remove_processors_meta,
+                    structlog.processors.JSONRenderer(sort_keys=True),
+                ],
+                foreign_pre_chain=shared_processors,
+            )
+        )
+        handlers.append(json_handler)
+    for handler in handlers:
+        handler.setLevel(numeric_level)
+        root.addHandler(handler)
+    root.setLevel(numeric_level)
 
-    logging.basicConfig(
-        format="%(message)s", level=getattr(logging, level.upper()), handlers=handlers
-    )
     structlog.configure(
         processors=[
-            structlog.contextvars.merge_contextvars,
-            structlog.processors.add_log_level,
-            structlog.processors.TimeStamper(fmt="%H:%M:%S"),
-            structlog.dev.ConsoleRenderer(colors=sys.stdout.isatty()),
+            *shared_processors,
+            structlog.stdlib.ProcessorFormatter.wrap_for_formatter,
         ],
-        wrapper_class=structlog.make_filtering_bound_logger(getattr(logging, level.upper())),
+        wrapper_class=structlog.make_filtering_bound_logger(numeric_level),
+        logger_factory=structlog.stdlib.LoggerFactory(),
         cache_logger_on_first_use=True,
     )
+    _MANAGED_HANDLERS = handlers
     _CONFIGURED = True
 
 

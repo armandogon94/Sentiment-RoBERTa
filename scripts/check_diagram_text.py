@@ -11,8 +11,8 @@ README.md and docs/**/*.md) to SVG with mermaid-cli, then measures the result ge
     Verdana as the widest common fallback) and must fit inside its container shape.
 
 Usage:
-    python3 scripts/check_diagram_text.py            # render + check the whole repo
-    python3 scripts/check_diagram_text.py FILE.svg   # check already-exported SVGs
+    uv run python scripts/check_diagram_text.py            # render + check the whole repo
+    uv run python scripts/check_diagram_text.py FILE.svg   # check already-exported SVGs
 
 Exit code 0 means every character of every label is inside its box in both fonts.
 """

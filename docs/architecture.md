@@ -11,8 +11,8 @@ Two diagrams. Both are inline Mermaid (GitHub renders them natively) and both ar
 %%{init: {'htmlLabels': false, 'fontFamily': 'arial, helvetica, sans-serif', 'flowchart': {'htmlLabels': false, 'padding': 16, 'nodeSpacing': 60, 'rankSpacing': 70, 'useMaxWidth': true}}}%%
 flowchart LR
     HF[("fancyzhx/amazon_polarity<br/>parquet · 3.6M / 400k · Apache-2.0")]
-    HF -->|"scripts/download_data.py<br/>SHA-256 asserted per shard"| RAW["data/raw/*.parquet<br/>gitignored, 377 MB"]
-    RAW -->|"scripts/make_sample.py<br/>stratified, seed 1337"| SAMPLE["data/sample/*.csv<br/>1,400 rows · COMMITTED"]
+    HF -->|"scripts/download_data.py<br/>SHA-256 asserted per shard"| RAW["data/raw/*.parquet<br/>gitignored"]
+    SYNTH["scripts/make_sample.py<br/>seeded text templates"] --> SAMPLE["data/sample/*.csv<br/>synthetic · COMMITTED"]
 
     RAW --> LOAD["datasets/loading.py<br/>label∈{0,1} / title / text"]
     SAMPLE --> LOAD

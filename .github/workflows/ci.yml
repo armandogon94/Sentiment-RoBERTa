@@ -6,7 +6,7 @@ on:
   pull_request:
   workflow_dispatch:
 
-# CI never downloads the 1.15 GB dataset and never fetches roberta-base from the hub.
+# CI never downloads the source dataset and never fetches roberta-base from the hub.
 # cfg/smoke.yaml builds a 2-layer random-weight model locally with an offline tokenizer, so
 # what is under test is the architecture and the plumbing, not the weights.
 # The TF-IDF control still needs NLTK resources; ADR 0007 documents that cold-run dependency.
@@ -45,7 +45,17 @@ jobs:
         run: uv run mypy .
 
       - name: Tests
-        run: uv run pytest --cov --cov-report=term-missing --cov-fail-under=70
+        run: |
+          uv run pytest --cov --cov-report=term-missing \
+            --cov-report=json:.pytest_cache/coverage.json \
+            --junitxml=.pytest_cache/junit.xml --cov-fail-under=70
+
+      - name: Published test and coverage claims are reproducible
+        if: matrix.python-version == '3.12'
+        run: |
+          uv run python scripts/check_quality_claims.py --write \
+            --coverage-json .pytest_cache/coverage.json --junit-xml .pytest_cache/junit.xml
+          git diff --exit-code -- README.md reports/evidence/quality.json
 
       - name: Smoke train on the committed sample
         run: |
@@ -71,6 +81,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
       - name: Every path in the README structure tree must exist
         run: |
           paths_file="$(mktemp)"
@@ -93,11 +106,14 @@ jobs:
           fi
 
       - name: Committed data PII guard
-        run: python3 scripts/check_committed_data.py
+        run: uv run --no-project python scripts/check_committed_data.py
+
+      - name: Local Markdown links and image sources resolve
+        run: uv run --no-project python scripts/check_markdown_links.py
 
       - name: Notebook provenance guard
         run: |
-          python - <<'PY'
+          uv run --no-project python - <<'PY'
           import json, pathlib
           orig = json.loads(pathlib.Path("notebooks/sentiment_analysis_roberta_ORIGINAL.ipynb").read_text())
           code = [c for c in orig["cells"] if c["cell_type"] == "code"]
@@ -111,7 +127,7 @@ jobs:
       - name: No unguarded plt.show()
         # stdlib only, so this job needs no dependency install. Same checker the fresh-clone
         # verifier and tests/test_utils.py use: one implementation of the rule, not three greps.
-        run: python3 scripts/check_no_blocking_show.py
+        run: uv run --no-project python scripts/check_no_blocking_show.py
 
       - name: The committed figure set must be complete
         run: |
@@ -143,6 +159,9 @@ jobs:
 
       - name: Recompute every published headline number
         run: uv run python scripts/check_published_numbers.py
+
+      - name: Verify measured test and coverage claims
+        run: uv run python scripts/check_quality_claims.py
 
       - name: Regenerate and verify published figure data
         run: uv run python scripts/check_published_figures.py

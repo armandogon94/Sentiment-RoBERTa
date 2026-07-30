@@ -21,11 +21,10 @@ architecture and plumbing, never pretrained quality. It is not cold-machine offl
 
 Three pieces:
 
-1. **Data.** `data/sample/reviews_sample.csv` (1,000 rows, 434 KB) and
-   `data/sample/reviews_sample_test.csv` (400 rows, 181 KB) are committed. Two files, not one: they
-   are drawn from the upstream *train* and *test* splits respectively, so the smoke config has no
-   train/test overlap. A leaky fixture would still go green, and this repo exists to correct a
-   fabricated number, so it does not ship a leak anywhere.
+1. **Data.** `data/sample/reviews_sample.csv` and
+   `data/sample/reviews_sample_test.csv` are committed synthetic fixtures. Two files, not one:
+   their generated train and test identifiers are disjoint, and a test regenerates both files
+   byte for byte. No source-dataset review text is redistributed for the smoke path.
 2. **Model.** `MODEL.RANDOM_WEIGHT_LAYERS: 2` builds a `RobertaForSequenceClassification` from a
    local `RobertaConfig` (hidden 64, 2 heads, 2 layers) with `attn_implementation="eager"`. No
    `from_pretrained`, so no model-weight network request is made.
